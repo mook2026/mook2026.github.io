@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 이정표</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--text:#f0f0f0;--text2:#888;--text3:#4a4a4e;--job:#a78bfa;--eng:#34d399;--stock:#fbbf24;--r:12px;--r-sm:8px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px 20px 40px;}
+
+.header{text-align:center;margin-bottom:36px;}
+.header-badge{display:inline-block;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text3);border:1px solid var(--border2);border-radius:20px;padding:4px 14px;margin-bottom:12px;}
+.header-year{font-size:52px;font-weight:600;letter-spacing:-0.04em;line-height:1;background:linear-gradient(135deg,#a78bfa,#34d399,#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px;}
+.header-sub{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);}
+.header-progress{margin-top:16px;display:flex;align-items:center;gap:10px;justify-content:center;}
+.header-progress-bar{width:200px;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;}
+.header-progress-fill{height:100%;background:linear-gradient(90deg,#a78bfa,#34d399);border-radius:2px;transition:width 1s ease;}
+.header-progress-label{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);}
+
+.section{margin-bottom:24px;}
+.sec-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.sec-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.sec-title{font-size:13px;font-weight:600;letter-spacing:-0.01em;}
+.sec-line{flex:1;height:1px;background:var(--border);}
+
+.milestones{display:flex;flex-direction:column;gap:8px;}
+.ms-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px 16px;display:flex;align-items:flex-start;gap:14px;cursor:pointer;transition:border-color .2s,background .2s;position:relative;overflow:hidden;}
+.ms-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
+.ms-item.job::before{background:var(--job);}
+.ms-item.eng::before{background:var(--eng);}
+.ms-item.stock::before{background:var(--stock);}
+.ms-item:hover{border-color:var(--border2);}
+.ms-item.done{background:var(--bg3);}
+.ms-item.done .ms-title{text-decoration:line-through;color:var(--text3);}
+
+.ms-check{width:22px;height:22px;border-radius:6px;border:1.5px solid var(--border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s;margin-top:1px;}
+.ms-check.on{border-color:transparent;}
+.ms-check.on::after{content:'';display:block;width:11px;height:7px;border-left:2.5px solid #fff;border-bottom:2.5px solid #fff;transform:rotate(-45deg) translateY(-1px);}
+.ms-item.job .ms-check.on{background:var(--job);}
+.ms-item.eng .ms-check.on{background:var(--eng);}
+.ms-item.stock .ms-check.on{background:var(--stock);}
+
+.ms-content{flex:1;}
+.ms-month{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-bottom:4px;}
+.ms-title{font-size:14px;font-weight:500;color:var(--text);line-height:1.4;margin-bottom:4px;}
+.ms-desc{font-size:11px;color:var(--text3);line-height:1.6;}
+.ms-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+.ms-tag{font-family:'DM Mono',monospace;font-size:9px;padding:2px 7px;border-radius:3px;letter-spacing:0.04em;}
+.ms-tag.job{background:rgba(167,139,250,0.12);color:var(--job);}
+.ms-tag.eng{background:rgba(52,211,153,0.12);color:var(--eng);}
+.ms-tag.stock{background:rgba(251,191,36,0.12);color:var(--stock);}
+
+.overall-card{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:20px;margin-bottom:24px;text-align:center;}
+.overall-title{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:12px;}
+.overall-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.stat-item{background:var(--bg3);border-radius:var(--r-sm);padding:12px 8px;}
+.stat-num{font-family:'DM Mono',monospace;font-size:22px;font-weight:500;margin-bottom:2px;}
+.stat-lbl{font-size:10px;color:var(--text3);}
+.stat-item.j .stat-num{color:var(--job);}
+.stat-item.e .stat-num{color:var(--eng);}
+.stat-item.s .stat-num{color:var(--stock);}
+
+.save-btn{width:100%;padding:12px;font-size:12px;font-family:'DM Mono',monospace;letter-spacing:0.06em;border:1px solid var(--border2);border-radius:var(--r-sm);background:var(--bg2);color:var(--text2);cursor:pointer;transition:all .15s;margin-top:8px;}
+.save-btn:hover{border-color:var(--eng);color:var(--eng);}
+.confirm{text-align:center;font-size:10px;color:var(--text3);margin-top:6px;height:12px;font-family:'DM Mono',monospace;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-badge">Life Milestone</div>
+  <div class="header-year">2026</div>
+  <div class="header-sub" id="today-str"></div>
+  <div class="header-progress">
+    <div class="header-progress-bar"><div class="header-progress-fill" id="year-bar"></div></div>
+    <div class="header-progress-label" id="year-pct"></div>
+  </div>
+</div>
+
+<div class="overall-card">
+  <div class="overall-title">2026 달성 현황</div>
+  <div class="overall-stats">
+    <div class="stat-item j"><div class="stat-num" id="stat-j">0/4</div><div class="stat-lbl">커리어</div></div>
+    <div class="stat-item e"><div class="stat-num" id="stat-e">0/4</div><div class="stat-lbl">영어</div></div>
+    <div class="stat-item s"><div class="stat-num" id="stat-s">0/3</div><div class="stat-lbl">주식</div></div>
+  </div>
+</div>
+
+<!-- 커리어 -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-dot" style="background:var(--job)"></div>
+    <div class="sec-title" style="color:var(--job)">커리어</div>
+    <div class="sec-line"></div>
+  </div>
+  <div class="milestones">
+    <div class="ms-item job" onclick="toggle(this,'j',0)" id="ms-j-0">
+      <div class="ms-check" id="ck-j-0"></div>
+      <div class="ms-content">
+        <div class="ms-month">2026.05 ~ 07</div>
+        <div class="ms-title">원서 접수 및 서류 통과</div>
+        <div class="ms-desc">SK하이닉스 · 삼성DS · 현대차 Package Reliability 직무 지원</div>
+        <div class="ms-tags"><span class="ms-tag job">SK하이닉스</span><span class="ms-tag job">삼성DS</span><span class="ms-tag job">현대차</span></div>
+      </div>
+    </div>
+    <div class="ms-item job" onclick="toggle(this,'j',1)" id="ms-j-1">
+      <div class="ms-check" id="ck-j-1"></div>
+      <div class="ms-content">
+        <div class="ms-month">2026.06 ~ 08</div>
+        <div class="ms-title">면접 통과</div>
+        <div class="ms-desc">PT면접 · 기술면접 · 임원면접 · 광저우 다크스팟 프로젝트 반도체 언어로 완벽 설명</div>
+        <div class="ms-tags"><span class="ms-tag job">PT면접</span><span class="ms-tag job">기술면접</span></div>
+      </div>
+    </div>
+    <div class="ms-item job" onclick="toggle(this,'j',2)" id="ms-j-2">
+      <div class="ms-check" id="ck-j-2"></div>
+      <div class="ms-content">
+        <div class="ms-month">2026.08</div>
+        <div class="ms-title">최종 합격 및 입사</div>
+        <div class="ms-desc">반도체 패키징 신뢰성 직무로 이직 성공 · 연봉 협상</div>
+        <div class="ms-tags"><span class="ms-tag job">이직 완료</span></div>
+      </div>
+    </div>
+    <div class="ms-item job" onclick="toggle(this,'j',3)" id="ms-j-3">
+      <div class="ms-check" id="ck-j-3"></div>
+      <div class="ms-content">
+        <div class="ms-month">2026 하반기</div>
+        <div class="ms-title">새 직장 적응 및 성과 시작</div>
+        <div class="ms-desc">온보딩 완료 · 첫 프로젝트 기여 · 신뢰 구축</div>
+        <div class="ms-tags"><span class="ms-tag job">적응</span><span class="ms-tag job">성과</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 영어 -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-dot" style="background:var(--eng)"></div>
+    <div class="sec-title" style="color:var(--eng)">영어</div>
+    <div class="sec-line"></div>
+  </div>
+  <div class="milestones">
+    <div class="ms-item eng" onclick="toggle(this,'e',0)" id="ms-e-0">
+      <div class="ms-check" id="ck-e-0"></div>
+      <div class="ms-content">
+        <div class="ms-month">2026.04 말</div>
+        <div class="ms-title">OPIc IH 달성</div>
+        <div class="ms-desc">이직 서류 · 면접 대비 · 김재우 스크립트 v10 완성</div>
+        <div class="ms-tags"><span class="ms-tag eng">OPIc IH</span><span class="ms-tag eng">이직 필수</span></div>
+      </div>
+    </div>
+    <div class="ms-item eng" onclick="toggle(this,'e',1)" id="ms-e-1">
+      <div class="ms-check" id="ck-e-1"></div>
+      <div class="ms-content">
+        <div class="ms-month">2026.08</div>
+        <div class="ms-title">김재우 문장패턴 100강 완주</div>
+        <div class="ms-desc">현재 34강 · 2일 사이클 · 하루 1시간 유지</div>
+        <div class="ms-tags"><span class="ms-tag eng">34→100강</span><span class="ms-tag eng">2일사이클</span></div>
+      </div>
+    </div>
+    <div class="ms-item eng" onclick="toggle(this,'e',2)" id="ms-e-2">
+      <div class="ms-check" id="ck-e-2"></div>
+      <div class="ms-content">
+        <div class="ms-month">2026.09 ~ 11</div>
+        <div class="ms-title">AL 집중 준비 (2~3개월)</div>
+        <div class="ms-desc">100강 완주 후 AL 전용 스크립트 · 패턴 집중 훈련</div>
+        <div class="ms-tags"><span class="ms-tag eng">AL 준비</span></div>
+      </div>
+    </div>
+    <div class="ms-item eng" onclick="toggle(this,'e',3)" id="ms-e-3">
+      <div class="ms-check" id="ck-e-3"></div>
+      <div class="ms-content">
+        <div class="ms-month">2026.12</div>
+        <div class="ms-title">OPIc AL 도전</div>
+        <div class="ms-desc">연말 재시험 · 2027년 AL 확보 목표의 첫 시도</div>
+        <div class="ms-tags"><span class="ms-tag eng">OPIc AL</span><span class="ms-tag eng">도전</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 주식 -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-dot" style="background:var(--stock)"></div>
+    <div class="sec-title" style="color:var(--stock)">주식 / 자산</div>
+    <div class="sec-line"></div>
+  </div>
+  <div class="milestones">
+    <div class="ms-item stock" onclick="toggle(this,'s',0)" id="ms-s-0">
+      <div class="ms-check" id="ck-s-0"></div>
+      <div class="ms-content">
+        <div class="ms-month">2026 연간</div>
+        <div class="ms-title">실현손익 1,100만원 달성</div>
+        <div class="ms-desc">월별 목표 달성으로 누적 · 4월 70만 → 12월 150만 페이스</div>
+        <div class="ms-tags"><span class="ms-tag stock">1,100만원</span><span class="ms-tag stock">월별목표</span></div>
+      </div>
+    </div>
+    <div class="ms-item stock" onclick="toggle(this,'s',1)" id="ms-s-1">
+      <div class="ms-check" id="ck-s-1"></div>
+      <div class="ms-content">
+        <div class="ms-month">2026 연간</div>
+        <div class="ms-title">매매 원칙 확립 · 승률 60%+</div>
+        <div class="ms-desc">매매일지 꾸준히 작성 · 뇌동매매 제거 · 복기 루틴화</div>
+        <div class="ms-tags"><span class="ms-tag stock">승률 60%</span><span class="ms-tag stock">수익률 20%</span></div>
+      </div>
+    </div>
+    <div class="ms-item stock" onclick="toggle(this,'s',2)" id="ms-s-2">
+      <div class="ms-check" id="ck-s-2"></div>
+      <div class="ms-content">
+        <div class="ms-month">2026 하반기</div>
+        <div class="ms-title">자동화 시스템 개발 재개</div>
+        <div class="ms-desc">이직 후 안정되면 pykrx 기반 자동매매 시스템 완성 · 검색식 확립</div>
+        <div class="ms-tags"><span class="ms-tag stock">자동화</span><span class="ms-tag stock">이직 후</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="save-btn" onclick="saveAll()">달성 현황 저장</button>
+<div class="confirm" id="confirm"></div>
+
+<script>
+const state={j:[false,false,false,false],e:[false,false,false,false],s:[false,false,false]};
+
+function load(){
+  const saved=localStorage.getItem('milestone_2026');
+  if(saved)Object.assign(state,JSON.parse(saved));
+  ['j','e','s'].forEach(k=>state[k].forEach((v,i)=>{
+    if(v){
+      document.getElementById('ck-'+k+'-'+i).classList.add('on');
+      document.getElementById('ms-'+k+'-'+i).classList.add('done');
+    }
+  }));
+  updateStats();
+  updateYearProgress();
+}
+
+function toggle(el,k,i){
+  state[k][i]=!state[k][i];
+  document.getElementById('ck-'+k+'-'+i).classList.toggle('on',state[k][i]);
+  el.classList.toggle('done',state[k][i]);
+  updateStats();
+  localStorage.setItem('milestone_2026',JSON.stringify(state));
+}
+
+function updateStats(){
+  document.getElementById('stat-j').textContent=state.j.filter(Boolean).length+'/4';
+  document.getElementById('stat-e').textContent=state.e.filter(Boolean).length+'/4';
+  document.getElementById('stat-s').textContent=state.s.filter(Boolean).length+'/3';
+}
+
+function updateYearProgress(){
+  const now=new Date();
+  const start=new Date('2026-01-01');
+  const end=new Date('2026-12-31');
+  const pct=Math.min(100,Math.round((now-start)/(end-start)*100));
+  document.getElementById('year-bar').style.width=pct+'%';
+  document.getElementById('year-pct').textContent=pct+'% 경과';
+}
+
+function saveAll(){
+  localStorage.setItem('milestone_2026',JSON.stringify(state));
+  const el=document.getElementById('confirm');
+  el.textContent='저장 완료!';
+  setTimeout(()=>el.textContent='',2000);
+}
+
+const d=new Date();
+const days=['일','월','화','수','목','금','토'];
+document.getElementById('today-str').textContent=
+  d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')+' '+days[d.getDay()]+'요일';
+
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주식 복기일지</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--text:#f0f0f0;--text2:#999;--text3:#555;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100;}
+.nav-left{display:flex;align-items:center;gap:10px;}
+.nav-back{font-size:20px;color:var(--text2);text-decoration:none;}
+.nav-logo{font-family:'DM Mono',monospace;font-size:14px;color:var(--text2);letter-spacing:0.08em;}
+.nav-date{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);}
+.tabs{display:flex;padding:0 20px;border-bottom:1px solid var(--border);}
+.tab{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);padding:12px 16px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;}
+.tab:hover{color:var(--text2);}
+.tab.on{color:var(--text);border-bottom-color:var(--stock);}
+.wrap{padding:18px 20px;max-width:700px;margin:0 auto;}
+.sec{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:14px;overflow:hidden;}
+.sec-head{padding:14px 16px 10px;border-bottom:1px solid var(--border);}
+.sec-title{font-size:15px;font-weight:600;color:var(--stock);margin-bottom:3px;}
+.sec-sub{font-size:13px;color:var(--text3);}
+.review-form{padding:14px 16px;}
+.fr{margin-bottom:14px;}
+.fr label{font-size:13px;color:var(--text2);display:block;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;}
+.fr label .hint{font-size:11px;color:var(--text3);font-weight:400;}
+.fr textarea{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:14px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;transition:border-color .15s;}
+.fr textarea:focus{border-color:var(--stock);}
+.fr input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:14px;padding:10px 12px;font-family:'DM Mono',monospace;outline:none;transition:border-color .15s;}
+.fr input:focus{border-color:var(--stock);}
+.save-btn{width:100%;padding:12px;font-size:14px;font-family:'DM Mono',monospace;letter-spacing:.04em;border:1px solid var(--stock);border-radius:var(--r-sm);background:transparent;color:var(--stock);cursor:pointer;transition:all .15s;}
+.save-btn:hover{background:var(--stock);color:#0c0c0e;}
+.confirm{text-align:center;font-size:12px;color:var(--text3);margin-top:6px;height:14px;font-family:'DM Mono',monospace;}
+.date-nav{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.date-nav button{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:14px;transition:all .15s;}
+.date-nav button:hover{border-color:var(--border2);color:var(--text);}
+.date-nav input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:14px;padding:7px 12px;font-family:'DM Mono',monospace;outline:none;}
+.review-item{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:10px;}
+.ri-date{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);margin-bottom:10px;}
+.ri-section{margin-bottom:10px;}
+.ri-label{font-size:12px;color:var(--stock);font-weight:600;margin-bottom:4px;}
+.ri-content{font-size:14px;color:var(--text2);line-height:1.6;}
+.actual-row{display:flex;align-items:center;gap:10px;padding:14px 16px;border-top:1px solid var(--border);}
+.actual-row label{font-size:13px;color:var(--text2);white-space:nowrap;}
+.actual-row input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:14px;padding:8px 12px;font-family:'DM Mono',monospace;outline:none;}
+.actual-row .u{font-size:13px;color:var(--text3);}
+.mo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.mo-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px;text-align:center;}
+.mo-card.cur{border-color:var(--stock);}
+.mo-month{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:5px;}
+.mo-val{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--stock);}
+.mo-val.neg{color:var(--neg);}
+.mo-goal{font-size:12px;color:var(--text3);margin-top:3px;}
+.mo-bar{height:3px;background:var(--bg2);border-radius:2px;margin-top:8px;overflow:hidden;}
+.mo-fill{height:100%;background:var(--stock);border-radius:2px;}
+.empty-msg{text-align:center;padding:36px;color:var(--text3);font-size:14px;font-family:'DM Mono',monospace;}
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="nav-left"><a class="nav-back" href="home.html">←</a><div class="nav-logo">STOCK REVIEW</div></div>
+  <div class="nav-date" id="nav-date"></div>
+</div>
+<div class="tabs">
+  <div class="tab on" onclick="showTab('daily')">일별 복기</div>
+  <div class="tab" onclick="showTab('history')">복기 기록</div>
+  <div class="tab" onclick="showTab('monthly')">월간 손익</div>
+</div>
+
+<!-- 일별 복기 -->
+<div id="tab-daily" class="wrap">
+  <div class="date-nav">
+    <button onclick="changeDate(-1)">◀</button>
+    <input type="date" id="review-date">
+    <button onclick="changeDate(1)">▶</button>
+  </div>
+  <div class="sec">
+    <div class="sec-head"><div class="sec-title">시황 복기</div><div class="sec-sub">오늘 시장 흐름 분석</div></div>
+    <div class="review-form">
+      <div class="fr"><label>오늘 시장 흐름 <span class="hint">코스피/코스닥 방향, 섹터 동향</span></label><textarea id="r-market" rows="3" placeholder="오늘 시장 전체 흐름..."></textarea></div>
+      <div class="fr"><label>내일 전략 <span class="hint">한 줄 요약</span></label><textarea id="r-tomorrow" rows="2" placeholder="내일 주목할 것 · 매매 계획..."></textarea></div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-head"><div class="sec-title">종목 복기</div><div class="sec-sub">보유 · 관심 종목 변화</div></div>
+    <div class="review-form">
+      <div class="fr"><label>보유 종목 변화 <span class="hint">오늘 움직임 · 대응</span></label><textarea id="r-holdings" rows="3" placeholder="보유 종목별 오늘 흐름과 내 대응..."></textarea></div>
+      <div class="fr"><label>관심 종목 업데이트 <span class="hint">추가/제거/변화</span></label><textarea id="r-watchlist" rows="2" placeholder="관심 종목 변화..."></textarea></div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-head"><div class="sec-title">매매 복기</div><div class="sec-sub">오늘 매매가 있었다면</div></div>
+    <div class="review-form">
+      <div class="fr"><label>매매 내용 <span class="hint">미매매 시 이유 한 줄</span></label><textarea id="r-trade" rows="3" placeholder="매매 시: 종목 · 진입근거 · 결과&#10;미매매 시: 오늘 매매 안 한 이유..."></textarea></div>
+      <div class="fr"><label>반성 / 잘한 점</label><textarea id="r-reflect" rows="2" placeholder="오늘 매매에서 잘한 것과 반성할 것..."></textarea></div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-head"><div class="sec-title">원칙 준수</div></div>
+    <div class="review-form">
+      <div class="fr"><label>오늘 원칙 지켰나? <span class="hint">구체적으로</span></label><textarea id="r-rule" rows="2" placeholder="손절가 설정 여부 · 뇌동매매 여부 · 매매시간 준수..."></textarea></div>
+    </div>
+  </div>
+  <button class="save-btn" onclick="saveReview()">복기 저장</button>
+  <div class="confirm" id="confirm-daily"></div>
+</div>
+
+<!-- 복기 기록 -->
+<div id="tab-history" class="wrap hidden">
+  <div id="history-list"></div>
+</div>
+
+<!-- 월간 손익 -->
+<div id="tab-monthly" class="wrap hidden">
+  <div class="sec">
+    <div class="sec-head"><div class="sec-title">월별 실현손익 입력</div></div>
+    <div class="actual-row">
+      <label>이번 달 실현손익</label>
+      <input type="number" id="actual-input" placeholder="0" oninput="updateActual()">
+      <span class="u">원</span>
+    </div>
+    <div style="padding:0 16px 14px;">
+      <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);margin-bottom:5px;"><span id="goal-label">목표: -</span><span id="goal-pct">0%</span></div>
+      <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;"><div style="height:100%;background:var(--stock);border-radius:2px;transition:width .3s;" id="goal-bar"></div></div>
+    </div>
+  </div>
+  <div class="mo-grid" id="mo-grid"></div>
+</div>
+
+<script>
+const GOALS={4:700000,5:1000000,6:1000000,7:1200000,8:1300000,9:1400000,10:1500000,11:1500000,12:1500000};
+const DAYS=['일','월','화','수','목','금','토'];
+function pad(n){return String(n).padStart(2,'0');}
+function ls(k){return localStorage.getItem(k);}
+function lss(k,v){localStorage.setItem(k,v);}
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+
+let currentDate=todayStr();
+
+function initDate(){
+  document.getElementById('review-date').value=currentDate;
+  loadReview(currentDate);
+}
+
+function changeDate(dir){
+  const d=new Date(currentDate);d.setDate(d.getDate()+dir);
+  currentDate=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  document.getElementById('review-date').value=currentDate;
+  loadReview(currentDate);
+}
+
+document.getElementById('review-date').addEventListener('change',function(){
+  currentDate=this.value;loadReview(currentDate);
+});
+
+function loadReview(date){
+  const data=JSON.parse(ls('stock_review_'+date)||'{}');
+  document.getElementById('r-market').value=data.market||'';
+  document.getElementById('r-tomorrow').value=data.tomorrow||'';
+  document.getElementById('r-holdings').value=data.holdings||'';
+  document.getElementById('r-watchlist').value=data.watchlist||'';
+  document.getElementById('r-trade').value=data.trade||'';
+  document.getElementById('r-reflect').value=data.reflect||'';
+  document.getElementById('r-rule').value=data.rule||'';
+}
+
+function saveReview(){
+  const data={
+    market:document.getElementById('r-market').value,
+    tomorrow:document.getElementById('r-tomorrow').value,
+    holdings:document.getElementById('r-holdings').value,
+    watchlist:document.getElementById('r-watchlist').value,
+    trade:document.getElementById('r-trade').value,
+    reflect:document.getElementById('r-reflect').value,
+    rule:document.getElementById('r-rule').value,
+    date:currentDate
+  };
+  lss('stock_review_'+currentDate,JSON.stringify(data));
+  const keys=JSON.parse(ls('stock_review_keys')||'[]');
+  if(!keys.includes(currentDate)){keys.unshift(currentDate);lss('stock_review_keys',JSON.stringify(keys));}
+  const el=document.getElementById('confirm-daily');
+  el.textContent='저장 완료!';setTimeout(()=>el.textContent='',2000);
+}
+
+function renderHistory(){
+  const keys=JSON.parse(ls('stock_review_keys')||'[]');
+  const el=document.getElementById('history-list');
+  if(!keys.length){el.innerHTML='<div class="empty-msg">복기 기록이 없어요</div>';return;}
+  el.innerHTML=keys.map(k=>{
+    const d=JSON.parse(ls('stock_review_'+k)||'{}');
+    return `<div class="review-item">
+      <div class="ri-date">${k}</div>
+      ${d.market?`<div class="ri-section"><div class="ri-label">시황</div><div class="ri-content">${d.market}</div></div>`:''}
+      ${d.trade?`<div class="ri-section"><div class="ri-label">매매</div><div class="ri-content">${d.trade}</div></div>`:''}
+      ${d.reflect?`<div class="ri-section"><div class="ri-label">반성</div><div class="ri-content">${d.reflect}</div></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function updateActual(){
+  const v=parseInt(document.getElementById('actual-input').value)||0;
+  const m=new Date().getMonth()+1,g=GOALS[m]||1000000,p=Math.min(100,Math.round(v/g*100));
+  document.getElementById('goal-bar').style.width=p+'%';
+  document.getElementById('goal-pct').textContent=p+'%';
+  document.getElementById('goal-label').textContent=m+'월 목표: '+g.toLocaleString()+'원';
+  const hist=JSON.parse(ls('smart_history')||'[]');
+  const today=todayStr();const idx=hist.findIndex(h=>h.date===today);
+  if(idx>=0){hist[idx].stockActual=v;lss('smart_history',JSON.stringify(hist));}
+  renderMonthly();
+}
+
+function renderMonthly(){
+  const hist=JSON.parse(ls('smart_history')||'[]'),el=document.getElementById('mo-grid');if(!el)return;
+  const cur=new Date().getMonth()+1;
+  el.innerHTML=[4,5,6,7,8,9,10,11,12].map(m=>{
+    const g=GOALS[m]||0,entries=hist.filter(h=>parseInt(h.date.split('-')[1])===m),last=entries[0],actual=last?(last.stockActual||0):null;
+    const pct=actual!==null?Math.min(100,Math.round(actual/g*100)):0,neg=actual!==null&&actual<0;
+    return `<div class="mo-card${m===cur?' cur':''}"><div class="mo-month">${m}월${m===cur?' ●':''}</div><div class="mo-val${neg?' neg':''}">${actual!==null?(actual>=0?'+':'')+actual.toLocaleString():'-'}</div><div class="mo-goal">목표 ${(g/10000).toFixed(0)}만</div><div class="mo-bar"><div class="mo-fill" style="width:${pct}%"></div></div></div>`;
+  }).join('');
+}
+
+function showTab(t){
+  ['daily','history','monthly'].forEach((id,i)=>{
+    document.getElementById('tab-'+id).classList.toggle('hidden',id!==t);
+    document.querySelectorAll('.tab')[i].classList.toggle('on',id===t);
+  });
+  if(t==='history')renderHistory();
+  if(t==='monthly'){renderMonthly();const hist=JSON.parse(ls('smart_history')||'[]');const cur=new Date().getMonth()+1;const entries=hist.filter(h=>parseInt(h.date.split('-')[1])===cur);if(entries[0])document.getElementById('actual-input').value=entries[0].stockActual||'';}
+}
+
+const d=new Date();
+document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+DAYS[d.getDay()];
+initDate();
+</script>
+</body>
+</html>

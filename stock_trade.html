@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>매매일지</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--text:#f0f0f0;--text2:#999;--text3:#555;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100;}
+.nav-left{display:flex;align-items:center;gap:10px;}
+.nav-back{font-size:20px;color:var(--text2);text-decoration:none;}
+.nav-logo{font-family:'DM Mono',monospace;font-size:14px;color:var(--text2);letter-spacing:0.08em;}
+.wrap{padding:18px 20px;max-width:700px;margin:0 auto;}
+
+/* 원칙 카드 */
+.rule-card{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:16px;margin-bottom:18px;}
+.rule-title{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px;}
+.rule-item{display:flex;align-items:flex-start;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);}
+.rule-item:last-child{border-bottom:none;padding-bottom:0;}
+.rule-num{font-family:'DM Mono',monospace;font-size:13px;font-weight:500;color:var(--neg);width:20px;flex-shrink:0;margin-top:1px;}
+.rule-q{font-size:14px;font-weight:500;color:var(--text);flex:1;}
+.rule-a{font-size:13px;color:var(--text3);margin-top:3px;}
+
+/* 통계 */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px;}
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;}
+.stat-lbl{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px;}
+.stat-val{font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:var(--stock);}
+.stat-val.pos{color:var(--pos)}.stat-val.neg{color:var(--neg)}
+
+/* 새 매매 입력 */
+.sec{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:14px;overflow:hidden;}
+.sec-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;}
+.sec-left{display:flex;align-items:center;gap:10px;}
+.sec-bar{width:3px;height:18px;border-radius:2px;background:var(--stock);}
+.sec-title{font-size:15px;font-weight:600;color:var(--stock);}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 16px;}
+.fr{margin-bottom:0;}
+.fr label{font-size:13px;color:var(--text2);display:block;margin-bottom:5px;}
+.fr input,.fr textarea,.fr select{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:14px;padding:9px 12px;font-family:'Noto Sans KR',sans-serif;outline:none;transition:border-color .15s;}
+.fr input:focus,.fr textarea:focus{border-color:var(--stock);}
+.fr textarea{resize:none;height:64px;}
+.fr-full{grid-column:1/-1;}
+.yn-row{display:flex;gap:8px;}
+.yn-btn{flex:1;padding:9px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:14px;cursor:pointer;transition:all .15s;font-family:'Noto Sans KR',sans-serif;text-align:center;}
+.yn-btn.yes.on{background:var(--pos);border-color:var(--pos);color:#fff;}
+.yn-btn.no.on{background:var(--neg);border-color:var(--neg);color:#fff;}
+.add-trade-btn{width:100%;margin:14px 16px;width:calc(100% - 32px);padding:12px;font-size:14px;font-family:'DM Mono',monospace;letter-spacing:.04em;border:1px solid var(--stock);border-radius:var(--r-sm);background:transparent;color:var(--stock);cursor:pointer;transition:all .15s;}
+.add-trade-btn:hover{background:var(--stock);color:#0c0c0e;}
+
+/* 기록 리스트 */
+.trade-item{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:8px;cursor:pointer;transition:border-color .15s;}
+.trade-item:hover{border-color:var(--border2);}
+.trade-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.trade-name{font-size:16px;font-weight:600;color:var(--text);}
+.trade-date{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);}
+.trade-pct{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;}
+.trade-pct.pos{color:var(--pos)}.trade-pct.neg{color:var(--neg)}.trade-pct.pending{color:var(--stock)}
+.trade-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
+.tag{font-family:'DM Mono',monospace;font-size:11px;padding:2px 8px;border-radius:3px;}
+.tag.yn{background:rgba(52,211,153,0.12);color:var(--pos);}
+.tag.nn{background:rgba(251,113,133,0.12);color:var(--neg);}
+.tag.pending{background:rgba(251,191,36,0.12);color:var(--stock);}
+.trade-reason{font-size:13px;color:var(--text3);line-height:1.5;}
+.empty-msg{text-align:center;padding:36px;color:var(--text3);font-size:14px;font-family:'DM Mono',monospace;}
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="nav-left"><a class="nav-back" href="home.html">←</a><div class="nav-logo">TRADE LOG</div></div>
+</div>
+<div class="wrap">
+
+  <div class="rule-card">
+    <div class="rule-title">매수 전 필수 확인</div>
+    <div class="rule-item"><div class="rule-num">①</div><div><div class="rule-q">손절가를 정했는가?</div><div class="rule-a">No → 매매 금지</div></div></div>
+    <div class="rule-item"><div class="rule-num">②</div><div><div class="rule-q">뇌동매매인가?</div><div class="rule-a">Yes → 매매 금지. 근거 없이 오른다는 느낌만으로 매수 금지</div></div></div>
+    <div class="rule-item" style="border-bottom:none;padding-bottom:0;"><div class="rule-num" style="color:var(--stock)">⏰</div><div><div class="rule-q">매매 시간을 지켰는가?</div><div class="rule-a">장 시작 전 또는 점심시간에만 매매</div></div></div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat"><div class="stat-lbl">총매매</div><div class="stat-val" id="st-total">0</div></div>
+    <div class="stat"><div class="stat-lbl">승률</div><div class="stat-val" id="st-wr">-</div></div>
+    <div class="stat"><div class="stat-lbl">평균수익</div><div class="stat-val pos" id="st-avg">-</div></div>
+    <div class="stat"><div class="stat-lbl">뇌동횟수</div><div class="stat-val neg" id="st-bd">0</div></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-head"><div class="sec-left"><div class="sec-bar"></div><div class="sec-title">새 매매 기록</div></div></div>
+    <div class="form-grid">
+      <div class="fr"><label>날짜</label><input id="f-date" type="date"></div>
+      <div class="fr"><label>종목명</label><input id="f-name" placeholder="삼성전자"></div>
+      <div class="fr"><label>매수가 (원)</label><input id="f-buy" type="number"></div>
+      <div class="fr"><label>목표가 (원)</label><input id="f-target" type="number"></div>
+      <div class="fr"><label>손절가 (원)</label><input id="f-stop" type="number"></div>
+      <div class="fr"><label>지수 상태</label><input id="f-index" placeholder="매수가능/급락중/변동성큼"></div>
+      <div class="fr fr-full"><label>차트패턴</label><input id="f-chart" placeholder="눌림목 / 돌파 / 횡보 이탈 등"></div>
+      <div class="fr fr-full"><label>재료 (강도·길이·이유)</label><textarea id="f-material" placeholder="재료 강도와 지속성, 그렇게 생각하는 이유..."></textarea></div>
+      <div class="fr fr-full"><label>수급</label><input id="f-supply" placeholder="기관/외인/개인 방향, 거래량"></div>
+      <div class="fr fr-full"><label>매수 사유 (종합)</label><textarea id="f-reason" placeholder="위 3가지 종합 한 줄..."></textarea></div>
+      <div class="fr fr-full"><label>예상 시나리오</label><input id="f-scenario" placeholder="기대 흐름 · 언제/얼마까지"></div>
+      <div class="fr fr-full"><label>급락 시 대응</label><input id="f-defense" placeholder="추가매수 / 손절 / 홀딩 기준"></div>
+      <div class="fr"><label>뇌동 아닌가?</label><div class="yn-row"><button class="yn-btn yes on" id="yn-yes" onclick="setYN(true)">정상 ✓</button><button class="yn-btn no" id="yn-no" onclick="setYN(false)">뇌동 ✗</button></div></div>
+      <div class="fr"><label>매도가 (원) — 나중에 입력</label><input id="f-sell" type="number" placeholder="매도 후 입력"></div>
+    </div>
+    <button class="add-trade-btn" onclick="addTrade()">매매 기록 저장</button>
+  </div>
+
+  <div id="trade-list"></div>
+</div>
+
+<script>
+let isNormal=true;
+function pad(n){return String(n).padStart(2,'0');}
+function ls(k){return localStorage.getItem(k);}
+function lss(k,v){localStorage.setItem(k,v);}
+function getTrades(){return JSON.parse(ls('smart_trades')||'[]');}
+function saveTrades(a){lss('smart_trades',JSON.stringify(a));}
+
+function setYN(v){
+  isNormal=v;
+  document.getElementById('yn-yes').classList.toggle('on',v);
+  document.getElementById('yn-no').classList.toggle('on',!v);
+}
+
+function addTrade(){
+  const d=document.getElementById('f-date').value;
+  const name=document.getElementById('f-name').value;
+  if(!name){alert('종목명을 입력해주세요.');return;}
+  const buy=parseFloat(document.getElementById('f-buy').value)||0;
+  const sell=parseFloat(document.getElementById('f-sell').value)||0;
+  const pct=buy&&sell?((sell-buy)/buy*100):null;
+  const trade={
+    date:d||new Date().toISOString().split('T')[0],
+    name,buy,sell,
+    target:document.getElementById('f-target').value,
+    stop:document.getElementById('f-stop').value,
+    index:document.getElementById('f-index').value,
+    chart:document.getElementById('f-chart').value,
+    material:document.getElementById('f-material').value,
+    supply:document.getElementById('f-supply').value,
+    reason:document.getElementById('f-reason').value,
+    scenario:document.getElementById('f-scenario').value,
+    defense:document.getElementById('f-defense').value,
+    isNormal,pct,
+    id:Date.now()
+  };
+  const arr=getTrades();arr.unshift(trade);saveTrades(arr);
+  clearForm();renderTrades();renderStats();
+}
+
+function clearForm(){
+  ['f-date','f-name','f-buy','f-target','f-stop','f-index','f-chart','f-supply','f-reason','f-scenario','f-defense','f-sell'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-material').value='';
+  setYN(true);
+}
+
+function renderTrades(){
+  const arr=getTrades(),el=document.getElementById('trade-list');
+  if(!arr.length){el.innerHTML='<div class="empty-msg">매매 기록이 없어요</div>';return;}
+  el.innerHTML=arr.map(t=>{
+    const pctStr=t.pct!==null?(t.pct>=0?'+':'')+t.pct.toFixed(1)+'%':'진행중';
+    const pctClass=t.pct===null?'pending':t.pct>=0?'pos':'neg';
+    return `<div class="trade-item">
+      <div class="trade-top">
+        <div><div class="trade-name">${t.name}</div><div class="trade-date">${t.date}</div></div>
+        <div class="trade-pct ${pctClass}">${pctStr}</div>
+      </div>
+      <div class="trade-tags">
+        <span class="tag ${t.isNormal?'yn':'nn'}">${t.isNormal?'정상매매':'뇌동매매'}</span>
+        ${t.pct===null?'<span class="tag pending">보유중</span>':''}
+      </div>
+      <div class="trade-reason">${t.reason||t.chart||'-'}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderStats(){
+  const arr=getTrades();
+  document.getElementById('st-total').textContent=arr.length;
+  const closed=arr.filter(t=>t.pct!==null);
+  const wins=closed.filter(t=>t.pct>0);
+  const wr=closed.length?Math.round(wins.length/closed.length*100):0;
+  document.getElementById('st-wr').textContent=closed.length?wr+'%':'-';
+  document.getElementById('st-wr').className='stat-val '+(wr>=60?'pos':wr>0?'':'neg');
+  const avgWin=wins.length?wins.reduce((a,b)=>a+b.pct,0)/wins.length:0;
+  document.getElementById('st-avg').textContent=wins.length?'+'+avgWin.toFixed(1)+'%':'-';
+  document.getElementById('st-bd').textContent=arr.filter(t=>!t.isNormal).length;
+}
+
+const d=new Date();
+document.getElementById('f-date').value=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+renderTrades();renderStats();
+</script>
+</body>
+</html>

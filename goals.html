@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ian's Goal Board</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--text:#f0f0f0;--text2:#888;--text3:#4a4a4e;--job:#a78bfa;--eng:#34d399;--stock:#fbbf24;--r:10px;--r-sm:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:20px;}
+.header{text-align:center;margin-bottom:32px;padding-top:8px;}
+.header-sub{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;}
+.header-title{font-size:26px;font-weight:600;letter-spacing:-0.02em;color:var(--text);}
+.header-year{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);margin-top:6px;}
+.section{margin-bottom:28px;}
+.sec-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.sec-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.timeline{display:flex;flex-direction:column;gap:0;}
+.tl-item{display:flex;gap:0;position:relative;}
+.tl-left{width:80px;flex-shrink:0;padding:0 16px 0 0;text-align:right;padding-top:14px;}
+.tl-year{font-family:'DM Mono',monospace;font-size:12px;font-weight:500;}
+.tl-center{display:flex;flex-direction:column;align-items:center;padding:0 16px;flex-shrink:0;}
+.tl-dot{width:10px;height:10px;border-radius:50%;border:2px solid;flex-shrink:0;margin-top:16px;position:relative;z-index:1;background:var(--bg);}
+.tl-line{width:2px;flex:1;margin-top:0;}
+.tl-item:last-child .tl-line{display:none;}
+.tl-right{flex:1;padding:10px 0 20px;}
+.tl-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 14px;}
+.tl-card-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px;line-height:1.4;}
+.tl-card-sub{font-size:11px;color:var(--text3);line-height:1.6;}
+.tl-tag{display:inline-block;font-family:'DM Mono',monospace;font-size:9px;padding:2px 6px;border-radius:3px;margin-right:4px;margin-bottom:2px;}
+.career .tl-dot{border-color:var(--job);}
+.career .tl-line{background:linear-gradient(var(--job),rgba(167,139,250,0.1));}
+.career .tl-year{color:var(--job);}
+.career .tl-tag{background:rgba(167,139,250,0.12);color:var(--job);}
+.career .tl-card{border-left:2px solid var(--job);}
+.stock-tl .tl-dot{border-color:var(--stock);}
+.stock-tl .tl-line{background:linear-gradient(var(--stock),rgba(251,191,36,0.1));}
+.stock-tl .tl-year{color:var(--stock);}
+.stock-tl .tl-tag{background:rgba(251,191,36,0.12);color:var(--stock);}
+.stock-tl .tl-card{border-left:2px solid var(--stock);}
+.eng-tl .tl-dot{border-color:var(--eng);}
+.eng-tl .tl-line{background:linear-gradient(var(--eng),rgba(52,211,153,0.1));}
+.eng-tl .tl-year{color:var(--eng);}
+.eng-tl .tl-tag{background:rgba(52,211,153,0.12);color:var(--eng);}
+.eng-tl .tl-card{border-left:2px solid var(--eng);}
+.now-badge{font-family:'DM Mono',monospace;font-size:9px;background:rgba(255,255,255,0.08);color:var(--text2);padding:2px 7px;border-radius:3px;margin-left:6px;vertical-align:middle;}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-sub">Smart Goal Board</div>
+  <div class="header-title">Ian's 10-Year Vision</div>
+  <div class="header-year" id="today-str"></div>
+</div>
+
+<div class="section">
+  <div class="sec-label" style="color:var(--job)">Career</div>
+  <div class="timeline career">
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-year">2026<span class="now-badge">NOW</span></div></div>
+      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-right"><div class="tl-card">
+        <div class="tl-card-title">반도체 패키징 분야 이직 성공</div>
+        <div class="tl-card-sub">
+          <span class="tl-tag">SK하이닉스</span><span class="tl-tag">삼성DS</span><span class="tl-tag">현대차</span><br>
+          Package Reliability 직무 · 2026년 8월 목표
+        </div>
+      </div></div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-year">2028</div></div>
+      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-right"><div class="tl-card">
+        <div class="tl-card-title">미국 주재원 발령</div>
+        <div class="tl-card-sub">해외 기술영업/개발 경험 · 영어 실력 활용</div>
+      </div></div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-year">2031</div></div>
+      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-right"><div class="tl-card">
+        <div class="tl-card-title">팀장 (책임/수석급)</div>
+        <div class="tl-card-sub">패키징 신뢰성 전문가로 조직 리드</div>
+      </div></div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-year">2036</div></div>
+      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-right"><div class="tl-card">
+        <div class="tl-card-title">임원 후보군 등재</div>
+        <div class="tl-card-sub">부문장급 · 국내외 네트워크 + 전문성으로 승부</div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="sec-label" style="color:var(--stock)">주식 / 자산</div>
+  <div class="timeline stock-tl">
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-year">2026<span class="now-badge">NOW</span></div></div>
+      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-right"><div class="tl-card">
+        <div class="tl-card-title">실현손익 1,100만원</div>
+        <div class="tl-card-sub">
+          <span class="tl-tag">승률 60%+</span><span class="tl-tag">평균수익률 20%+</span><br>
+          월별 목표 달성으로 시드 축적
+        </div>
+      </div></div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-year">2028</div></div>
+      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-right"><div class="tl-card">
+        <div class="tl-card-title">누적 자산 1억</div>
+        <div class="tl-card-sub">수익 + 성과급 추가 투입 · 복리 시작</div>
+      </div></div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-year">2031</div></div>
+      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-right"><div class="tl-card">
+        <div class="tl-card-title">누적 자산 5억</div>
+        <div class="tl-card-sub">시드 증가 + 복리 효과 본격화</div>
+      </div></div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-year">2036</div></div>
+      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-right"><div class="tl-card">
+        <div class="tl-card-title">누적 자산 100억</div>
+        <div class="tl-card-sub">연봉·성과급 시드 지속 투입 + 복리 폭발 구간</div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="sec-label" style="color:var(--eng)">영어</div>
+  <div class="timeline eng-tl">
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-year">2026.04<span class="now-badge">NOW</span></div></div>
+      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-right"><div class="tl-card">
+        <div class="tl-card-title">OPIc IH 달성</div>
+        <div class="tl-card-sub">이직 서류/면접 대비 · 4월 말 시험</div>
+      </div></div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-year">2026.08</div></div>
+      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-right"><div class="tl-card">
+        <div class="tl-card-title">김재우 문장패턴 100강 완주</div>
+        <div class="tl-card-sub">현재 34강 · 2일 사이클 유지</div>
+      </div></div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-year">2026.12</div></div>
+      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-right"><div class="tl-card">
+        <div class="tl-card-title">OPIc AL 도전</div>
+        <div class="tl-card-sub">100강 완주 후 AL 집중 준비 2~3개월</div>
+      </div></div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-year">2027</div></div>
+      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-right"><div class="tl-card">
+        <div class="tl-card-title">OPIc AL 확보</div>
+        <div class="tl-card-sub">미국 주재원 준비 본격화</div>
+      </div></div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-year">2028</div></div>
+      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-right"><div class="tl-card">
+        <div class="tl-card-title">김재우 구동사 300강 완주</div>
+        <div class="tl-card-sub">2026년 9월 시작 · 원어민급 자연스러운 표현력</div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const d=new Date();
+const days=['일','월','화','수','목','금','토'];
+document.getElementById('today-str').textContent=d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')+' '+days[d.getDay()]+'요일';
+</script>
+</body>
+</html>
