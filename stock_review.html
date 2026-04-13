@@ -5,58 +5,63 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>주식 복기일지</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--text:#f0f0f0;--text2:#999;--text3:#555;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;}
 .nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100;}
 .nav-left{display:flex;align-items:center;gap:10px;}
 .nav-back{font-size:20px;color:var(--text2);text-decoration:none;}
-.nav-logo{font-family:'DM Mono',monospace;font-size:14px;color:var(--text2);letter-spacing:0.08em;}
+.nav-logo{font-family:'DM Mono',monospace;font-size:15px;color:var(--text2);letter-spacing:0.08em;}
 .nav-date{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);}
 .tabs{display:flex;padding:0 20px;border-bottom:1px solid var(--border);}
-.tab{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);padding:12px 16px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;}
+.tab{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);padding:13px 16px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;}
 .tab:hover{color:var(--text2);}
 .tab.on{color:var(--text);border-bottom-color:var(--stock);}
+.toolbar{display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.btn{font-size:14px;padding:8px 16px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;}
+.btn:hover{border-color:var(--stock);color:var(--stock);}
+.confirm-bar{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);padding:6px 20px;}
 .wrap{padding:18px 20px;max-width:700px;margin:0 auto;}
 .sec{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:14px;overflow:hidden;}
-.sec-head{padding:14px 16px 10px;border-bottom:1px solid var(--border);}
-.sec-title{font-size:15px;font-weight:600;color:var(--stock);margin-bottom:3px;}
-.sec-sub{font-size:13px;color:var(--text3);}
-.review-form{padding:14px 16px;}
-.fr{margin-bottom:14px;}
-.fr label{font-size:13px;color:var(--text2);display:block;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;}
-.fr label .hint{font-size:11px;color:var(--text3);font-weight:400;}
-.fr textarea{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:14px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;transition:border-color .15s;}
+.sec-head{padding:14px 18px 10px;border-bottom:1px solid var(--border);}
+.sec-title{font-size:16px;font-weight:600;color:var(--stock);margin-bottom:3px;}
+.sec-sub{font-size:14px;color:var(--text3);}
+.review-form{padding:16px 18px;}
+.fr{margin-bottom:16px;}
+.fr label{font-size:14px;color:var(--text2);display:block;margin-bottom:7px;display:flex;align-items:center;justify-content:space-between;}
+.fr label .hint{font-size:12px;color:var(--text3);font-weight:400;}
+.fr textarea{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:15px;padding:11px 13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;transition:border-color .15s;}
 .fr textarea:focus{border-color:var(--stock);}
-.fr input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:14px;padding:10px 12px;font-family:'DM Mono',monospace;outline:none;transition:border-color .15s;}
+.fr input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:15px;padding:11px 13px;font-family:'DM Mono',monospace;outline:none;transition:border-color .15s;}
 .fr input:focus{border-color:var(--stock);}
-.save-btn{width:100%;padding:12px;font-size:14px;font-family:'DM Mono',monospace;letter-spacing:.04em;border:1px solid var(--stock);border-radius:var(--r-sm);background:transparent;color:var(--stock);cursor:pointer;transition:all .15s;}
+.save-btn{width:100%;padding:13px;font-size:15px;font-family:'DM Mono',monospace;letter-spacing:.04em;border:1px solid var(--stock);border-radius:var(--r-sm);background:transparent;color:var(--stock);cursor:pointer;transition:all .15s;}
 .save-btn:hover{background:var(--stock);color:#0c0c0e;}
-.confirm{text-align:center;font-size:12px;color:var(--text3);margin-top:6px;height:14px;font-family:'DM Mono',monospace;}
-.date-nav{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
-.date-nav button{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:14px;transition:all .15s;}
+.confirm{text-align:center;font-size:13px;color:var(--text3);margin-top:7px;height:15px;font-family:'DM Mono',monospace;}
+.date-nav{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+.date-nav button{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:8px 16px;border-radius:6px;cursor:pointer;font-size:15px;transition:all .15s;}
 .date-nav button:hover{border-color:var(--border2);color:var(--text);}
-.date-nav input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:14px;padding:7px 12px;font-family:'DM Mono',monospace;outline:none;}
-.review-item{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:10px;}
-.ri-date{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);margin-bottom:10px;}
-.ri-section{margin-bottom:10px;}
-.ri-label{font-size:12px;color:var(--stock);font-weight:600;margin-bottom:4px;}
-.ri-content{font-size:14px;color:var(--text2);line-height:1.6;}
-.actual-row{display:flex;align-items:center;gap:10px;padding:14px 16px;border-top:1px solid var(--border);}
-.actual-row label{font-size:13px;color:var(--text2);white-space:nowrap;}
-.actual-row input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:14px;padding:8px 12px;font-family:'DM Mono',monospace;outline:none;}
-.actual-row .u{font-size:13px;color:var(--text3);}
+.date-nav input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:15px;padding:8px 12px;font-family:'DM Mono',monospace;outline:none;}
+.review-item{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:16px 18px;margin-bottom:10px;}
+.ri-date{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);margin-bottom:12px;}
+.ri-section{margin-bottom:12px;}
+.ri-label{font-size:13px;color:var(--stock);font-weight:600;margin-bottom:5px;}
+.ri-content{font-size:15px;color:var(--text2);line-height:1.6;}
+.actual-row{display:flex;align-items:center;gap:12px;padding:14px 18px;border-top:1px solid var(--border);}
+.actual-row label{font-size:14px;color:var(--text2);white-space:nowrap;}
+.actual-row input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:15px;padding:9px 12px;font-family:'DM Mono',monospace;outline:none;}
+.actual-row .u{font-size:14px;color:var(--text3);}
 .mo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
 .mo-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px;text-align:center;}
 .mo-card.cur{border-color:var(--stock);}
-.mo-month{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:5px;}
-.mo-val{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--stock);}
+.mo-month{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);margin-bottom:5px;}
+.mo-val{font-family:'DM Mono',monospace;font-size:17px;font-weight:500;color:var(--stock);}
 .mo-val.neg{color:var(--neg);}
-.mo-goal{font-size:12px;color:var(--text3);margin-top:3px;}
+.mo-goal{font-size:13px;color:var(--text3);margin-top:3px;}
 .mo-bar{height:3px;background:var(--bg2);border-radius:2px;margin-top:8px;overflow:hidden;}
 .mo-fill{height:100%;background:var(--stock);border-radius:2px;}
-.empty-msg{text-align:center;padding:36px;color:var(--text3);font-size:14px;font-family:'DM Mono',monospace;}
+.empty-msg{text-align:center;padding:40px;color:var(--text3);font-size:15px;font-family:'DM Mono',monospace;}
 .hidden{display:none!important;}
 </style>
 </head>
@@ -70,8 +75,13 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <div class="tab" onclick="showTab('history')">복기 기록</div>
   <div class="tab" onclick="showTab('monthly')">월간 손익</div>
 </div>
+<div class="toolbar">
+  <label class="btn" style="cursor:pointer;">📂 엑셀 불러오기 (추가)<input type="file" accept=".xlsx,.xls" class="hidden" onchange="importExcel(this,'append')"></label>
+  <label class="btn" style="cursor:pointer;">📂 엑셀 불러오기 (덮어쓰기)<input type="file" accept=".xlsx,.xls" class="hidden" onchange="importExcel(this,'overwrite')"></label>
+  <button class="btn" onclick="exportExcel()">⬇ 엑셀 다운로드</button>
+</div>
+<div class="confirm-bar" id="confirm-bar"></div>
 
-<!-- 일별 복기 -->
 <div id="tab-daily" class="wrap">
   <div class="date-nav">
     <button onclick="changeDate(-1)">◀</button>
@@ -109,12 +119,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <div class="confirm" id="confirm-daily"></div>
 </div>
 
-<!-- 복기 기록 -->
-<div id="tab-history" class="wrap hidden">
-  <div id="history-list"></div>
-</div>
+<div id="tab-history" class="wrap hidden"><div id="history-list"></div></div>
 
-<!-- 월간 손익 -->
 <div id="tab-monthly" class="wrap hidden">
   <div class="sec">
     <div class="sec-head"><div class="sec-title">월별 실현손익 입력</div></div>
@@ -123,8 +129,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <input type="number" id="actual-input" placeholder="0" oninput="updateActual()">
       <span class="u">원</span>
     </div>
-    <div style="padding:0 16px 14px;">
-      <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);margin-bottom:5px;"><span id="goal-label">목표: -</span><span id="goal-pct">0%</span></div>
+    <div style="padding:0 18px 16px;">
+      <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);margin-bottom:6px;"><span id="goal-label">목표: -</span><span id="goal-pct">0%</span></div>
       <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;"><div style="height:100%;background:var(--stock);border-radius:2px;transition:width .3s;" id="goal-bar"></div></div>
     </div>
   </div>
@@ -138,52 +144,27 @@ function pad(n){return String(n).padStart(2,'0');}
 function ls(k){return localStorage.getItem(k);}
 function lss(k,v){localStorage.setItem(k,v);}
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function showConfirm(msg){const el=document.getElementById('confirm-bar');el.textContent=msg;setTimeout(()=>el.textContent='',2500);}
 
 let currentDate=todayStr();
 
-function initDate(){
-  document.getElementById('review-date').value=currentDate;
-  loadReview(currentDate);
-}
-
-function changeDate(dir){
-  const d=new Date(currentDate);d.setDate(d.getDate()+dir);
-  currentDate=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
-  document.getElementById('review-date').value=currentDate;
-  loadReview(currentDate);
-}
-
-document.getElementById('review-date').addEventListener('change',function(){
-  currentDate=this.value;loadReview(currentDate);
-});
+function initDate(){document.getElementById('review-date').value=currentDate;loadReview(currentDate);}
+function changeDate(dir){const d=new Date(currentDate);d.setDate(d.getDate()+dir);currentDate=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());document.getElementById('review-date').value=currentDate;loadReview(currentDate);}
+document.getElementById('review-date').addEventListener('change',function(){currentDate=this.value;loadReview(currentDate);});
 
 function loadReview(date){
   const data=JSON.parse(ls('stock_review_'+date)||'{}');
-  document.getElementById('r-market').value=data.market||'';
-  document.getElementById('r-tomorrow').value=data.tomorrow||'';
-  document.getElementById('r-holdings').value=data.holdings||'';
-  document.getElementById('r-watchlist').value=data.watchlist||'';
-  document.getElementById('r-trade').value=data.trade||'';
-  document.getElementById('r-reflect').value=data.reflect||'';
-  document.getElementById('r-rule').value=data.rule||'';
+  ['market','tomorrow','holdings','watchlist','trade','reflect','rule'].forEach(k=>document.getElementById('r-'+k).value=data[k]||'');
 }
 
 function saveReview(){
-  const data={
-    market:document.getElementById('r-market').value,
-    tomorrow:document.getElementById('r-tomorrow').value,
-    holdings:document.getElementById('r-holdings').value,
-    watchlist:document.getElementById('r-watchlist').value,
-    trade:document.getElementById('r-trade').value,
-    reflect:document.getElementById('r-reflect').value,
-    rule:document.getElementById('r-rule').value,
-    date:currentDate
-  };
+  const data={};
+  ['market','tomorrow','holdings','watchlist','trade','reflect','rule'].forEach(k=>data[k]=document.getElementById('r-'+k).value);
+  data.date=currentDate;
   lss('stock_review_'+currentDate,JSON.stringify(data));
   const keys=JSON.parse(ls('stock_review_keys')||'[]');
   if(!keys.includes(currentDate)){keys.unshift(currentDate);lss('stock_review_keys',JSON.stringify(keys));}
-  const el=document.getElementById('confirm-daily');
-  el.textContent='저장 완료!';setTimeout(()=>el.textContent='',2000);
+  const el=document.getElementById('confirm-daily');el.textContent='저장 완료!';setTimeout(()=>el.textContent='',2000);
 }
 
 function renderHistory(){
@@ -221,6 +202,46 @@ function renderMonthly(){
     const pct=actual!==null?Math.min(100,Math.round(actual/g*100)):0,neg=actual!==null&&actual<0;
     return `<div class="mo-card${m===cur?' cur':''}"><div class="mo-month">${m}월${m===cur?' ●':''}</div><div class="mo-val${neg?' neg':''}">${actual!==null?(actual>=0?'+':'')+actual.toLocaleString():'-'}</div><div class="mo-goal">목표 ${(g/10000).toFixed(0)}만</div><div class="mo-bar"><div class="mo-fill" style="width:${pct}%"></div></div></div>`;
   }).join('');
+}
+
+function exportExcel(){
+  const keys=JSON.parse(ls('stock_review_keys')||'[]');
+  if(!keys.length){showConfirm('데이터가 없어요');return;}
+  const headers=['날짜','시황','내일전략','보유종목변화','관심종목','매매내용','반성','원칙준수'];
+  const rows=[headers,...keys.map(k=>{const d=JSON.parse(ls('stock_review_'+k)||'{}');return[k,d.market||'',d.tomorrow||'',d.holdings||'',d.watchlist||'',d.trade||'',d.reflect||'',d.rule||''];})];
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,'주식복기',ws);
+  const d=new Date();
+  XLSX.writeFile(wb,'주식복기_'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'.xlsx');
+  showConfirm('다운로드 완료!');
+}
+
+function importExcel(input,mode){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const wb=XLSX.read(e.target.result,{type:'binary'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1});
+    if(rows.length<2){showConfirm('데이터가 없어요');return;}
+    if(mode==='overwrite'){
+      const keys=JSON.parse(ls('stock_review_keys')||'[]');
+      keys.forEach(k=>localStorage.removeItem('stock_review_'+k));
+      lss('stock_review_keys','[]');
+    }
+    const keys=JSON.parse(ls('stock_review_keys')||'[]');
+    rows.slice(1).forEach(row=>{
+      if(!row[0])return;
+      const date=String(row[0]);
+      const data={date,market:String(row[1]||''),tomorrow:String(row[2]||''),holdings:String(row[3]||''),watchlist:String(row[4]||''),trade:String(row[5]||''),reflect:String(row[6]||''),rule:String(row[7]||'')};
+      lss('stock_review_'+date,JSON.stringify(data));
+      if(!keys.includes(date))keys.unshift(date);
+    });
+    lss('stock_review_keys',JSON.stringify(keys));
+    showConfirm(mode==='overwrite'?'덮어쓰기 완료!':'추가 완료!');
+  };
+  reader.readAsBinaryString(file);input.value='';
 }
 
 function showTab(t){

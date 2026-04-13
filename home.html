@@ -10,27 +10,25 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px 20px 40px;}
 .header{text-align:center;margin-bottom:32px;}
-.header-badge{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px;}
+.header-badge{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px;}
 .header-name{font-size:28px;font-weight:600;letter-spacing:-0.02em;margin-bottom:4px;}
-.header-date{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);}
-.section-label{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;margin:24px 0 12px;display:flex;align-items:center;gap:8px;}
+.header-date{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);}
+.section-label{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;margin:24px 0 12px;display:flex;align-items:center;gap:8px;}
 .section-label::after{content:'';flex:1;height:1px;background:var(--border);}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px;cursor:pointer;text-decoration:none;display:block;transition:border-color .2s,background .2s;position:relative;overflow:hidden;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;cursor:pointer;text-decoration:none;display:block;transition:border-color .2s,background .2s;position:relative;overflow:hidden;}
 .card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
 .card.daily::before{background:var(--job);}
-.card.stock1::before{background:var(--stock);}
-.card.stock2::before{background:var(--stock);}
-.card.stock3::before{background:var(--stock);}
+.card.stock1::before,.card.stock2::before,.card.stock3::before,.card.stock4::before{background:var(--stock);}
 .card.goals::before{background:var(--eng);}
 .card.milestone::before{background:var(--sport);}
 .card:hover{border-color:var(--border2);background:var(--bg3);}
-.card-icon{font-size:22px;margin-bottom:10px;}
-.card-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;}
-.card-desc{font-size:12px;color:var(--text3);line-height:1.5;}
-.card-badge{font-family:'DM Mono',monospace;font-size:10px;padding:2px 7px;border-radius:3px;margin-top:8px;display:inline-block;}
+.card-icon{font-size:24px;margin-bottom:12px;}
+.card-title{font-size:16px;font-weight:600;color:var(--text);margin-bottom:5px;}
+.card-desc{font-size:13px;color:var(--text3);line-height:1.6;}
+.card-badge{font-family:'DM Mono',monospace;font-size:11px;padding:3px 8px;border-radius:3px;margin-top:10px;display:inline-block;}
 .card.daily .card-badge{background:rgba(167,139,250,0.12);color:var(--job);}
-.card.stock1 .card-badge,.card.stock2 .card-badge,.card.stock3 .card-badge{background:rgba(251,191,36,0.12);color:var(--stock);}
+.card.stock1 .card-badge,.card.stock2 .card-badge,.card.stock3 .card-badge,.card.stock4 .card-badge{background:rgba(251,191,36,0.12);color:var(--stock);}
 .card.goals .card-badge{background:rgba(52,211,153,0.12);color:var(--eng);}
 .card.milestone .card-badge{background:rgba(251,113,133,0.12);color:var(--sport);}
 .full{grid-column:1/-1;}
@@ -67,11 +65,17 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <div class="card-desc">매수 전 원칙 체크 · 매매 기록</div>
     <div class="card-badge">TRADE LOG</div>
   </a>
-  <a class="card stock3 full" href="stock_review.html">
+  <a class="card stock3" href="stock_review.html">
     <div class="card-icon">🔍</div>
     <div class="card-title">주식 복기일지</div>
-    <div class="card-desc">시황 · 종목 · 매매 복기 · 월별 실현손익 트래커</div>
+    <div class="card-desc">시황 · 종목 · 매매 복기 · 월별 실현손익</div>
     <div class="card-badge">REVIEW</div>
+  </a>
+  <a class="card stock4" href="portfolio.html">
+    <div class="card-icon">🎯</div>
+    <div class="card-title">매수대기 포트폴리오</div>
+    <div class="card-desc">관심종목 11개 지표 트래킹 · 날짜별 모니터링</div>
+    <div class="card-badge">PORTFOLIO</div>
   </a>
 </div>
 
@@ -86,7 +90,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <a class="card milestone" href="milestone.html">
     <div class="card-icon">🏁</div>
     <div class="card-title">2026 이정표</div>
-    <div class="card-desc">올해 달성할 11개 마일스톤<br>체크해가며 기록</div>
+    <div class="card-desc">올해 달성할 11개 마일스톤</div>
     <div class="card-badge">2026</div>
   </a>
 </div>
