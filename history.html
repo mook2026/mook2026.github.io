@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>체크 누적 기록</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.15);--text:#f0f0f0;--text2:#bbb;--text3:#888;--job:#a78bfa;--eng:#34d399;--stock:#fbbf24;--sport:#fb7185;--r:10px;--r-sm:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100;}
+.nav-left{display:flex;align-items:center;gap:10px;}
+.nav-back{font-size:20px;color:var(--text2);text-decoration:none;}
+.nav-logo{font-family:'DM Mono',monospace;font-size:15px;color:var(--text2);letter-spacing:0.08em;}
+.nav-date{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);}
+.toolbar{display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.btn{font-size:14px;padding:8px 16px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;}
+.btn:hover{border-color:var(--stock);color:var(--stock);}
+.confirm-bar{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);padding:6px 20px;min-height:28px;}
+.wrap{padding:18px 20px;overflow-x:auto;}
+
+/* 요약 카드 */
+.summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;max-width:700px;}
+.sum-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;}
+.sum-lbl{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+.sum-val{font-family:'DM Mono',monospace;font-size:22px;font-weight:500;}
+.sum-val.job{color:var(--job)}.sum-val.eng{color:var(--eng)}.sum-val.stock{color:var(--stock)}.sum-val.sport{color:var(--sport)}
+
+/* 테이블 */
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:900px;}
+th{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);letter-spacing:.04em;padding:10px 14px;border:1px solid var(--border);background:var(--bg2);text-align:center;white-space:nowrap;position:sticky;top:0;z-index:5;}
+th.left{text-align:left;}
+td{padding:10px 14px;border:1px solid var(--border);color:var(--text2);text-align:center;vertical-align:middle;}
+td.date-td{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);text-align:left;white-space:nowrap;}
+td.overall{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;}
+td.high{color:var(--eng);}
+td.mid{color:var(--stock);}
+td.low{color:var(--neg);}
+.pct-bar{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-top:4px;}
+.pct-fill{height:100%;border-radius:2px;}
+tr:hover td{background:var(--bg3);}
+.score-badge{font-family:'DM Mono',monospace;font-size:13px;padding:2px 8px;border-radius:3px;}
+.score-badge.job{background:rgba(167,139,250,0.12);color:var(--job);}
+.score-badge.eng{background:rgba(52,211,153,0.12);color:var(--eng);}
+.score-badge.stock{background:rgba(251,191,36,0.12);color:var(--stock);}
+.empty-msg{text-align:center;padding:40px;color:var(--text3);font-size:15px;font-family:'DM Mono',monospace;}
+.check-icon{font-size:13px;}
+.check-y{color:var(--eng);}
+.check-n{color:var(--text3);}
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="nav-left"><a class="nav-back" href="home.html">←</a><div class="nav-logo">HISTORY</div></div>
+  <div class="nav-date" id="nav-date"></div>
+</div>
+<div class="toolbar">
+  <button class="btn" onclick="exportExcel()">⬇ 엑셀 다운로드</button>
+</div>
+<div class="confirm-bar" id="confirm-bar"></div>
+
+<div class="wrap">
+  <div class="summary-row">
+    <div class="sum-card"><div class="sum-lbl">총 기록일</div><div class="sum-val stock" id="sum-days">0</div></div>
+    <div class="sum-card"><div class="sum-lbl">평균 달성률</div><div class="sum-val eng" id="sum-avg">-</div></div>
+    <div class="sum-card"><div class="sum-lbl">100% 달성일</div><div class="sum-val job" id="sum-perfect">0</div></div>
+    <div class="sum-card"><div class="sum-lbl">연속 기록</div><div class="sum-val sport" id="sum-streak">0일</div></div>
+  </div>
+
+  <div style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th class="left">날짜</th>
+          <th>전체</th>
+          <th colspan="3">취업준비</th>
+          <th>영어</th>
+          <th colspan="4">주식</th>
+          <th>운동</th>
+          <th>취업집중도</th>
+          <th>영어집중도</th>
+          <th>주식복기깊이</th>
+          <th>강의진도</th>
+        </tr>
+      </thead>
+      <tbody id="hist-tbody"></tbody>
+    </table>
+    <div id="hist-empty" class="empty-msg">아직 저장된 기록이 없어요.<br>일일 체크리스트에서 "오늘 기록 저장"을 눌러주세요.</div>
+  </div>
+</div>
+
+<script>
+const DAYS=['일','월','화','수','목','금','토'];
+function pad(n){return String(n).padStart(2,'0');}
+function ls(k){return localStorage.getItem(k);}
+function showConfirm(msg){const el=document.getElementById('confirm-bar');el.textContent=msg;setTimeout(()=>el.textContent='',2500);}
+
+function pctColor(p){return p>=80?'high':p>=50?'mid':'low';}
+function checkIcon(v){return v?'<span class="check-icon check-y">✓</span>':'<span class="check-icon check-n">✗</span>';}
+
+function render(){
+  const hist=JSON.parse(ls('smart_history')||'[]');
+  const tbody=document.getElementById('hist-tbody');
+  const empty=document.getElementById('hist-empty');
+
+  if(!hist.length){tbody.innerHTML='';empty.style.display='block';updateSummary([]);return;}
+  empty.style.display='none';
+  updateSummary(hist);
+
+  tbody.innerHTML=hist.map(h=>{
+    const all=[...h.j,...h.e,...h.s,...h.sp];
+    const overall=Math.round(all.filter(Boolean).length/all.length*100);
+    const jPct=Math.round(h.j.filter(Boolean).length/3*100);
+    const ePct=h.e[0]?100:0;
+    const sPct=Math.round(h.s.filter(Boolean).length/4*100);
+    const spPct=h.sp[0]?100:0;
+    const sc=h.scores||{};
+    const d=new Date(h.date);
+    return `<tr>
+      <td class="date-td">${h.date.slice(5)} <span style="color:var(--text3);font-size:12px;">${DAYS[d.getDay()]}</span></td>
+      <td class="overall ${pctColor(overall)}">${overall}%<div class="pct-bar"><div class="pct-fill" style="width:${overall}%;background:${overall>=80?'var(--eng)':overall>=50?'var(--stock)':'var(--neg)'}"></div></div></td>
+      <td>${checkIcon(h.j[0])}</td>
+      <td>${checkIcon(h.j[1])}</td>
+      <td>${checkIcon(h.j[2])}</td>
+      <td>${checkIcon(h.e[0])}</td>
+      <td>${checkIcon(h.s[0])}</td>
+      <td>${checkIcon(h.s[1])}</td>
+      <td>${checkIcon(h.s[2])}</td>
+      <td>${checkIcon(h.s[3])}</td>
+      <td>${checkIcon(h.sp[0])}</td>
+      <td><span class="score-badge job">${sc.j||0}/10</span></td>
+      <td><span class="score-badge eng">${sc.e||0}/10</span></td>
+      <td><span class="score-badge stock">${sc.s||0}/10</span></td>
+      <td style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);">${h.lectureNum||34}강</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateSummary(hist){
+  document.getElementById('sum-days').textContent=hist.length;
+  if(!hist.length){document.getElementById('sum-avg').textContent='-';document.getElementById('sum-perfect').textContent=0;document.getElementById('sum-streak').textContent='0일';return;}
+  const avg=Math.round(hist.reduce((a,b)=>a+b.overall,0)/hist.length);
+  document.getElementById('sum-avg').textContent=avg+'%';
+  document.getElementById('sum-perfect').textContent=hist.filter(h=>h.overall===100).length;
+  // 연속 기록 (최신부터)
+  let streak=0;
+  const today=new Date();
+  for(let i=0;i<hist.length;i++){
+    const d=new Date(hist[i].date);
+    const diff=Math.round((today-d)/(864e5));
+    if(diff===i){streak++;}else break;
+  }
+  document.getElementById('sum-streak').textContent=streak+'일';
+}
+
+function exportExcel(){
+  const hist=JSON.parse(ls('smart_history')||'[]');
+  if(!hist.length){showConfirm('데이터가 없어요');return;}
+  const headers=['날짜','전체달성률','패키징공부','JD모니터링','면접질문','영어','시황복기','종목복기','매매복기','내일전략','러닝','취업집중도','영어집중도','주식복기깊이','강의진도'];
+  const rows=[headers,...hist.map(h=>{
+    const all=[...h.j,...h.e,...h.s,...h.sp];
+    const sc=h.scores||{};
+    return[h.date,Math.round(all.filter(Boolean).length/all.length*100)+'%',...h.j.map(v=>v?'Y':'N'),h.e[0]?'Y':'N',...h.s.map(v=>v?'Y':'N'),h.sp[0]?'Y':'N',sc.j||0,sc.e||0,sc.s||0,(h.lectureNum||34)+'강'];
+  })];
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,'체크기록',ws);
+  const d=new Date();
+  XLSX.writeFile(wb,'체크기록_'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'.xlsx');
+  showConfirm('다운로드 완료!');
+}
+
+const d=new Date();
+document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+DAYS[d.getDay()];
+render();
+</script>
+</body>
+</html>

@@ -7,14 +7,14 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--text:#f0f0f0;--text2:#999;--text3:#555;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;}
+:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.15);--text:#f0f0f0;--text2:#bbb;--text3:#888;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;}
 .nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100;}
 .nav-left{display:flex;align-items:center;gap:10px;}
 .nav-back{font-size:20px;color:var(--text2);text-decoration:none;}
 .nav-logo{font-family:'DM Mono',monospace;font-size:15px;color:var(--text2);letter-spacing:0.08em;}
-.nav-date{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);}
+.nav-date{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);}
 .tabs{display:flex;padding:0 20px;border-bottom:1px solid var(--border);}
 .tab{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);padding:13px 16px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;}
 .tab:hover{color:var(--text2);}
@@ -22,44 +22,54 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .toolbar{display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
 .btn{font-size:14px;padding:8px 16px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;}
 .btn:hover{border-color:var(--stock);color:var(--stock);}
-.confirm-bar{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);padding:6px 20px;}
-.wrap{padding:18px 20px;max-width:700px;margin:0 auto;}
-.sec{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:14px;overflow:hidden;}
-.sec-head{padding:14px 18px 10px;border-bottom:1px solid var(--border);}
-.sec-title{font-size:16px;font-weight:600;color:var(--stock);margin-bottom:3px;}
-.sec-sub{font-size:14px;color:var(--text3);}
-.review-form{padding:16px 18px;}
-.fr{margin-bottom:16px;}
-.fr label{font-size:14px;color:var(--text2);display:block;margin-bottom:7px;display:flex;align-items:center;justify-content:space-between;}
-.fr label .hint{font-size:12px;color:var(--text3);font-weight:400;}
-.fr textarea{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:15px;padding:11px 13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;transition:border-color .15s;}
+.btn.primary{border-color:var(--stock);color:var(--stock);}
+.btn.primary:hover{background:var(--stock);color:#0c0c0e;}
+.confirm-bar{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);padding:6px 20px;min-height:28px;}
+.wrap{padding:18px 20px;max-width:100%;margin:0 auto;}
+
+/* 입력 폼 */
+.form-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:14px;}
+.form-title{font-size:16px;font-weight:600;color:var(--stock);margin-bottom:14px;}
+.form-date-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.form-date-row label{font-size:14px;color:var(--text2);}
+.form-date-row input{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:15px;padding:8px 12px;font-family:'DM Mono',monospace;outline:none;}
+.form-date-row button{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:8px 14px;border-radius:6px;cursor:pointer;font-size:14px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.fr{margin-bottom:0;}
+.fr label{font-size:14px;color:var(--text2);display:block;margin-bottom:6px;}
+.fr label .hint{font-size:12px;color:var(--text3);}
+.fr textarea{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:15px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;transition:border-color .15s;}
 .fr textarea:focus{border-color:var(--stock);}
-.fr input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:15px;padding:11px 13px;font-family:'DM Mono',monospace;outline:none;transition:border-color .15s;}
-.fr input:focus{border-color:var(--stock);}
-.save-btn{width:100%;padding:13px;font-size:15px;font-family:'DM Mono',monospace;letter-spacing:.04em;border:1px solid var(--stock);border-radius:var(--r-sm);background:transparent;color:var(--stock);cursor:pointer;transition:all .15s;}
+.fr-full{grid-column:1/-1;}
+.save-btn{width:100%;margin-top:14px;padding:13px;font-size:15px;font-family:'DM Mono',monospace;letter-spacing:.04em;border:1px solid var(--stock);border-radius:var(--r-sm);background:transparent;color:var(--stock);cursor:pointer;transition:all .15s;}
 .save-btn:hover{background:var(--stock);color:#0c0c0e;}
-.confirm{text-align:center;font-size:13px;color:var(--text3);margin-top:7px;height:15px;font-family:'DM Mono',monospace;}
-.date-nav{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
-.date-nav button{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:8px 16px;border-radius:6px;cursor:pointer;font-size:15px;transition:all .15s;}
-.date-nav button:hover{border-color:var(--border2);color:var(--text);}
-.date-nav input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:15px;padding:8px 12px;font-family:'DM Mono',monospace;outline:none;}
-.review-item{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:16px 18px;margin-bottom:10px;}
-.ri-date{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);margin-bottom:12px;}
-.ri-section{margin-bottom:12px;}
-.ri-label{font-size:13px;color:var(--stock);font-weight:600;margin-bottom:5px;}
-.ri-content{font-size:15px;color:var(--text2);line-height:1.6;}
-.actual-row{display:flex;align-items:center;gap:12px;padding:14px 18px;border-top:1px solid var(--border);}
-.actual-row label{font-size:14px;color:var(--text2);white-space:nowrap;}
-.actual-row input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:15px;padding:9px 12px;font-family:'DM Mono',monospace;outline:none;}
-.actual-row .u{font-size:14px;color:var(--text3);}
+
+/* 테이블 */
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:14px;}
+th{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);letter-spacing:.04em;padding:10px 14px;border:1px solid var(--border);background:var(--bg2);text-align:left;white-space:nowrap;position:sticky;top:0;z-index:5;}
+td{padding:10px 14px;border:1px solid var(--border);color:var(--text2);vertical-align:top;min-width:120px;max-width:280px;word-break:break-all;line-height:1.6;}
+td.date-cell{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);white-space:nowrap;min-width:90px;cursor:pointer;}
+td.date-cell:hover{color:var(--stock);}
+tr:hover td{background:var(--bg3);}
+tr.editing td{background:rgba(251,191,36,0.04);border-color:rgba(251,191,36,0.2);}
+td textarea{width:100%;background:transparent;border:none;color:var(--text);font-size:14px;padding:0;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;min-height:60px;}
+.del-btn{font-size:12px;color:var(--text3);cursor:pointer;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:transparent;white-space:nowrap;transition:all .15s;}
+.del-btn:hover{border-color:var(--neg);color:var(--neg);}
+
+/* 월간 */
+.actual-row{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:14px;}
+.actual-row label{font-size:15px;color:var(--text2);white-space:nowrap;}
+.actual-row input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:16px;padding:10px 12px;font-family:'DM Mono',monospace;outline:none;}
+.actual-row .u{font-size:15px;color:var(--text3);}
 .mo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-.mo-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px;text-align:center;}
+.mo-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;text-align:center;}
 .mo-card.cur{border-color:var(--stock);}
-.mo-month{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);margin-bottom:5px;}
-.mo-val{font-family:'DM Mono',monospace;font-size:17px;font-weight:500;color:var(--stock);}
+.mo-month{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);margin-bottom:6px;}
+.mo-val{font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:var(--stock);}
 .mo-val.neg{color:var(--neg);}
-.mo-goal{font-size:13px;color:var(--text3);margin-top:3px;}
-.mo-bar{height:3px;background:var(--bg2);border-radius:2px;margin-top:8px;overflow:hidden;}
+.mo-goal{font-size:13px;color:var(--text3);margin-top:4px;}
+.mo-bar{height:3px;background:var(--bg3);border-radius:2px;margin-top:8px;overflow:hidden;}
 .mo-fill{height:100%;background:var(--stock);border-radius:2px;}
 .empty-msg{text-align:center;padding:40px;color:var(--text3);font-size:15px;font-family:'DM Mono',monospace;}
 .hidden{display:none!important;}
@@ -71,8 +81,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <div class="nav-date" id="nav-date"></div>
 </div>
 <div class="tabs">
-  <div class="tab on" onclick="showTab('daily')">일별 복기</div>
-  <div class="tab" onclick="showTab('history')">복기 기록</div>
+  <div class="tab on" onclick="showTab('write')">복기 입력</div>
+  <div class="tab" onclick="showTab('table')">누적 테이블</div>
   <div class="tab" onclick="showTab('monthly')">월간 손익</div>
 </div>
 <div class="toolbar">
@@ -82,57 +92,62 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 </div>
 <div class="confirm-bar" id="confirm-bar"></div>
 
-<div id="tab-daily" class="wrap">
-  <div class="date-nav">
-    <button onclick="changeDate(-1)">◀</button>
-    <input type="date" id="review-date">
-    <button onclick="changeDate(1)">▶</button>
-  </div>
-  <div class="sec">
-    <div class="sec-head"><div class="sec-title">시황 복기</div><div class="sec-sub">오늘 시장 흐름 분석</div></div>
-    <div class="review-form">
-      <div class="fr"><label>오늘 시장 흐름 <span class="hint">코스피/코스닥 방향, 섹터 동향</span></label><textarea id="r-market" rows="3" placeholder="오늘 시장 전체 흐름..."></textarea></div>
-      <div class="fr"><label>내일 전략 <span class="hint">한 줄 요약</span></label><textarea id="r-tomorrow" rows="2" placeholder="내일 주목할 것 · 매매 계획..."></textarea></div>
+<!-- 복기 입력 -->
+<div id="tab-write" class="wrap">
+  <div class="form-card">
+    <div class="form-title">오늘 복기 작성</div>
+    <div class="form-date-row">
+      <label>날짜</label>
+      <button onclick="changeDate(-1)">◀</button>
+      <input type="date" id="review-date">
+      <button onclick="changeDate(1)">▶</button>
     </div>
-  </div>
-  <div class="sec">
-    <div class="sec-head"><div class="sec-title">종목 복기</div><div class="sec-sub">보유 · 관심 종목 변화</div></div>
-    <div class="review-form">
-      <div class="fr"><label>보유 종목 변화 <span class="hint">오늘 움직임 · 대응</span></label><textarea id="r-holdings" rows="3" placeholder="보유 종목별 오늘 흐름과 내 대응..."></textarea></div>
-      <div class="fr"><label>관심 종목 업데이트 <span class="hint">추가/제거/변화</span></label><textarea id="r-watchlist" rows="2" placeholder="관심 종목 변화..."></textarea></div>
+    <div class="form-grid">
+      <div class="fr fr-full"><label>시황 복기 <span class="hint">· 코스피/코스닥 방향, 섹터 동향</span></label><textarea id="r-market" rows="3" placeholder="오늘 시장 전체 흐름..."></textarea></div>
+      <div class="fr"><label>내일 전략</label><textarea id="r-tomorrow" rows="2" placeholder="내일 주목할 것 · 매매 계획..."></textarea></div>
+      <div class="fr"><label>보유종목 변화</label><textarea id="r-holdings" rows="2" placeholder="보유 종목별 오늘 흐름과 대응..."></textarea></div>
+      <div class="fr"><label>관심종목 업데이트</label><textarea id="r-watchlist" rows="2" placeholder="관심 종목 변화..."></textarea></div>
+      <div class="fr"><label>매매 내용 <span class="hint">· 미매매 시 이유</span></label><textarea id="r-trade" rows="2" placeholder="종목 · 진입근거 · 결과 또는 미매매 이유..."></textarea></div>
+      <div class="fr"><label>반성 / 잘한 점</label><textarea id="r-reflect" rows="2" placeholder="잘한 것과 반성할 것..."></textarea></div>
+      <div class="fr fr-full"><label>원칙 준수 여부</label><textarea id="r-rule" rows="2" placeholder="손절가 설정 여부 · 뇌동매매 여부 · 매매시간 준수..."></textarea></div>
     </div>
+    <button class="save-btn" onclick="saveReview()">복기 저장</button>
   </div>
-  <div class="sec">
-    <div class="sec-head"><div class="sec-title">매매 복기</div><div class="sec-sub">오늘 매매가 있었다면</div></div>
-    <div class="review-form">
-      <div class="fr"><label>매매 내용 <span class="hint">미매매 시 이유 한 줄</span></label><textarea id="r-trade" rows="3" placeholder="매매 시: 종목 · 진입근거 · 결과&#10;미매매 시: 오늘 매매 안 한 이유..."></textarea></div>
-      <div class="fr"><label>반성 / 잘한 점</label><textarea id="r-reflect" rows="2" placeholder="오늘 매매에서 잘한 것과 반성할 것..."></textarea></div>
-    </div>
-  </div>
-  <div class="sec">
-    <div class="sec-head"><div class="sec-title">원칙 준수</div></div>
-    <div class="review-form">
-      <div class="fr"><label>오늘 원칙 지켰나? <span class="hint">구체적으로</span></label><textarea id="r-rule" rows="2" placeholder="손절가 설정 여부 · 뇌동매매 여부 · 매매시간 준수..."></textarea></div>
-    </div>
-  </div>
-  <button class="save-btn" onclick="saveReview()">복기 저장</button>
-  <div class="confirm" id="confirm-daily"></div>
 </div>
 
-<div id="tab-history" class="wrap hidden"><div id="history-list"></div></div>
+<!-- 누적 테이블 -->
+<div id="tab-table" class="wrap hidden">
+  <div class="tbl-wrap">
+    <table id="review-table">
+      <thead>
+        <tr>
+          <th>날짜</th>
+          <th>시황</th>
+          <th>내일전략</th>
+          <th>보유종목</th>
+          <th>관심종목</th>
+          <th>매매내용</th>
+          <th>반성</th>
+          <th>원칙준수</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="review-tbody"></tbody>
+    </table>
+    <div id="review-empty" class="empty-msg hidden">복기 기록이 없어요</div>
+  </div>
+</div>
 
+<!-- 월간 손익 -->
 <div id="tab-monthly" class="wrap hidden">
-  <div class="sec">
-    <div class="sec-head"><div class="sec-title">월별 실현손익 입력</div></div>
-    <div class="actual-row">
-      <label>이번 달 실현손익</label>
-      <input type="number" id="actual-input" placeholder="0" oninput="updateActual()">
-      <span class="u">원</span>
-    </div>
-    <div style="padding:0 18px 16px;">
-      <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);margin-bottom:6px;"><span id="goal-label">목표: -</span><span id="goal-pct">0%</span></div>
-      <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;"><div style="height:100%;background:var(--stock);border-radius:2px;transition:width .3s;" id="goal-bar"></div></div>
-    </div>
+  <div class="actual-row">
+    <label>이번 달 실현손익</label>
+    <input type="number" id="actual-input" placeholder="0" oninput="updateActual()">
+    <span class="u">원</span>
+  </div>
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 18px;margin-bottom:14px;">
+    <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);margin-bottom:6px;"><span id="goal-label">목표: -</span><span id="goal-pct">0%</span></div>
+    <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;"><div style="height:100%;background:var(--stock);border-radius:2px;transition:width .3s;" id="goal-bar"></div></div>
   </div>
   <div class="mo-grid" id="mo-grid"></div>
 </div>
@@ -140,46 +155,70 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 <script>
 const GOALS={4:700000,5:1000000,6:1000000,7:1200000,8:1300000,9:1400000,10:1500000,11:1500000,12:1500000};
 const DAYS=['일','월','화','수','목','금','토'];
+const FIELDS=['market','tomorrow','holdings','watchlist','trade','reflect','rule'];
 function pad(n){return String(n).padStart(2,'0');}
 function ls(k){return localStorage.getItem(k);}
 function lss(k,v){localStorage.setItem(k,v);}
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
 function showConfirm(msg){const el=document.getElementById('confirm-bar');el.textContent=msg;setTimeout(()=>el.textContent='',2500);}
+function getKeys(){return JSON.parse(ls('stock_review_keys')||'[]');}
+function saveKeys(k){lss('stock_review_keys',JSON.stringify(k));}
 
 let currentDate=todayStr();
 
-function initDate(){document.getElementById('review-date').value=currentDate;loadReview(currentDate);}
-function changeDate(dir){const d=new Date(currentDate);d.setDate(d.getDate()+dir);currentDate=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());document.getElementById('review-date').value=currentDate;loadReview(currentDate);}
-document.getElementById('review-date').addEventListener('change',function(){currentDate=this.value;loadReview(currentDate);});
+function initDate(){document.getElementById('review-date').value=currentDate;loadForm(currentDate);}
+function changeDate(dir){const d=new Date(currentDate);d.setDate(d.getDate()+dir);currentDate=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());document.getElementById('review-date').value=currentDate;loadForm(currentDate);}
+document.getElementById('review-date').addEventListener('change',function(){currentDate=this.value;loadForm(currentDate);});
 
-function loadReview(date){
+function loadForm(date){
   const data=JSON.parse(ls('stock_review_'+date)||'{}');
-  ['market','tomorrow','holdings','watchlist','trade','reflect','rule'].forEach(k=>document.getElementById('r-'+k).value=data[k]||'');
+  FIELDS.forEach(k=>{const el=document.getElementById('r-'+k);if(el)el.value=data[k]||'';});
 }
 
 function saveReview(){
-  const data={};
-  ['market','tomorrow','holdings','watchlist','trade','reflect','rule'].forEach(k=>data[k]=document.getElementById('r-'+k).value);
-  data.date=currentDate;
+  const data={date:currentDate};
+  FIELDS.forEach(k=>{data[k]=document.getElementById('r-'+k).value;});
   lss('stock_review_'+currentDate,JSON.stringify(data));
-  const keys=JSON.parse(ls('stock_review_keys')||'[]');
-  if(!keys.includes(currentDate)){keys.unshift(currentDate);lss('stock_review_keys',JSON.stringify(keys));}
-  const el=document.getElementById('confirm-daily');el.textContent='저장 완료!';setTimeout(()=>el.textContent='',2000);
+  const keys=getKeys();
+  if(!keys.includes(currentDate)){keys.unshift(currentDate);saveKeys(keys);}
+  showConfirm('저장 완료!');
 }
 
-function renderHistory(){
-  const keys=JSON.parse(ls('stock_review_keys')||'[]');
-  const el=document.getElementById('history-list');
-  if(!keys.length){el.innerHTML='<div class="empty-msg">복기 기록이 없어요</div>';return;}
-  el.innerHTML=keys.map(k=>{
+function renderTable(){
+  const keys=getKeys();
+  const tbody=document.getElementById('review-tbody');
+  const empty=document.getElementById('review-empty');
+  if(!keys.length){tbody.innerHTML='';empty.classList.remove('hidden');return;}
+  empty.classList.add('hidden');
+  tbody.innerHTML=keys.map(k=>{
     const d=JSON.parse(ls('stock_review_'+k)||'{}');
-    return `<div class="review-item">
-      <div class="ri-date">${k}</div>
-      ${d.market?`<div class="ri-section"><div class="ri-label">시황</div><div class="ri-content">${d.market}</div></div>`:''}
-      ${d.trade?`<div class="ri-section"><div class="ri-label">매매</div><div class="ri-content">${d.trade}</div></div>`:''}
-      ${d.reflect?`<div class="ri-section"><div class="ri-label">반성</div><div class="ri-content">${d.reflect}</div></div>`:''}
-    </div>`;
+    const cols=[d.market,d.tomorrow,d.holdings,d.watchlist,d.trade,d.reflect,d.rule];
+    return `<tr>
+      <td class="date-cell" onclick="editRow('${k}')">${k.slice(5)}<br><span style="font-size:11px;color:var(--text3)">${k.slice(0,4)}</span></td>
+      ${cols.map((c,i)=>`<td><textarea onblur="saveCell('${k}','${FIELDS[i]}',this.value)" rows="3">${c||''}</textarea></td>`).join('')}
+      <td><button class="del-btn" onclick="deleteRow('${k}')">삭제</button></td>
+    </tr>`;
   }).join('');
+}
+
+function saveCell(date,field,val){
+  const data=JSON.parse(ls('stock_review_'+date)||'{}');
+  data[field]=val;
+  lss('stock_review_'+date,JSON.stringify(data));
+}
+
+function deleteRow(date){
+  if(!confirm(date+' 복기를 삭제할까요?'))return;
+  localStorage.removeItem('stock_review_'+date);
+  const keys=getKeys().filter(k=>k!==date);
+  saveKeys(keys);renderTable();
+}
+
+function editRow(date){
+  currentDate=date;
+  document.getElementById('review-date').value=date;
+  loadForm(date);
+  showTab('write');
 }
 
 function updateActual(){
@@ -205,9 +244,9 @@ function renderMonthly(){
 }
 
 function exportExcel(){
-  const keys=JSON.parse(ls('stock_review_keys')||'[]');
+  const keys=getKeys();
   if(!keys.length){showConfirm('데이터가 없어요');return;}
-  const headers=['날짜','시황','내일전략','보유종목변화','관심종목','매매내용','반성','원칙준수'];
+  const headers=['날짜','시황','내일전략','보유종목','관심종목','매매내용','반성','원칙준수'];
   const rows=[headers,...keys.map(k=>{const d=JSON.parse(ls('stock_review_'+k)||'{}');return[k,d.market||'',d.tomorrow||'',d.holdings||'',d.watchlist||'',d.trade||'',d.reflect||'',d.rule||''];})];
   const ws=XLSX.utils.aoa_to_sheet(rows);
   const wb=XLSX.utils.book_new();
@@ -225,12 +264,8 @@ function importExcel(input,mode){
     const ws=wb.Sheets[wb.SheetNames[0]];
     const rows=XLSX.utils.sheet_to_json(ws,{header:1});
     if(rows.length<2){showConfirm('데이터가 없어요');return;}
-    if(mode==='overwrite'){
-      const keys=JSON.parse(ls('stock_review_keys')||'[]');
-      keys.forEach(k=>localStorage.removeItem('stock_review_'+k));
-      lss('stock_review_keys','[]');
-    }
-    const keys=JSON.parse(ls('stock_review_keys')||'[]');
+    if(mode==='overwrite'){const keys=getKeys();keys.forEach(k=>localStorage.removeItem('stock_review_'+k));saveKeys([]);}
+    const keys=getKeys();
     rows.slice(1).forEach(row=>{
       if(!row[0])return;
       const date=String(row[0]);
@@ -238,18 +273,19 @@ function importExcel(input,mode){
       lss('stock_review_'+date,JSON.stringify(data));
       if(!keys.includes(date))keys.unshift(date);
     });
-    lss('stock_review_keys',JSON.stringify(keys));
+    saveKeys(keys);
     showConfirm(mode==='overwrite'?'덮어쓰기 완료!':'추가 완료!');
+    if(document.getElementById('tab-table').classList.contains('hidden')===false)renderTable();
   };
   reader.readAsBinaryString(file);input.value='';
 }
 
 function showTab(t){
-  ['daily','history','monthly'].forEach((id,i)=>{
+  ['write','table','monthly'].forEach((id,i)=>{
     document.getElementById('tab-'+id).classList.toggle('hidden',id!==t);
     document.querySelectorAll('.tab')[i].classList.toggle('on',id===t);
   });
-  if(t==='history')renderHistory();
+  if(t==='table')renderTable();
   if(t==='monthly'){renderMonthly();const hist=JSON.parse(ls('smart_history')||'[]');const cur=new Date().getMonth()+1;const entries=hist.filter(h=>parseInt(h.date.split('-')[1])===cur);if(entries[0])document.getElementById('actual-input').value=entries[0].stockActual||'';}
 }
 

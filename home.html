@@ -6,31 +6,33 @@
 <title>Ian's Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--text:#f0f0f0;--text2:#888;--text3:#4a4a4e;--job:#a78bfa;--eng:#34d399;--stock:#fbbf24;--sport:#fb7185;--r:12px;--r-sm:8px;}
+:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.15);--text:#f0f0f0;--text2:#bbb;--text3:#888;--job:#a78bfa;--eng:#34d399;--stock:#fbbf24;--sport:#fb7185;--r:12px;--r-sm:8px;}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px 20px 40px;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px 20px 40px;font-size:16px;}
 .header{text-align:center;margin-bottom:32px;}
-.header-badge{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px;}
-.header-name{font-size:28px;font-weight:600;letter-spacing:-0.02em;margin-bottom:4px;}
-.header-date{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);}
-.section-label{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;margin:24px 0 12px;display:flex;align-items:center;gap:8px;}
+.header-badge{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px;}
+.header-name{font-size:30px;font-weight:600;letter-spacing:-0.02em;margin-bottom:4px;}
+.header-date{font-family:'DM Mono',monospace;font-size:15px;color:var(--text3);}
+.section-label{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;margin:24px 0 12px;display:flex;align-items:center;gap:8px;}
 .section-label::after{content:'';flex:1;height:1px;background:var(--border);}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;cursor:pointer;text-decoration:none;display:block;transition:border-color .2s,background .2s;position:relative;overflow:hidden;}
 .card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
 .card.daily::before{background:var(--job);}
-.card.stock1::before,.card.stock2::before,.card.stock3::before,.card.stock4::before{background:var(--stock);}
+.card.stock1::before,.card.stock2::before,.card.stock3::before,.card.stock4::before,.card.stock5::before{background:var(--stock);}
 .card.goals::before{background:var(--eng);}
 .card.milestone::before{background:var(--sport);}
+.card.history::before{background:#60a5fa;}
 .card:hover{border-color:var(--border2);background:var(--bg3);}
 .card-icon{font-size:24px;margin-bottom:12px;}
-.card-title{font-size:16px;font-weight:600;color:var(--text);margin-bottom:5px;}
-.card-desc{font-size:13px;color:var(--text3);line-height:1.6;}
-.card-badge{font-family:'DM Mono',monospace;font-size:11px;padding:3px 8px;border-radius:3px;margin-top:10px;display:inline-block;}
+.card-title{font-size:17px;font-weight:600;color:var(--text);margin-bottom:5px;}
+.card-desc{font-size:14px;color:var(--text3);line-height:1.6;}
+.card-badge{font-family:'DM Mono',monospace;font-size:12px;padding:3px 8px;border-radius:3px;margin-top:10px;display:inline-block;}
 .card.daily .card-badge{background:rgba(167,139,250,0.12);color:var(--job);}
-.card.stock1 .card-badge,.card.stock2 .card-badge,.card.stock3 .card-badge,.card.stock4 .card-badge{background:rgba(251,191,36,0.12);color:var(--stock);}
+.card.stock1 .card-badge,.card.stock2 .card-badge,.card.stock3 .card-badge,.card.stock4 .card-badge,.card.stock5 .card-badge{background:rgba(251,191,36,0.12);color:var(--stock);}
 .card.goals .card-badge{background:rgba(52,211,153,0.12);color:var(--eng);}
 .card.milestone .card-badge{background:rgba(251,113,133,0.12);color:var(--sport);}
+.card.history .card-badge{background:rgba(96,165,250,0.12);color:#60a5fa;}
 .full{grid-column:1/-1;}
 </style>
 </head>
@@ -40,61 +42,23 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <div class="header-name">어서와요, Ian 👋</div>
   <div class="header-date" id="today-str"></div>
 </div>
-
 <div class="section-label">매일 체크</div>
 <div class="grid">
-  <a class="card daily full" href="index.html">
-    <div class="card-icon">✓</div>
-    <div class="card-title">일일 체크리스트</div>
-    <div class="card-desc">취업준비 · 영어 · 주식복기 · 운동<br>오늘 할 일 체크하고 기록 저장</div>
-    <div class="card-badge">DAILY</div>
-  </a>
+  <a class="card daily" href="index.html"><div class="card-icon">✓</div><div class="card-title">일일 체크리스트</div><div class="card-desc">취업준비 · 영어 · 주식복기 · 운동</div><div class="card-badge">DAILY</div></a>
+  <a class="card history" href="history.html"><div class="card-icon">📅</div><div class="card-title">체크 누적 기록</div><div class="card-desc">날짜별 달성률 · 집중도 테이블</div><div class="card-badge">HISTORY</div></a>
 </div>
-
 <div class="section-label">주식</div>
 <div class="grid">
-  <a class="card stock1" href="stock_hold.html">
-    <div class="card-icon">📊</div>
-    <div class="card-title">보유종목 현황</div>
-    <div class="card-desc">종목별 수익률 · 목표가 · 손절가 관리</div>
-    <div class="card-badge">HOLDINGS</div>
-  </a>
-  <a class="card stock2" href="stock_trade.html">
-    <div class="card-icon">📝</div>
-    <div class="card-title">매매일지</div>
-    <div class="card-desc">매수 전 원칙 체크 · 매매 기록</div>
-    <div class="card-badge">TRADE LOG</div>
-  </a>
-  <a class="card stock3" href="stock_review.html">
-    <div class="card-icon">🔍</div>
-    <div class="card-title">주식 복기일지</div>
-    <div class="card-desc">시황 · 종목 · 매매 복기 · 월별 실현손익</div>
-    <div class="card-badge">REVIEW</div>
-  </a>
-  <a class="card stock4" href="portfolio.html">
-    <div class="card-icon">🎯</div>
-    <div class="card-title">매수대기 포트폴리오</div>
-    <div class="card-desc">관심종목 11개 지표 트래킹 · 날짜별 모니터링</div>
-    <div class="card-badge">PORTFOLIO</div>
-  </a>
+  <a class="card stock1" href="stock_hold.html"><div class="card-icon">📊</div><div class="card-title">보유종목 현황</div><div class="card-desc">종목별 수익률 · 목표가 · 손절가</div><div class="card-badge">HOLDINGS</div></a>
+  <a class="card stock2" href="stock_trade.html"><div class="card-icon">📝</div><div class="card-title">매매일지</div><div class="card-desc">매수 전 원칙 체크 · 누적 테이블</div><div class="card-badge">TRADE LOG</div></a>
+  <a class="card stock3" href="stock_review.html"><div class="card-icon">🔍</div><div class="card-title">주식 복기일지</div><div class="card-desc">시황 · 종목 · 매매 누적 테이블</div><div class="card-badge">REVIEW</div></a>
+  <a class="card stock4" href="portfolio.html"><div class="card-icon">🎯</div><div class="card-title">매수대기 포트폴리오</div><div class="card-desc">11개 지표 날짜별 트래킹</div><div class="card-badge">PORTFOLIO</div></a>
 </div>
-
 <div class="section-label">목표</div>
 <div class="grid">
-  <a class="card goals" href="goals.html">
-    <div class="card-icon">🗺</div>
-    <div class="card-title">장기 목표</div>
-    <div class="card-desc">커리어 · 주식 · 영어<br>10년 로드맵</div>
-    <div class="card-badge">LONG-TERM</div>
-  </a>
-  <a class="card milestone" href="milestone.html">
-    <div class="card-icon">🏁</div>
-    <div class="card-title">2026 이정표</div>
-    <div class="card-desc">올해 달성할 11개 마일스톤</div>
-    <div class="card-badge">2026</div>
-  </a>
+  <a class="card goals" href="goals.html"><div class="card-icon">🗺</div><div class="card-title">장기 목표</div><div class="card-desc">커리어 · 주식 · 영어 10년 로드맵</div><div class="card-badge">LONG-TERM</div></a>
+  <a class="card milestone" href="milestone.html"><div class="card-icon">🏁</div><div class="card-title">2026 이정표</div><div class="card-desc">올해 달성할 11개 마일스톤</div><div class="card-badge">2026</div></a>
 </div>
-
 <script>
 const d=new Date();
 const days=['일','월','화','수','목','금','토'];
