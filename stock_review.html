@@ -74,6 +74,16 @@ td textarea{width:100%;background:transparent;border:none;color:var(--text);font
 .empty-msg{text-align:center;padding:40px;color:var(--text3);font-size:15px;font-family:'DM Mono',monospace;}
 .hidden{display:none!important;}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ian-dashboard.firebaseapp.com",projectId:"ian-dashboard",storageBucket:"ian-dashboard.firebasestorage.app",messagingSenderId:"47067460467",appId:"1:47067460467:web:37906ad2ddb74133238b06"};
+if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
+const db=firebase.firestore();
+const UID='ian';
+async function fbSave(){try{const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.startsWith('smart_')||k.startsWith('stock_')||k.startsWith('portfolio_')||k.startsWith('milestone_')||k.startsWith('smart_weekly')||k.startsWith('smart_lecture')||k.startsWith('smart_trades')||k.startsWith('smart_stocks')))data[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(data,{merge:true});}catch(e){console.warn('FB save:',e);}}
+async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){const d=doc.data();Object.entries(d).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB sync:',e);}if(cb)cb();}
+</script>
 </head>
 <body>
 <div class="nav">
@@ -178,9 +188,9 @@ function loadForm(date){
 function saveReview(){
   const data={date:currentDate};
   FIELDS.forEach(k=>{data[k]=document.getElementById('r-'+k).value;});
-  lss('stock_review_'+currentDate,JSON.stringify(data));
+  lss('stock_review_'+currentDate,JSON.stringify(data));fbSave();
   const keys=getKeys();
-  if(!keys.includes(currentDate)){keys.unshift(currentDate);saveKeys(keys);}
+  if(!keys.includes(currentDate)){keys.unshift(currentDate);saveKeys(keys);fbSave();}
   showConfirm('저장 완료!');
 }
 
@@ -211,7 +221,7 @@ function deleteRow(date){
   if(!confirm(date+' 복기를 삭제할까요?'))return;
   localStorage.removeItem('stock_review_'+date);
   const keys=getKeys().filter(k=>k!==date);
-  saveKeys(keys);renderTable();
+  saveKeys(keys);fbSave();renderTable();
 }
 
 function editRow(date){
@@ -273,7 +283,7 @@ function importExcel(input,mode){
       lss('stock_review_'+date,JSON.stringify(data));
       if(!keys.includes(date))keys.unshift(date);
     });
-    saveKeys(keys);
+    saveKeys(keys);fbSave();
     showConfirm(mode==='overwrite'?'덮어쓰기 완료!':'추가 완료!');
     if(document.getElementById('tab-table').classList.contains('hidden')===false)renderTable();
   };
@@ -291,7 +301,7 @@ function showTab(t){
 
 const d=new Date();
 document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+DAYS[d.getDay()];
-initDate();
+fbSync(()=>{ initDate(); });
 </script>
 </body>
 </html>

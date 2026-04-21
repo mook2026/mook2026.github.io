@@ -139,6 +139,16 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg3)}
 .empty{text-align:center;padding:36px;color:var(--text3);font-size:14px;font-family:'DM Mono',monospace;}
 .hidden{display:none!important;}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ian-dashboard.firebaseapp.com",projectId:"ian-dashboard",storageBucket:"ian-dashboard.firebasestorage.app",messagingSenderId:"47067460467",appId:"1:47067460467:web:37906ad2ddb74133238b06"};
+if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
+const db=firebase.firestore();
+const UID='ian';
+async function fbSave(){try{const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.startsWith('smart_')||k.startsWith('stock_')||k.startsWith('portfolio_')))data[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(data,{merge:true});}catch(e){console.warn('FB save:',e);}}
+async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){const d=doc.data();Object.entries(d).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB sync:',e);}if(cb)cb();}
+</script>
 </head>
 <body>
 <div class="nav">
@@ -325,13 +335,13 @@ function updateStockBar(){
   const m=new Date().getMonth()+1,g=GOALS[m]||1000000,p=Math.min(100,Math.round(v/g*100));
   document.getElementById('bar-sg').style.width=p+'%';document.getElementById('goal-pct').textContent=p+'%';document.getElementById('goal-lbl').textContent=m+'월 목표: '+g.toLocaleString()+'원';autoSave();
 }
-function autoSave(){lss('smart_day_'+todayKey(),JSON.stringify(S));}
+function autoSave(){lss('smart_day_'+todayKey(),JSON.stringify(S));fbSave();}
 function saveToday(){
   const hist=JSON.parse(ls('smart_history')||'[]'),key=todayKey();
   const idx=hist.findIndex(h=>h.date===key);
   const all=[...S.j,...S.e,...S.s,...S.sp];
   const entry={date:key,j:[...S.j],e:[...S.e],s:[...S.s],sp:[...S.sp],stockActual:S.stockActual,lectureNum:S.lectureNum,overall:Math.round(all.filter(Boolean).length/all.length*100),week:weekKey(),scores:{...S.scores}};
-  if(idx>=0)hist[idx]=entry;else hist.unshift(entry);lss('smart_history',JSON.stringify(hist));
+  if(idx>=0)hist[idx]=entry;else hist.unshift(entry);lss('smart_history',JSON.stringify(hist));fbSave();
   const b=document.querySelector('#tab-today .save-btn');b.textContent='저장 완료!';setTimeout(()=>b.textContent='오늘 기록 저장',2000);
 }
 function copyToday(){
@@ -422,7 +432,7 @@ function showTab(t){
 }
 const nd=new Date();
 document.getElementById('nav-date').textContent=nd.getFullYear()+'.'+pad(nd.getMonth()+1)+'.'+pad(nd.getDate())+' '+DAYS[nd.getDay()];
-loadState();
+fbSync(()=>{loadState();});
 </script>
 </body>
 </html>

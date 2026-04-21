@@ -76,6 +76,16 @@ tr:hover td{background:var(--bg3);}
 .empty-msg{text-align:center;padding:40px;color:var(--text3);font-size:15px;font-family:'DM Mono',monospace;}
 .hidden{display:none!important;}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ian-dashboard.firebaseapp.com",projectId:"ian-dashboard",storageBucket:"ian-dashboard.firebasestorage.app",messagingSenderId:"47067460467",appId:"1:47067460467:web:37906ad2ddb74133238b06"};
+if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
+const db=firebase.firestore();
+const UID='ian';
+async function fbSave(){try{const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.startsWith('smart_')||k.startsWith('stock_')||k.startsWith('portfolio_')||k.startsWith('milestone_')||k.startsWith('smart_weekly')||k.startsWith('smart_lecture')||k.startsWith('smart_trades')||k.startsWith('smart_stocks')))data[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(data,{merge:true});}catch(e){console.warn('FB save:',e);}}
+async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){const d=doc.data();Object.entries(d).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB sync:',e);}if(cb)cb();}
+</script>
 </head>
 <body>
 <div class="nav">
@@ -174,8 +184,8 @@ function addTrade(){
     defense:document.getElementById('f-defense').value,
     isNormal,id:Date.now()
   };
-  const arr=getTrades();arr.unshift(trade);saveTrades(arr);
-  clearForm();renderStats();showConfirm('저장 완료!');
+  const arr=getTrades();arr.unshift(trade);saveTrades(arr);fbSave();
+  clearForm();fbSync(()=>{ renderStats(); });showConfirm('저장 완료!');
 }
 
 function clearForm(){
@@ -213,7 +223,7 @@ function renderTable(){
 
 function deleteTrade(idx){
   if(!confirm('삭제할까요?'))return;
-  const arr=getTrades();arr.splice(idx,1);saveTrades(arr);renderTable();renderStats();
+  const arr=getTrades();arr.splice(idx,1);saveTrades(arr);fbSave();renderTable();fbSync(()=>{ renderStats(); });
 }
 
 function renderStats(){
@@ -256,7 +266,7 @@ function importExcel(input,mode){
       const pct=pctRaw&&pctRaw!=='진행중'?parseFloat(pctRaw):null;
       existing.unshift({date:String(row[0]||''),name:String(row[1]||''),buy:parseFloat(row[2])||0,sell:parseFloat(row[3])||0,pct,target:String(row[5]||''),stop:String(row[6]||''),index:String(row[7]||''),chart:String(row[8]||''),material:String(row[9]||''),supply:String(row[10]||''),reason:String(row[11]||''),scenario:String(row[12]||''),defense:String(row[13]||''),isNormal:String(row[14])!=='N',id:Date.now()});
     });
-    saveTrades(existing);renderStats();
+    saveTrades(existing);fbSync(()=>{ renderStats(); });
     if(!document.getElementById('tab-table').classList.contains('hidden'))renderTable();
     showConfirm(mode==='overwrite'?'덮어쓰기 완료!':'추가 완료!');
   };
@@ -273,7 +283,7 @@ function showTab(t){
 
 const d=new Date();
 document.getElementById('f-date').value=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
-renderStats();
+fbSync(()=>{ renderStats(); });
 </script>
 </body>
 </html>

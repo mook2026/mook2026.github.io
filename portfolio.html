@@ -73,6 +73,16 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .sbar-fill{height:100%;background:var(--stock);border-radius:4px;}
 .sbar-pct{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);width:36px;text-align:right;}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ian-dashboard.firebaseapp.com",projectId:"ian-dashboard",storageBucket:"ian-dashboard.firebasestorage.app",messagingSenderId:"47067460467",appId:"1:47067460467:web:37906ad2ddb74133238b06"};
+if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
+const db=firebase.firestore();
+const UID='ian';
+async function fbSave(){try{const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.startsWith('smart_')||k.startsWith('stock_')||k.startsWith('portfolio_')||k.startsWith('milestone_')||k.startsWith('smart_weekly')||k.startsWith('smart_lecture')||k.startsWith('smart_trades')||k.startsWith('smart_stocks')))data[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(data,{merge:true});}catch(e){console.warn('FB save:',e);}}
+async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){const d=doc.data();Object.entries(d).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB sync:',e);}if(cb)cb();}
+</script>
 </head>
 <body>
 <div class="nav">
@@ -145,8 +155,8 @@ function addTicker(){
   if(d.tickers.includes(name)){showConfirm('이미 있는 종목이에요');return;}
   d.tickers.push(name);
   if(!d.data[name])d.data[name]={};
-  saveData(d);input.value='';
-  render();showConfirm(name+' 추가됨');
+  saveData(d);fbSave();input.value='';
+  fbSync(()=>{ render(); });showConfirm(name+' 추가됨');
 }
 
 function deleteTicker(name){
@@ -154,7 +164,7 @@ function deleteTicker(name){
   const d=getData();
   d.tickers=d.tickers.filter(t=>t!==name);
   delete d.data[name];
-  saveData(d);render();
+  saveData(d);fbSave();fbSync(()=>{ render(); });
 }
 
 function addDateCol(){
@@ -162,14 +172,14 @@ function addDateCol(){
   const d=getData();
   if(d.dates.includes(today)){showConfirm('오늘 날짜는 이미 있어요');return;}
   d.dates.push(today);
-  saveData(d);render();showConfirm(today+' 열 추가됨');
+  saveData(d);fbSave();fbSync(()=>{ render(); });showConfirm(today+' 열 추가됨');
 }
 
 function deleteDateCol(date){
   if(!confirm(date+' 열을 삭제할까요?'))return;
   const d=getData();
   d.dates=d.dates.filter(dt=>dt!==date);
-  saveData(d);render();
+  saveData(d);fbSave();fbSync(()=>{ render(); });
 }
 
 function setValue(ticker,indIdx,date,val){
@@ -177,13 +187,13 @@ function setValue(ticker,indIdx,date,val){
   if(!d.data[ticker])d.data[ticker]={};
   if(!d.data[ticker][indIdx])d.data[ticker][indIdx]={};
   d.data[ticker][indIdx][date]=val;
-  saveData(d);
+  saveData(d);fbSave();
   checkAllY(ticker);
 }
 
 function setYN(ticker,indIdx,date,val){
   setValue(ticker,indIdx,date,val);
-  render();
+  fbSync(()=>{ render(); });
 }
 
 function checkAllY(ticker){
@@ -321,7 +331,7 @@ function importExcel(input,mode){
         if(val!==undefined&&val!=='')d.data[ticker][ii][dt]=String(val);
       });
     });
-    saveData(d);render();
+    saveData(d);fbSave();fbSync(()=>{ render(); });
     showConfirm(mode==='overwrite'?'덮어쓰기 완료!':'추가 완료!');
   };
   reader.readAsBinaryString(file);
@@ -335,7 +345,7 @@ function showConfirm(msg){
 
 const d=new Date();
 document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+DAYS[d.getDay()];
-render();
+fbSync(()=>{ render(); });
 </script>
 </body>
 </html>

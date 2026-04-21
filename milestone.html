@@ -66,6 +66,16 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .save-btn:hover{border-color:var(--eng);color:var(--eng);}
 .confirm{text-align:center;font-size:10px;color:var(--text3);margin-top:6px;height:12px;font-family:'DM Mono',monospace;}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ian-dashboard.firebaseapp.com",projectId:"ian-dashboard",storageBucket:"ian-dashboard.firebasestorage.app",messagingSenderId:"47067460467",appId:"1:47067460467:web:37906ad2ddb74133238b06"};
+if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
+const db=firebase.firestore();
+const UID='ian';
+async function fbSave(){try{const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.startsWith('smart_')||k.startsWith('stock_')||k.startsWith('portfolio_')||k.startsWith('milestone_')||k.startsWith('smart_weekly')||k.startsWith('smart_lecture')||k.startsWith('smart_trades')||k.startsWith('smart_stocks')))data[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(data,{merge:true});}catch(e){console.warn('FB save:',e);}}
+async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){const d=doc.data();Object.entries(d).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB sync:',e);}if(cb)cb();}
+</script>
 </head>
 <body>
 
@@ -244,7 +254,7 @@ function toggle(el,k,i){
   document.getElementById('ck-'+k+'-'+i).classList.toggle('on',state[k][i]);
   el.classList.toggle('done',state[k][i]);
   updateStats();
-  localStorage.setItem('milestone_2026',JSON.stringify(state));
+  localStorage.setItem('milestone_2026',JSON.stringify(state));fbSave();
 }
 
 function updateStats(){
@@ -263,7 +273,7 @@ function updateYearProgress(){
 }
 
 function saveAll(){
-  localStorage.setItem('milestone_2026',JSON.stringify(state));
+  localStorage.setItem('milestone_2026',JSON.stringify(state));fbSave();
   const el=document.getElementById('confirm');
   el.textContent='저장 완료!';
   setTimeout(()=>el.textContent='',2000);
@@ -274,7 +284,7 @@ const days=['일','월','화','수','목','금','토'];
 document.getElementById('today-str').textContent=
   d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')+' '+days[d.getDay()]+'요일';
 
-load();
+fbSync(()=>{ load(); });
 </script>
 </body>
 </html>
