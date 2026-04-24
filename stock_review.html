@@ -6,74 +6,6 @@
 <title>주식 복기일지</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<style>
-:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.15);--text:#f0f0f0;--text2:#bbb;--text3:#888;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;}
-.nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100;}
-.nav-left{display:flex;align-items:center;gap:10px;}
-.nav-back{font-size:20px;color:var(--text2);text-decoration:none;}
-.nav-logo{font-family:'DM Mono',monospace;font-size:15px;color:var(--text2);letter-spacing:0.08em;}
-.nav-date{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);}
-.tabs{display:flex;padding:0 20px;border-bottom:1px solid var(--border);}
-.tab{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);padding:13px 16px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;}
-.tab:hover{color:var(--text2);}
-.tab.on{color:var(--text);border-bottom-color:var(--stock);}
-.toolbar{display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
-.btn{font-size:14px;padding:8px 16px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;}
-.btn:hover{border-color:var(--stock);color:var(--stock);}
-.btn.primary{border-color:var(--stock);color:var(--stock);}
-.btn.primary:hover{background:var(--stock);color:#0c0c0e;}
-.confirm-bar{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);padding:6px 20px;min-height:28px;}
-.wrap{padding:18px 20px;max-width:100%;margin:0 auto;}
-
-/* 입력 폼 */
-.form-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:14px;}
-.form-title{font-size:16px;font-weight:600;color:var(--stock);margin-bottom:14px;}
-.form-date-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
-.form-date-row label{font-size:14px;color:var(--text2);}
-.form-date-row input{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:15px;padding:8px 12px;font-family:'DM Mono',monospace;outline:none;}
-.form-date-row button{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:8px 14px;border-radius:6px;cursor:pointer;font-size:14px;}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.fr{margin-bottom:0;}
-.fr label{font-size:14px;color:var(--text2);display:block;margin-bottom:6px;}
-.fr label .hint{font-size:12px;color:var(--text3);}
-.fr textarea{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:15px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;transition:border-color .15s;}
-.fr textarea:focus{border-color:var(--stock);}
-.fr-full{grid-column:1/-1;}
-.save-btn{width:100%;margin-top:14px;padding:13px;font-size:15px;font-family:'DM Mono',monospace;letter-spacing:.04em;border:1px solid var(--stock);border-radius:var(--r-sm);background:transparent;color:var(--stock);cursor:pointer;transition:all .15s;}
-.save-btn:hover{background:var(--stock);color:#0c0c0e;}
-
-/* 테이블 */
-.tbl-wrap{overflow-x:auto;}
-table{width:100%;border-collapse:collapse;font-size:14px;}
-th{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);letter-spacing:.04em;padding:10px 14px;border:1px solid var(--border);background:var(--bg2);text-align:left;white-space:nowrap;position:sticky;top:0;z-index:5;}
-td{padding:10px 14px;border:1px solid var(--border);color:var(--text2);vertical-align:top;min-width:120px;max-width:280px;word-break:break-all;line-height:1.6;}
-td.date-cell{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);white-space:nowrap;min-width:90px;cursor:pointer;}
-td.date-cell:hover{color:var(--stock);}
-tr:hover td{background:var(--bg3);}
-tr.editing td{background:rgba(251,191,36,0.04);border-color:rgba(251,191,36,0.2);}
-td textarea{width:100%;background:transparent;border:none;color:var(--text);font-size:14px;padding:0;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;min-height:60px;}
-.del-btn{font-size:12px;color:var(--text3);cursor:pointer;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:transparent;white-space:nowrap;transition:all .15s;}
-.del-btn:hover{border-color:var(--neg);color:var(--neg);}
-
-/* 월간 */
-.actual-row{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:14px;}
-.actual-row label{font-size:15px;color:var(--text2);white-space:nowrap;}
-.actual-row input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:16px;padding:10px 12px;font-family:'DM Mono',monospace;outline:none;}
-.actual-row .u{font-size:15px;color:var(--text3);}
-.mo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-.mo-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;text-align:center;}
-.mo-card.cur{border-color:var(--stock);}
-.mo-month{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);margin-bottom:6px;}
-.mo-val{font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:var(--stock);}
-.mo-val.neg{color:var(--neg);}
-.mo-goal{font-size:13px;color:var(--text3);margin-top:4px;}
-.mo-bar{height:3px;background:var(--bg3);border-radius:2px;margin-top:8px;overflow:hidden;}
-.mo-fill{height:100%;background:var(--stock);border-radius:2px;}
-.empty-msg{text-align:center;padding:40px;color:var(--text3);font-size:15px;font-family:'DM Mono',monospace;}
-.hidden{display:none!important;}
-</style>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script>
@@ -81,9 +13,86 @@ const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ia
 if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
 const db=firebase.firestore();
 const UID='ian';
-async function fbSave(){try{const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.startsWith('smart_')||k.startsWith('stock_')||k.startsWith('portfolio_')||k.startsWith('milestone_')||k.startsWith('smart_weekly')||k.startsWith('smart_lecture')||k.startsWith('smart_trades')||k.startsWith('smart_stocks')))data[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(data,{merge:true});}catch(e){console.warn('FB save:',e);}}
-async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){const d=doc.data();Object.entries(d).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB sync:',e);}if(cb)cb();}
+async function fbSave(){try{const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)data[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(data,{merge:true});}catch(e){console.warn('FB:',e);}}
+async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){const d=doc.data();Object.entries(d).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB:',e);}if(cb)cb();}
 </script>
+<style>
+:root{
+  --bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;
+  --border:rgba(255,255,255,0.2);--border2:rgba(255,255,255,0.3);
+  --text:#f0f0f0;--text2:#ccc;--text3:#999;
+  --stock:#fbbf24;--pos:#34d399;--neg:#fb7185;
+  --r:10px;--r-sm:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:17px;}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100;}
+.nav-left{display:flex;align-items:center;gap:10px;}
+.nav-back{font-size:22px;color:var(--text2);text-decoration:none;}
+.nav-logo{font-family:'DM Mono',monospace;font-size:16px;color:var(--text2);letter-spacing:0.08em;}
+.nav-date{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);}
+.tabs{display:flex;padding:0 20px;border-bottom:1px solid var(--border);}
+.tab{font-family:'DM Mono',monospace;font-size:15px;color:var(--text3);padding:14px 18px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;}
+.tab:hover{color:var(--text2);}
+.tab.on{color:var(--text);border-bottom-color:var(--stock);}
+.toolbar{display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
+.btn{font-size:15px;padding:9px 18px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;}
+.btn:hover{border-color:var(--stock);color:var(--stock);}
+.btn.primary{border-color:var(--stock);color:var(--stock);}
+.btn.primary:hover{background:var(--stock);color:#0c0c0e;}
+.btn.danger{border-color:var(--neg);color:var(--neg);}
+.confirm-bar{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);padding:8px 20px;min-height:32px;}
+.wrap{padding:20px;}
+
+/* 입력 폼 */
+.form-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px;}
+.form-title{font-size:17px;font-weight:600;color:var(--stock);margin-bottom:16px;}
+.form-date-row{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.form-date-row label{font-size:15px;color:var(--text2);}
+.form-date-row input[type=date]{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:16px;padding:9px 12px;font-family:'DM Mono',monospace;outline:none;}
+.form-date-row button{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:9px 16px;border-radius:6px;cursor:pointer;font-size:16px;transition:all .15s;}
+.form-date-row button:hover{border-color:var(--stock);color:var(--stock);}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.fr label{font-size:15px;color:var(--text2);display:block;margin-bottom:7px;}
+.fr label .hint{font-size:13px;color:var(--text3);}
+.fr textarea{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:16px;padding:11px 13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.7;transition:border-color .15s;}
+.fr textarea:focus{border-color:var(--stock);}
+.fr-full{grid-column:1/-1;}
+.save-btn{width:100%;margin-top:16px;padding:14px;font-size:16px;font-family:'DM Mono',monospace;letter-spacing:.04em;border:1px solid var(--stock);border-radius:var(--r-sm);background:transparent;color:var(--stock);cursor:pointer;transition:all .15s;}
+.save-btn:hover{background:var(--stock);color:#0c0c0e;}
+
+/* 테이블 */
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:15px;}
+th{font-family:'DM Mono',monospace;font-size:13px;color:var(--text2);padding:12px 14px;border:2px solid var(--border2);background:var(--bg2);text-align:left;white-space:nowrap;position:sticky;top:0;z-index:5;}
+td{padding:0;border:2px solid var(--border2);color:var(--text2);vertical-align:top;}
+td textarea{width:100%;background:transparent;border:none;color:var(--text);font-size:15px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;min-height:72px;}
+td textarea:focus{background:rgba(251,191,36,0.05);}
+td.date-td{padding:10px 12px;font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);white-space:nowrap;min-width:100px;vertical-align:middle;}
+td.week-td{padding:10px 12px;font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);white-space:nowrap;min-width:90px;vertical-align:middle;}
+tr:hover td{background:rgba(255,255,255,0.02);}
+.del-btn{font-size:13px;color:var(--text3);cursor:pointer;padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:transparent;white-space:nowrap;transition:all .15s;display:block;margin:8px auto;}
+.del-btn:hover{border-color:var(--neg);color:var(--neg);}
+.add-row-btn{width:100%;padding:12px;font-size:15px;font-family:'DM Mono',monospace;border:1px dashed var(--border2);border-radius:0 0 var(--r-sm) var(--r-sm);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;margin-top:-1px;}
+.add-row-btn:hover{border-color:var(--stock);color:var(--stock);}
+
+/* 월간 */
+.actual-row{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:16px;}
+.actual-row label{font-size:16px;color:var(--text2);white-space:nowrap;}
+.actual-row input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:17px;padding:11px 14px;font-family:'DM Mono',monospace;outline:none;}
+.actual-row .u{font-size:16px;color:var(--text3);}
+.mo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.mo-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;text-align:center;}
+.mo-card.cur{border-color:var(--stock);}
+.mo-month{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);margin-bottom:6px;}
+.mo-val{font-family:'DM Mono',monospace;font-size:19px;font-weight:500;color:var(--stock);}
+.mo-val.neg{color:var(--neg);}
+.mo-goal{font-size:14px;color:var(--text3);margin-top:4px;}
+.mo-bar{height:4px;background:var(--bg3);border-radius:2px;margin-top:10px;overflow:hidden;}
+.mo-fill{height:100%;background:var(--stock);border-radius:2px;}
+.empty-msg{text-align:center;padding:48px;color:var(--text3);font-size:16px;font-family:'DM Mono',monospace;}
+.hidden{display:none!important;}
+</style>
 </head>
 <body>
 <div class="nav">
@@ -91,19 +100,47 @@ async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get
   <div class="nav-date" id="nav-date"></div>
 </div>
 <div class="tabs">
-  <div class="tab on" onclick="showTab('write')">복기 입력</div>
-  <div class="tab" onclick="showTab('table')">누적 테이블</div>
+  <div class="tab on" onclick="showTab('table')">누적 테이블</div>
+  <div class="tab" onclick="showTab('write')">새 복기 입력</div>
   <div class="tab" onclick="showTab('monthly')">월간 손익</div>
 </div>
 <div class="toolbar">
+  <button class="btn primary" onclick="addRow()">+ 행 추가</button>
+  <button class="btn" onclick="addCol()">+ 열 추가</button>
+  <div style="width:1px;height:24px;background:var(--border2);"></div>
   <label class="btn" style="cursor:pointer;">📂 엑셀 불러오기 (추가)<input type="file" accept=".xlsx,.xls" class="hidden" onchange="importExcel(this,'append')"></label>
   <label class="btn" style="cursor:pointer;">📂 엑셀 불러오기 (덮어쓰기)<input type="file" accept=".xlsx,.xls" class="hidden" onchange="importExcel(this,'overwrite')"></label>
   <button class="btn" onclick="exportExcel()">⬇ 엑셀 다운로드</button>
 </div>
 <div class="confirm-bar" id="confirm-bar"></div>
 
-<!-- 복기 입력 -->
-<div id="tab-write" class="wrap">
+<!-- 누적 테이블 (기본) -->
+<div id="tab-table" class="wrap">
+  <div class="tbl-wrap">
+    <table id="review-table">
+      <thead id="review-thead">
+        <tr>
+          <th>날짜</th>
+          <th>주차</th>
+          <th>시황</th>
+          <th>내일전략</th>
+          <th>보유종목</th>
+          <th>관심종목</th>
+          <th>매매내용</th>
+          <th>반성</th>
+          <th>원칙준수</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="review-tbody"></tbody>
+    </table>
+  </div>
+  <button class="add-row-btn" onclick="addRow()">+ 행 추가</button>
+  <div id="review-empty" class="empty-msg hidden">복기 기록이 없어요<br><span style="font-size:14px;">"새 복기 입력" 탭이나 "+ 행 추가" 버튼으로 시작하세요</span></div>
+</div>
+
+<!-- 새 복기 입력 -->
+<div id="tab-write" class="wrap hidden">
   <div class="form-card">
     <div class="form-title">오늘 복기 작성</div>
     <div class="form-date-row">
@@ -121,43 +158,20 @@ async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get
       <div class="fr"><label>반성 / 잘한 점</label><textarea id="r-reflect" rows="2" placeholder="잘한 것과 반성할 것..."></textarea></div>
       <div class="fr fr-full"><label>원칙 준수 여부</label><textarea id="r-rule" rows="2" placeholder="손절가 설정 여부 · 뇌동매매 여부 · 매매시간 준수..."></textarea></div>
     </div>
-    <button class="save-btn" onclick="saveReview()">복기 저장</button>
+    <button class="save-btn" onclick="saveReview()">복기 저장 → 테이블에 추가</button>
   </div>
 </div>
 
-<!-- 누적 테이블 -->
-<div id="tab-table" class="wrap hidden">
-  <div class="tbl-wrap">
-    <table id="review-table">
-      <thead>
-        <tr>
-          <th>날짜</th>
-          <th>시황</th>
-          <th>내일전략</th>
-          <th>보유종목</th>
-          <th>관심종목</th>
-          <th>매매내용</th>
-          <th>반성</th>
-          <th>원칙준수</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="review-tbody"></tbody>
-    </table>
-    <div id="review-empty" class="empty-msg hidden">복기 기록이 없어요</div>
-  </div>
-</div>
-
-<!-- 월간 손익 -->
+<!-- 월간 -->
 <div id="tab-monthly" class="wrap hidden">
   <div class="actual-row">
     <label>이번 달 실현손익</label>
     <input type="number" id="actual-input" placeholder="0" oninput="updateActual()">
     <span class="u">원</span>
   </div>
-  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 18px;margin-bottom:14px;">
-    <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);margin-bottom:6px;"><span id="goal-label">목표: -</span><span id="goal-pct">0%</span></div>
-    <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;"><div style="height:100%;background:var(--stock);border-radius:2px;transition:width .3s;" id="goal-bar"></div></div>
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px;margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);margin-bottom:7px;"><span id="goal-label">목표: -</span><span id="goal-pct">0%</span></div>
+    <div style="height:5px;background:var(--bg3);border-radius:2px;overflow:hidden;"><div style="height:100%;background:var(--stock);border-radius:2px;transition:width .3s;" id="goal-bar"></div></div>
   </div>
   <div class="mo-grid" id="mo-grid"></div>
 </div>
@@ -165,14 +179,25 @@ async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get
 <script>
 const GOALS={4:700000,5:1000000,6:1000000,7:1200000,8:1300000,9:1400000,10:1500000,11:1500000,12:1500000};
 const DAYS=['일','월','화','수','목','금','토'];
-const FIELDS=['market','tomorrow','holdings','watchlist','trade','reflect','rule'];
+const DEFAULT_COLS=['시황','내일전략','보유종목','관심종목','매매내용','반성','원칙준수'];
+
 function pad(n){return String(n).padStart(2,'0');}
 function ls(k){return localStorage.getItem(k);}
 function lss(k,v){localStorage.setItem(k,v);}
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
-function showConfirm(msg){const el=document.getElementById('confirm-bar');el.textContent=msg;setTimeout(()=>el.textContent='',2500);}
-function getKeys(){return JSON.parse(ls('stock_review_keys')||'[]');}
-function saveKeys(k){lss('stock_review_keys',JSON.stringify(k));}
+function showConfirm(msg){const el=document.getElementById('confirm-bar');el.textContent=msg;setTimeout(()=>el.textContent='',3000);}
+
+function getWeekLabel(dateStr){
+  const d=new Date(dateStr);
+  const month=d.getMonth()+1;
+  const day=d.getDate();
+  const week=Math.ceil(day/7);
+  return month+'월 '+week+'주차';
+}
+
+// 데이터 구조: {cols:[...], rows:[{date, week, cells:{col:val}}]}
+function getData(){return JSON.parse(ls('stock_review_tbl')||JSON.stringify({cols:[...DEFAULT_COLS],rows:[]}));}
+function saveData(d){lss('stock_review_tbl',JSON.stringify(d));fbSave();}
 
 let currentDate=todayStr();
 
@@ -181,54 +206,108 @@ function changeDate(dir){const d=new Date(currentDate);d.setDate(d.getDate()+dir
 document.getElementById('review-date').addEventListener('change',function(){currentDate=this.value;loadForm(currentDate);});
 
 function loadForm(date){
-  const data=JSON.parse(ls('stock_review_'+date)||'{}');
-  FIELDS.forEach(k=>{const el=document.getElementById('r-'+k);if(el)el.value=data[k]||'';});
+  const data=getData();
+  const row=data.rows.find(r=>r.date===date);
+  const fields=['market','tomorrow','holdings','watchlist','trade','reflect','rule'];
+  const cols=['시황','내일전략','보유종목','관심종목','매매내용','반성','원칙준수'];
+  fields.forEach((f,i)=>{
+    const el=document.getElementById('r-'+f);
+    if(el)el.value=row?.(row.cells[cols[i]])||'';
+  });
 }
 
 function saveReview(){
-  const data={date:currentDate};
-  FIELDS.forEach(k=>{data[k]=document.getElementById('r-'+k).value;});
-  lss('stock_review_'+currentDate,JSON.stringify(data));fbSave();
-  const keys=getKeys();
-  if(!keys.includes(currentDate)){keys.unshift(currentDate);saveKeys(keys);fbSave();}
+  const data=getData();
+  const fields=['market','tomorrow','holdings','watchlist','trade','reflect','rule'];
+  const cols=['시황','내일전략','보유종목','관심종목','매매내용','반성','원칙준수'];
+  const cells={};
+  fields.forEach((f,i)=>{cells[cols[i]]=document.getElementById('r-'+f).value;});
+  const idx=data.rows.findIndex(r=>r.date===currentDate);
+  const row={date:currentDate,week:getWeekLabel(currentDate),cells};
+  if(idx>=0)data.rows[idx]=row;
+  else data.rows.unshift(row);
+  saveData(data);
   showConfirm('저장 완료!');
+  renderTable();
+}
+
+function addRow(){
+  const data=getData();
+  const d=new Date();
+  const dateStr=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  data.rows.unshift({date:dateStr,week:getWeekLabel(dateStr),cells:{}});
+  saveData(data);renderTable();
+}
+
+function addCol(){
+  const name=prompt('새 열 이름을 입력하세요:');
+  if(!name||!name.trim())return;
+  const data=getData();
+  if(data.cols.includes(name.trim())){showConfirm('이미 있는 열이에요');return;}
+  data.cols.push(name.trim());
+  saveData(data);renderTable();
+}
+
+function deleteRow(idx){
+  if(!confirm('이 행을 삭제할까요?'))return;
+  const data=getData();
+  data.rows.splice(idx,1);
+  saveData(data);renderTable();
+}
+
+function deleteCol(colName){
+  if(!confirm('"'+colName+'" 열을 삭제할까요?'))return;
+  const data=getData();
+  data.cols=data.cols.filter(c=>c!==colName);
+  data.rows.forEach(r=>delete r.cells[colName]);
+  saveData(data);renderTable();
+}
+
+function updateCell(rowIdx,col,val){
+  const data=getData();
+  if(!data.rows[rowIdx])return;
+  if(!data.rows[rowIdx].cells)data.rows[rowIdx].cells={};
+  data.rows[rowIdx].cells[col]=val;
+  saveData(data);
+}
+
+function updateDate(rowIdx,val){
+  const data=getData();
+  if(!data.rows[rowIdx])return;
+  data.rows[rowIdx].date=val;
+  data.rows[rowIdx].week=getWeekLabel(val);
+  // week cell 업데이트
+  const weekEl=document.getElementById('week-'+rowIdx);
+  if(weekEl)weekEl.textContent=getWeekLabel(val);
+  saveData(data);
 }
 
 function renderTable(){
-  const keys=getKeys();
+  const data=getData();
   const tbody=document.getElementById('review-tbody');
   const empty=document.getElementById('review-empty');
-  if(!keys.length){tbody.innerHTML='';empty.classList.remove('hidden');return;}
+  const thead=document.getElementById('review-thead');
+
+  // 헤더
+  thead.innerHTML='<tr><th>날짜</th><th>주차</th>'+
+    data.cols.map(c=>`<th style="min-width:160px;">${c} <span onclick="deleteCol('${c}')" style="cursor:pointer;color:var(--text3);font-size:12px;margin-left:4px;" title="열 삭제">✕</span></th>`).join('')+
+    '<th style="min-width:60px;"></th></tr>';
+
+  if(!data.rows.length){
+    tbody.innerHTML='';
+    empty.classList.remove('hidden');
+    return;
+  }
   empty.classList.add('hidden');
-  tbody.innerHTML=keys.map(k=>{
-    const d=JSON.parse(ls('stock_review_'+k)||'{}');
-    const cols=[d.market,d.tomorrow,d.holdings,d.watchlist,d.trade,d.reflect,d.rule];
-    return `<tr>
-      <td class="date-cell" onclick="editRow('${k}')">${k.slice(5)}<br><span style="font-size:11px;color:var(--text3)">${k.slice(0,4)}</span></td>
-      ${cols.map((c,i)=>`<td><textarea onblur="saveCell('${k}','${FIELDS[i]}',this.value)" rows="3">${c||''}</textarea></td>`).join('')}
-      <td><button class="del-btn" onclick="deleteRow('${k}')">삭제</button></td>
-    </tr>`;
-  }).join('');
-}
 
-function saveCell(date,field,val){
-  const data=JSON.parse(ls('stock_review_'+date)||'{}');
-  data[field]=val;
-  lss('stock_review_'+date,JSON.stringify(data));
-}
-
-function deleteRow(date){
-  if(!confirm(date+' 복기를 삭제할까요?'))return;
-  localStorage.removeItem('stock_review_'+date);
-  const keys=getKeys().filter(k=>k!==date);
-  saveKeys(keys);fbSave();renderTable();
-}
-
-function editRow(date){
-  currentDate=date;
-  document.getElementById('review-date').value=date;
-  loadForm(date);
-  showTab('write');
+  tbody.innerHTML=data.rows.map((row,ri)=>`
+    <tr>
+      <td class="date-td"><input type="date" value="${row.date}" onchange="updateDate(${ri},this.value)" style="background:transparent;border:none;color:var(--text2);font-size:14px;font-family:'DM Mono',monospace;outline:none;width:120px;"></td>
+      <td class="week-td" id="week-${ri}">${row.week||getWeekLabel(row.date)}</td>
+      ${data.cols.map(c=>`<td><textarea rows="3" onblur="updateCell(${ri},'${c}',this.value)" placeholder="${c}...">${(row.cells&&row.cells[c])||''}</textarea></td>`).join('')}
+      <td style="vertical-align:middle;text-align:center;min-width:60px;"><button class="del-btn" onclick="deleteRow(${ri})">삭제</button></td>
+    </tr>
+  `).join('');
 }
 
 function updateActual(){
@@ -239,7 +318,7 @@ function updateActual(){
   document.getElementById('goal-label').textContent=m+'월 목표: '+g.toLocaleString()+'원';
   const hist=JSON.parse(ls('smart_history')||'[]');
   const today=todayStr();const idx=hist.findIndex(h=>h.date===today);
-  if(idx>=0){hist[idx].stockActual=v;lss('smart_history',JSON.stringify(hist));}
+  if(idx>=0){hist[idx].stockActual=v;lss('smart_history',JSON.stringify(hist));fbSave();}
   renderMonthly();
 }
 
@@ -254,10 +333,10 @@ function renderMonthly(){
 }
 
 function exportExcel(){
-  const keys=getKeys();
-  if(!keys.length){showConfirm('데이터가 없어요');return;}
-  const headers=['날짜','시황','내일전략','보유종목','관심종목','매매내용','반성','원칙준수'];
-  const rows=[headers,...keys.map(k=>{const d=JSON.parse(ls('stock_review_'+k)||'{}');return[k,d.market||'',d.tomorrow||'',d.holdings||'',d.watchlist||'',d.trade||'',d.reflect||'',d.rule||''];})];
+  const data=getData();
+  if(!data.rows.length){showConfirm('데이터가 없어요');return;}
+  const headers=['날짜','주차',...data.cols];
+  const rows=[headers,...data.rows.map(r=>[r.date,r.week||getWeekLabel(r.date),...data.cols.map(c=>(r.cells&&r.cells[c])||'')])];
   const ws=XLSX.utils.aoa_to_sheet(rows);
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,'주식복기',ws);
@@ -272,36 +351,49 @@ function importExcel(input,mode){
   reader.onload=function(e){
     const wb=XLSX.read(e.target.result,{type:'binary'});
     const ws=wb.Sheets[wb.SheetNames[0]];
-    const rows=XLSX.utils.sheet_to_json(ws,{header:1});
-    if(rows.length<2){showConfirm('데이터가 없어요');return;}
-    if(mode==='overwrite'){const keys=getKeys();keys.forEach(k=>localStorage.removeItem('stock_review_'+k));saveKeys([]);}
-    const keys=getKeys();
-    rows.slice(1).forEach(row=>{
+    const rawRows=XLSX.utils.sheet_to_json(ws,{header:1});
+    if(rawRows.length<2){showConfirm('데이터가 없어요');return;}
+    const headerRow=rawRows[0].map(h=>String(h||'').trim());
+    const data=mode==='overwrite'?{cols:[...DEFAULT_COLS],rows:{}}:getData();
+    if(mode==='overwrite')data.rows=[];
+
+    // 헤더에서 날짜/주차 제외한 컬럼 파악
+    const colsInFile=headerRow.filter(h=>h&&h!=='날짜'&&h!=='주차');
+    // 새 컬럼 추가
+    colsInFile.forEach(c=>{if(!data.cols.includes(c))data.cols.push(c);});
+
+    rawRows.slice(1).forEach(row=>{
       if(!row[0])return;
-      const date=String(row[0]);
-      const data={date,market:String(row[1]||''),tomorrow:String(row[2]||''),holdings:String(row[3]||''),watchlist:String(row[4]||''),trade:String(row[5]||''),reflect:String(row[6]||''),rule:String(row[7]||'')};
-      lss('stock_review_'+date,JSON.stringify(data));
-      if(!keys.includes(date))keys.unshift(date);
+      const dateVal=String(row[0]);
+      const cells={};
+      headerRow.forEach((h,i)=>{
+        if(h&&h!=='날짜'&&h!=='주차'&&row[i]!==undefined&&row[i]!==''){
+          cells[h]=String(row[i]);
+        }
+      });
+      const existing=data.rows.findIndex(r=>r.date===dateVal);
+      const newRow={date:dateVal,week:getWeekLabel(dateVal),cells};
+      if(existing>=0)data.rows[existing]=newRow;
+      else data.rows.unshift(newRow);
     });
-    saveKeys(keys);fbSave();
+    saveData(data);renderTable();
     showConfirm(mode==='overwrite'?'덮어쓰기 완료!':'추가 완료!');
-    if(document.getElementById('tab-table').classList.contains('hidden')===false)renderTable();
   };
   reader.readAsBinaryString(file);input.value='';
 }
 
 function showTab(t){
-  ['write','table','monthly'].forEach((id,i)=>{
+  ['table','write','monthly'].forEach((id,i)=>{
     document.getElementById('tab-'+id).classList.toggle('hidden',id!==t);
     document.querySelectorAll('.tab')[i].classList.toggle('on',id===t);
   });
-  if(t==='table')renderTable();
   if(t==='monthly'){renderMonthly();const hist=JSON.parse(ls('smart_history')||'[]');const cur=new Date().getMonth()+1;const entries=hist.filter(h=>parseInt(h.date.split('-')[1])===cur);if(entries[0])document.getElementById('actual-input').value=entries[0].stockActual||'';}
 }
 
 const d=new Date();
 document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+DAYS[d.getDay()];
-fbSync(()=>{ initDate(); });
+
+fbSync(()=>{initDate();renderTable();});
 </script>
 </body>
 </html>
