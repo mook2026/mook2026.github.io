@@ -333,7 +333,7 @@ function updateBars(){
 function updateStockBar(){
   const v=parseInt(document.getElementById('actual').value)||0;S.stockActual=v;
   const m=new Date().getMonth()+1,g=GOALS[m]||1000000,p=Math.min(100,Math.round(v/g*100));
-  document.getElementById('bar-sg').style.width=p+'%';document.getElementById('goal-pct').textContent=p+'%';document.getElementById('goal-lbl').textContent=m+'월 목표: '+g.toLocaleString()+'원';autoSave();
+  document.getElementById('bar-sg').style.width=p+'%';document.getElementById('goal-pct').textContent=p+'%';document.getElementById('goal-lbl').textContent=m+'월 목표: '+g.toLocaleString('ko-KR')+'원';autoSave();
 }
 function autoSave(){lss('smart_day_'+todayKey(),JSON.stringify(S));fbSave();}
 function saveToday(){
@@ -434,5 +434,10 @@ const nd=new Date();
 document.getElementById('nav-date').textContent=nd.getFullYear()+'.'+pad(nd.getMonth()+1)+'.'+pad(nd.getDate())+' '+DAYS[nd.getDay()];
 fbSync(()=>{loadState();});
 </script>
+
+<script>
+window.fmtN=window.fmtN||function(v){const n=parseInt(String(v||'').replace(/,/g,''));return isNaN(n)?v:n.toLocaleString('ko-KR');};
+</script>
+
 </body>
 </html>

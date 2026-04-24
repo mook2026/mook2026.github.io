@@ -18,84 +18,80 @@ async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get
 <style>
 :root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.2);--border2:rgba(255,255,255,0.3);--text:#f0f0f0;--text2:#ccc;--text3:#999;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:17px;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;}
 .nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100;}
 .nav-left{display:flex;align-items:center;gap:10px;}
 .nav-back{font-size:22px;color:var(--text2);text-decoration:none;}
-.nav-logo{font-family:'DM Mono',monospace;font-size:15px;color:var(--text2);letter-spacing:0.06em;}
-.nav-date{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);}
+.nav-logo{font-family:'DM Mono',monospace;font-size:14px;color:var(--text2);letter-spacing:0.06em;}
+.nav-date{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);}
 .toolbar{display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
-.btn{font-size:15px;padding:9px 18px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;}
+.btn{font-size:14px;padding:8px 15px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;}
 .btn:hover{border-color:var(--stock);color:var(--stock);}
 .btn.primary{border-color:var(--stock);color:var(--stock);}
-.confirm-bar{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);padding:8px 20px;min-height:32px;}
+.confirm-bar{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);padding:7px 20px;min-height:30px;}
 .wrap{padding:20px;}
-.divider{height:1px;background:var(--border);margin:28px 0;}
-.sec-title{font-size:18px;font-weight:600;color:var(--stock);margin-bottom:6px;}
-.sec-sub{font-size:14px;color:var(--text3);margin-bottom:14px;}
+.divider{height:1px;background:var(--border);margin:24px 0;}
+.sec-title{font-size:17px;font-weight:600;color:var(--stock);margin-bottom:4px;}
+.sec-sub{font-size:13px;color:var(--text3);margin-bottom:14px;}
+.sec-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;}
 
 /* 요약 카드 */
 .summary-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;}
-.sum-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;}
-.sum-lbl{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
-.sum-val{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;color:var(--stock);}
+.sum-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:13px;}
+.sum-lbl{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px;}
+.sum-val{font-family:'DM Mono',monospace;font-size:19px;font-weight:500;color:var(--stock);}
 .sum-val.pos{color:var(--pos)}.sum-val.neg{color:var(--neg)}
 
 /* 월별 실현손익 */
-.mo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
-.mo-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;text-align:center;position:relative;overflow:hidden;}
+.mo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:6px;}
+.mo-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:13px;text-align:center;position:relative;overflow:hidden;}
 .mo-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
 .mo-card.achieved::after{background:var(--pos);}
 .mo-card.failed::after{background:var(--neg);}
 .mo-card.current::after{background:var(--stock);}
 .mo-card.future::after{background:var(--border2);}
-.mo-month{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);margin-bottom:5px;display:flex;align-items:center;justify-content:center;gap:6px;}
-.mo-badge{font-size:12px;}
-.mo-val{font-family:'DM Mono',monospace;font-size:17px;font-weight:500;}
+.mo-month{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);margin-bottom:4px;display:flex;align-items:center;justify-content:center;gap:5px;}
+.mo-badge{font-size:11px;}
+.mo-val{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;}
 .mo-val.pos{color:var(--pos)}.mo-val.neg{color:var(--neg)}.mo-val.neutral{color:var(--text3);}
-.mo-goal{font-size:13px;color:var(--text3);margin-top:3px;}
-.mo-pct{font-family:'DM Mono',monospace;font-size:12px;margin-top:4px;}
+.mo-goal{font-size:12px;color:var(--text3);margin-top:3px;}
+.mo-pct{font-family:'DM Mono',monospace;font-size:11px;margin-top:3px;}
 .mo-pct.pos{color:var(--pos)}.mo-pct.neg{color:var(--neg)}.mo-pct.neutral{color:var(--text3);}
-.mo-bar{height:4px;background:var(--bg3);border-radius:2px;margin-top:8px;overflow:hidden;}
+.mo-bar{height:3px;background:var(--bg3);border-radius:2px;margin-top:7px;overflow:hidden;}
 .mo-fill{height:100%;border-radius:2px;}
 
-/* 매매 월별 */
-.month-group{margin-bottom:12px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;}
-.month-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--bg2);cursor:pointer;transition:background .15s;}
+/* 매매 월별 요약 */
+.month-group{margin-bottom:8px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;}
+.month-header{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;background:var(--bg2);cursor:pointer;transition:background .15s;}
 .month-header:hover{background:var(--bg3);}
-.month-header-left{display:flex;align-items:center;gap:12px;}
-.month-label{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:var(--text);}
-.month-stats{display:flex;gap:12px;}
+.month-label{font-family:'DM Mono',monospace;font-size:14px;font-weight:500;color:var(--text);}
+.month-stats{display:flex;gap:14px;flex-wrap:wrap;}
 .month-stat{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);}
 .month-stat.pos{color:var(--pos)}.month-stat.neg{color:var(--neg)}
-.month-toggle{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);transition:transform .2s;}
+.month-toggle{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);transition:transform .2s;flex-shrink:0;}
 .month-toggle.open{transform:rotate(180deg);}
-.month-body{overflow:hidden;}
+.month-body{overflow-x:auto;}
 
 /* 테이블 */
-.tbl-outer{overflow-x:auto;}
-table{width:100%;border-collapse:collapse;font-size:15px;}
-th{font-family:'DM Mono',monospace;font-size:13px;color:var(--text2);padding:12px 14px;border:2px solid var(--border2);background:var(--bg2);text-align:left;white-space:nowrap;}
-td{padding:0;border:2px solid var(--border2);vertical-align:middle;}
-td input{width:100%;background:transparent;border:none;color:var(--text);font-size:15px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;outline:none;}
-td input:focus{background:rgba(251,191,36,0.05);}
-td.pos{color:var(--pos);font-weight:500;padding:10px 12px;font-family:'DM Mono',monospace;text-align:center;white-space:nowrap;}
-td.neg{color:var(--neg);font-weight:500;padding:10px 12px;font-family:'DM Mono',monospace;text-align:center;white-space:nowrap;}
-td.muted{color:var(--stock);padding:10px 12px;font-family:'DM Mono',monospace;text-align:center;white-space:nowrap;}
-td.center{padding:10px 12px;text-align:center;color:var(--text2);}
-tr:hover td{background:rgba(255,255,255,0.02);}
-.del-btn{font-size:13px;color:var(--text3);cursor:pointer;padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:transparent;transition:all .15s;}
+.resizable-table{width:max-content;min-width:100%;border-collapse:collapse;table-layout:fixed;}
+.resizable-table th{font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);padding:10px 12px;border:2px solid var(--border2);background:var(--bg2);text-align:left;white-space:nowrap;position:relative;user-select:none;}
+.resizable-table th .th-content{display:flex;align-items:center;justify-content:space-between;gap:4px;}
+.resizable-table th .th-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;}
+.resizer{width:5px;height:100%;position:absolute;right:0;top:0;cursor:col-resize;background:transparent;z-index:1;}
+.resizer:hover,.resizer.resizing{background:var(--stock);}
+.resizable-table td{padding:0;border:2px solid var(--border2);vertical-align:middle;overflow:hidden;font-size:13px;}
+.resizable-table td input{width:100%;background:transparent;border:none;color:var(--text);font-size:13px;padding:8px 10px;font-family:'Noto Sans KR',sans-serif;outline:none;box-sizing:border-box;}
+.resizable-table td input:focus{background:rgba(251,191,36,0.05);}
+td.pos-c{color:var(--pos);font-weight:500;padding:8px 10px;font-family:'DM Mono',monospace;text-align:center;white-space:nowrap;font-size:13px;}
+td.neg-c{color:var(--neg);font-weight:500;padding:8px 10px;font-family:'DM Mono',monospace;text-align:center;white-space:nowrap;font-size:13px;}
+td.muted-c{color:var(--stock);padding:8px 10px;font-family:'DM Mono',monospace;text-align:center;white-space:nowrap;font-size:13px;}
+td.center-c{padding:8px 10px;text-align:center;color:var(--text2);font-size:13px;}
+.resizable-table tr:hover td{background:rgba(255,255,255,0.02);}
+.del-btn{font-size:12px;color:var(--text3);cursor:pointer;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:transparent;transition:all .15s;}
 .del-btn:hover{border-color:var(--neg);color:var(--neg);}
-.add-row-btn{width:100%;padding:13px;font-size:15px;font-family:'DM Mono',monospace;border:1px dashed var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;}
+.add-row-btn{width:100%;padding:12px;font-size:14px;font-family:'DM Mono',monospace;border:1px dashed var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;}
 .add-row-btn:hover{border-color:var(--stock);color:var(--stock);}
-.empty-msg{text-align:center;padding:36px;color:var(--text3);font-size:15px;font-family:'DM Mono',monospace;}
-.pl-table{width:100%;border-collapse:collapse;font-size:15px;}
-.pl-table th{font-family:'DM Mono',monospace;font-size:13px;color:var(--text2);padding:12px 14px;border:2px solid var(--border2);background:var(--bg2);text-align:left;}
-.pl-table td{padding:12px 14px;border:2px solid var(--border2);color:var(--text2);}
-.pl-table td.nm{color:var(--text);font-weight:600;}
-.pl-table td.pos{color:var(--pos);font-weight:500;font-family:'DM Mono',monospace;}
-.pl-table td.neg{color:var(--neg);font-weight:500;font-family:'DM Mono',monospace;}
-.pl-table tr:hover td{background:rgba(255,255,255,0.02);}
+.empty-msg{text-align:center;padding:32px;color:var(--text3);font-size:14px;font-family:'DM Mono',monospace;}
 .hidden{display:none!important;}
 </style>
 </head>
@@ -107,17 +103,16 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 <div class="toolbar">
   <button class="btn primary" onclick="addHoldRow()">+ 보유종목 추가</button>
   <button class="btn" onclick="addHoldCol()">+ 열 추가</button>
-  <div style="width:1px;height:24px;background:var(--border2);"></div>
-  <label class="btn" style="cursor:pointer;">📂 엑셀 불러오기 (추가)<input type="file" accept=".xlsx,.xls" class="hidden" onchange="importExcel(this,'append')"></label>
-  <label class="btn" style="cursor:pointer;">📂 엑셀 불러오기 (덮어쓰기)<input type="file" accept=".xlsx,.xls" class="hidden" onchange="importExcel(this,'overwrite')"></label>
-  <button class="btn" onclick="exportExcel()">⬇ 엑셀 다운로드</button>
+  <div style="width:1px;height:22px;background:var(--border2);flex-shrink:0;"></div>
+  <label class="btn" style="cursor:pointer;">📂 추가<input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importExcel(this,'append')"></label>
+  <label class="btn" style="cursor:pointer;">📂 덮어쓰기<input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importExcel(this,'overwrite')"></label>
+  <button class="btn" onclick="exportExcel()">⬇ 다운로드</button>
 </div>
 <div class="confirm-bar" id="confirm-bar"></div>
 
 <div class="wrap">
-
   <!-- ① 매매 실적 요약 -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+  <div class="sec-header">
     <div><div class="sec-title">매매 실적 요약</div><div class="sec-sub">매매일지 기준 자동 집계</div></div>
     <button class="btn" onclick="refreshAll()">↻ 새로고침</button>
   </div>
@@ -138,45 +133,31 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 
   <div class="divider"></div>
 
-  <!-- ③ 종목별 실현손익 -->
-  <div class="sec-title">종목별 실현손익</div>
-  <div class="sec-sub">매매일지 기준 · 매도 완료 종목만</div>
-  <div class="tbl-outer" style="margin-bottom:8px;">
-    <table class="pl-table">
-      <thead><tr><th>종목</th><th>매매횟수</th><th>승률</th><th>평균수익률</th><th>총실현손익</th></tr></thead>
-      <tbody id="pl-tbody"></tbody>
-    </table>
-    <div id="pl-empty" class="empty-msg hidden">매매일지에 완료된 매매가 없어요</div>
-  </div>
-
-  <div class="divider"></div>
-
-  <!-- ④ 매매 기록 월별 -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-    <div><div class="sec-title">매매 기록</div><div class="sec-sub">매매일지 연동 · 월별 접기/펼치기</div></div>
-  </div>
+  <!-- ③ 매매 기록 월별 요약 -->
+  <div class="sec-title">매매 기록 (월별)</div>
+  <div class="sec-sub">매매일지 연동 · 월별 1행 요약</div>
   <div id="trade-months"></div>
 
   <div class="divider"></div>
 
-  <!-- ⑤ 보유종목 현황 -->
+  <!-- ④ 보유종목 현황 -->
   <div class="sec-title">보유종목 현황</div>
   <div class="sec-sub">수동 입력 · 증권사/계좌별 관리</div>
-  <div class="tbl-outer">
-    <table>
+  <div style="overflow-x:auto;">
+    <table class="resizable-table" id="hold-table">
       <thead id="hold-thead"></thead>
       <tbody id="hold-tbody"></tbody>
     </table>
     <button class="add-row-btn" onclick="addHoldRow()">+ 보유종목 추가</button>
-    <div id="hold-empty" class="empty-msg hidden">보유종목을 추가해주세요</div>
+    <div id="hold-empty" class="empty-msg" style="display:none;">보유종목을 추가해주세요</div>
   </div>
-
 </div>
 
 <script>
 const GOALS={4:700000,5:1000000,6:1000000,7:1200000,8:1300000,9:1400000,10:1500000,11:1500000,12:1500000};
 const DEFAULT_HOLD_COLS=['증권사','계좌','종목명','종목코드','매수일','수량','매수가','현재가','수익률(%)','평가손익','목표가','손절가','매수사유'];
 const FIXED_HOLD=['증권사','계좌','종목명'];
+const HOLD_COL_W={증권사:90,계좌:90,종목명:110,종목코드:90,매수일:100,수량:80,매수가:110,현재가:110,'수익률(%)':90,평가손익:120,목표가:110,손절가:110,매수사유:160};
 const DAYS=['일','월','화','수','목','금','토'];
 const openMonths=new Set();
 
@@ -184,21 +165,29 @@ function pad(n){return String(n).padStart(2,'0');}
 function ls(k){return localStorage.getItem(k);}
 function lss(k,v){localStorage.setItem(k,v);}
 function showConfirm(msg){const el=document.getElementById('confirm-bar');el.textContent=msg;setTimeout(()=>el.textContent='',3000);}
+function fmtNum(v){const n=parseInt(String(v).replace(/,/g,''));return isNaN(n)?v:n.toLocaleString('ko-KR');}
 function getHoldData(){return JSON.parse(ls('hold_tbl')||JSON.stringify({cols:[...DEFAULT_HOLD_COLS],rows:[]}));}
 function saveHoldData(d){lss('hold_tbl',JSON.stringify(d));fbSave();}
 function getTradeData(){return JSON.parse(ls('trade_tbl')||JSON.stringify({cols:[],rows:[]}));}
+function getHoldW(){return JSON.parse(ls('hold_col_widths')||'{}');}
+function saveHoldW(w){lss('hold_col_widths',JSON.stringify(w));}
 
 function calcHoldRow(row){
-  const buy=parseFloat(row['매수가'])||0,cur=parseFloat(row['현재가'])||0,qty=parseFloat(row['수량'])||0;
-  if(buy&&cur){row['수익률(%)']=((cur-buy)/buy*100).toFixed(2);if(qty)row['평가손익']=Math.round((cur-buy)*qty).toString();}
+  const buy=parseFloat(String(row['매수가']||'').replace(/,/g,''))||0;
+  const cur=parseFloat(String(row['현재가']||'').replace(/,/g,''))||0;
+  const qty=parseFloat(String(row['수량']||'').replace(/,/g,''))||0;
+  if(buy&&cur){
+    row['수익률(%)']=((cur-buy)/buy*100).toFixed(2);
+    if(qty)row['평가손익']=Math.round((cur-buy)*qty).toString();
+  }
   return row;
 }
 
 function refreshAll(){
   const trade=getTradeData();
   const rows=trade.rows||[];
-  const closed=rows.filter(r=>r['매도가']&&parseFloat(r['매도가'])>0);
-  const pcts=closed.map(r=>parseFloat(r['수익률(%)'])).filter(p=>!isNaN(p));
+  const closed=rows.filter(r=>r['매도가']&&parseFloat(String(r['매도가']).replace(/,/g,''))>0);
+  const pcts=closed.map(r=>parseFloat(r['수익률(%)'])).filter(p=>!isNaN(p)&&p!==0);
   const wins=pcts.filter(p=>p>0);
   const wr=pcts.length?Math.round(wins.length/pcts.length*100):0;
   const avgWin=wins.length?wins.reduce((a,b)=>a+b,0)/wins.length:0;
@@ -210,11 +199,10 @@ function refreshAll(){
   document.getElementById('sum-wr').className='sum-val '+(wr>=60?'pos':wr>0?'':'neg');
   document.getElementById('sum-avg').textContent=wins.length?'+'+avgWin.toFixed(1)+'%':'-';
   const plEl=document.getElementById('sum-pl');
-  plEl.textContent=totalPL?(totalPL>0?'+':'')+totalPL.toLocaleString()+'원':'-';
+  plEl.textContent=totalPL?(totalPL>0?'+':'')+fmtNum(totalPL)+'원':'-';
   plEl.className='sum-val '+(totalPL>0?'pos':totalPL<0?'neg':'');
 
   renderMonthly(closed);
-  renderByStock(closed);
   renderTradeMonths(rows);
 }
 
@@ -231,47 +219,19 @@ function renderMonthly(closed){
     const actual=mRows.reduce((a,r)=>a+(parseInt(r['실현손익'])||0),0);
     const hasData=mRows.length>0;
     const pct=hasData?Math.min(200,Math.round(actual/g*100)):0;
-    const isPast=m<curM;const isCur=m===curM;const isFuture=m>curM;
+    const isPast=m<curM,isCur=m===curM;
     const achieved=isPast&&actual>=g;
     const failed=isPast&&actual<g&&hasData;
-    let cls=isCur?'current':achieved?'achieved':failed?'failed':'future';
-    let badge=isCur?'●':achieved?'✓':failed?'✗':'';
+    const cls=isCur?'current':achieved?'achieved':failed?'failed':'future';
+    const badge=isCur?'●':achieved?'✓':failed?'✗':'';
     const barColor=actual>=g?'var(--pos)':actual>0?'var(--stock)':'var(--neg)';
     return `<div class="mo-card ${cls}">
       <div class="mo-month">${m}월 <span class="mo-badge">${badge}</span></div>
-      <div class="mo-val ${actual>0?'pos':actual<0?'neg':'neutral'}">${hasData?(actual>=0?'+':'')+actual.toLocaleString()+'원':'-'}</div>
-      <div class="mo-goal">목표 ${(g/10000).toFixed(0)}만원</div>
+      <div class="mo-val ${actual>0?'pos':actual<0?'neg':'neutral'}">${hasData?(actual>=0?'+':'')+fmtNum(actual)+'원':'-'}</div>
+      <div class="mo-goal">목표 ${(g/10000).toFixed(0)}만</div>
       <div class="mo-pct ${pct>=100?'pos':pct>0?'neutral':'neg'}">${hasData?pct+'%':''}</div>
       <div class="mo-bar"><div class="mo-fill" style="width:${Math.min(100,pct)}%;background:${barColor};"></div></div>
     </div>`;
-  }).join('');
-}
-
-function renderByStock(closed){
-  const byStock={};
-  closed.forEach(r=>{
-    const nm=r['종목']||r['종목명']||'-';
-    if(!byStock[nm])byStock[nm]={count:0,wins:0,pcts:[],pl:0};
-    byStock[nm].count++;
-    const p=parseFloat(r['수익률(%)']);
-    if(!isNaN(p)){byStock[nm].pcts.push(p);if(p>0)byStock[nm].wins++;}
-    byStock[nm].pl+=parseInt(r['실현손익'])||0;
-  });
-  const tbody=document.getElementById('pl-tbody');
-  const empty=document.getElementById('pl-empty');
-  const entries=Object.entries(byStock);
-  if(!entries.length){tbody.innerHTML='';empty.classList.remove('hidden');return;}
-  empty.classList.add('hidden');
-  tbody.innerHTML=entries.sort((a,b)=>b[1].pl-a[1].pl).map(([nm,s])=>{
-    const wr2=s.pcts.length?Math.round(s.wins/s.pcts.length*100):0;
-    const avg=s.pcts.length?s.pcts.reduce((a,b)=>a+b,0)/s.pcts.length:0;
-    return `<tr>
-      <td class="nm" style="padding:12px 14px;">${nm}</td>
-      <td style="padding:12px 14px;font-family:'DM Mono',monospace;">${s.count}회</td>
-      <td class="${wr2>=60?'pos':'neg'}" style="padding:12px 14px;">${wr2}%</td>
-      <td class="${avg>=0?'pos':'neg'}" style="padding:12px 14px;">${avg>=0?'+':''}${avg.toFixed(1)}%</td>
-      <td class="${s.pl>=0?'pos':'neg'}" style="padding:12px 14px;">${s.pl>=0?'+':''}${s.pl.toLocaleString()}원</td>
-    </tr>`;
   }).join('');
 }
 
@@ -280,57 +240,41 @@ function renderTradeMonths(rows){
   const curY=new Date().getFullYear();
   const byMonth={};
   rows.forEach(r=>{
-    const d=r['날짜']||'';
-    if(!d)return;
+    const d=r['날짜']||'';if(!d)return;
     const key=d.slice(0,7);
     if(!byMonth[key])byMonth[key]=[];
     byMonth[key].push(r);
   });
   const sorted=Object.keys(byMonth).sort((a,b)=>b.localeCompare(a));
-  const trade=getTradeData();
-  const cols=trade.cols||[];
   const container=document.getElementById('trade-months');
   if(!sorted.length){container.innerHTML='<div class="empty-msg">매매 기록이 없어요</div>';return;}
-
-  // 현재월 기본 오픈
   const curKey=curY+'-'+pad(curM);
   if(!openMonths.has('_init')){openMonths.add(curKey);openMonths.add('_init');}
 
   container.innerHTML=sorted.map(key=>{
     const mRows=byMonth[key];
     const pl=mRows.reduce((a,r)=>a+(parseInt(r['실현손익'])||0),0);
-    const pcts=mRows.map(r=>parseFloat(r['수익률(%)'])).filter(p=>!isNaN(p));
-    const wr=pcts.length?Math.round(pcts.filter(p=>p>0).length/pcts.length*100):0;
+    const pcts=mRows.map(r=>parseFloat(r['수익률(%)'])).filter(p=>!isNaN(p)&&p!==0);
+    const wins=pcts.filter(p=>p>0);
+    const wr=pcts.length?Math.round(wins.length/pcts.length*100):0;
+    const avgW=wins.length?wins.reduce((a,b)=>a+b,0)/wins.length:0;
     const isOpen=openMonths.has(key);
     const [y,m]=key.split('-');
     const label=y+'년 '+parseInt(m)+'월';
-
-    const tableRows=mRows.map((r,ri)=>`<tr>${cols.map(c=>{
-      const val=r[c]||'';
-      if(c==='수익률(%)'){const p=parseFloat(val);return `<td class="${isNaN(p)?'muted':p>0?'pos':'neg'}" style="font-family:'DM Mono',monospace;padding:10px 12px;text-align:center;">${val?val+'%':'진행중'}</td>`;}
-      if(c==='실현손익'){const pv=parseInt(val)||0;return `<td class="${pv>0?'pos':pv<0?'neg':'muted'}" style="font-family:'DM Mono',monospace;padding:10px 12px;text-align:center;">${pv?pv.toLocaleString()+'원':'-'}</td>`;}
-      if(c==='정상/뇌동')return `<td class="center" style="color:${val==='뇌동'?'var(--neg)':'var(--pos)'};">${val||'-'}</td>`;
-      return `<td><input type="text" value="${String(val).replace(/"/g,'&quot;')}" readonly style="color:var(--text2);cursor:default;"></td>`;
-    }).join('')}</tr>`).join('');
-
     return `<div class="month-group">
       <div class="month-header" onclick="toggleMonth('${key}')">
-        <div class="month-header-left">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
           <span class="month-label">${label}</span>
           <div class="month-stats">
             <span class="month-stat">${mRows.length}건</span>
             <span class="month-stat ${wr>=60?'pos':'neg'}">승률 ${wr}%</span>
-            <span class="month-stat ${pl>=0?'pos':'neg'}">${pl>=0?'+':''}${pl.toLocaleString()}원</span>
+            <span class="month-stat ${avgW>0?'pos':avgW<0?'neg':''}">평균 ${avgW>=0?'+':''}${avgW.toFixed(1)}%</span>
+            <span class="month-stat ${pl>=0?'pos':'neg'}">${pl>=0?'+':''}${fmtNum(pl)}원</span>
           </div>
         </div>
         <span class="month-toggle ${isOpen?'open':''}">▼</span>
       </div>
-      <div class="month-body ${isOpen?'':'hidden'}" id="month-body-${key}">
-        <div class="tbl-outer">
-          <table><thead><tr>${cols.map(c=>`<th style="min-width:${['매수사유','재료','시나리오'].includes(c)?'180px':'110px'};">${c}</th>`).join('')}</tr></thead>
-          <tbody>${tableRows}</tbody></table>
-        </div>
-      </div>
+      <div id="month-body-${key}" ${isOpen?'':'style="display:none;"'}></div>
     </div>`;
   }).join('');
 }
@@ -340,36 +284,92 @@ function toggleMonth(key){
   else openMonths.add(key);
   const body=document.getElementById('month-body-'+key);
   const toggle=body.previousElementSibling.querySelector('.month-toggle');
-  body.classList.toggle('hidden',!openMonths.has(key));
-  toggle.classList.toggle('open',openMonths.has(key));
+  const isOpen=openMonths.has(key);
+  body.style.display=isOpen?'block':'none';
+  toggle.classList.toggle('open',isOpen);
+  if(isOpen&&!body.innerHTML.trim())populateMonthBody(key);
 }
 
-// 보유종목
+function populateMonthBody(key){
+  const trade=getTradeData();
+  const rows=trade.rows||[];
+  const mRows=rows.filter(r=>(r['날짜']||'').startsWith(key));
+  const body=document.getElementById('month-body-'+key);
+  if(!mRows.length){body.innerHTML='<div class="empty-msg" style="padding:16px;">이 달 기록 없음</div>';return;}
+  const cols=trade.cols||[];
+  const tableRows=mRows.map(r=>`<tr>${cols.map(c=>{
+    const val=r[c]||'';
+    if(c==='수익률(%)'){const p=parseFloat(val);return `<td class="${isNaN(p)||p===0?'muted-c':p>0?'pos-c':'neg-c'}">${val?val+'%':'진행중'}</td>`;}
+    if(c==='실현손익'){const pl=parseInt(val)||0;return `<td class="${pl>0?'pos-c':pl<0?'neg-c':'muted-c'}">${pl?fmtNum(pl)+'원':'-'}</td>`;}
+    if(c==='정상/뇌동')return `<td class="center-c" style="color:${val==='뇌동'?'var(--neg)':'var(--pos)'};">${val||'-'}</td>`;
+    const isNum=['수량','매수가','매도가'].includes(c);
+    return `<td><input type="text" value="${isNum&&val?fmtNum(val):String(val).replace(/"/g,'&quot;')}" readonly style="color:var(--text2);cursor:default;font-family:${isNum?'\'DM Mono\',monospace':'inherit'};"></td>`;
+  }).join('')}</tr>`).join('');
+  body.innerHTML=`<div style="overflow-x:auto;"><table class="resizable-table"><thead><tr>${cols.map(c=>`<th style="min-width:100px;"><div class="th-content"><span class="th-label">${c}</span></div></th>`).join('')}</tr></thead><tbody>${tableRows}</tbody></table></div>`;
+}
+
+// 보유종목 테이블
 function renderHoldTable(){
   const data=getHoldData();
+  const w=getHoldW();
   const thead=document.getElementById('hold-thead');
   const tbody=document.getElementById('hold-tbody');
   const empty=document.getElementById('hold-empty');
   thead.innerHTML='<tr>'+data.cols.map(c=>{
+    const cw=w[c]||HOLD_COL_W[c]||110;
     const canDel=!FIXED_HOLD.includes(c);
-    return `<th style="min-width:${['매수사유'].includes(c)?'160px':'110px'};">${c}${canDel?` <span onclick="deleteHoldCol('${c}')" style="cursor:pointer;color:var(--text3);font-size:12px;">✕</span>`:''}`;
-  }).join('')+'<th style="min-width:60px;"></th></tr>';
-  if(!data.rows.length){tbody.innerHTML='';empty.classList.remove('hidden');return;}
-  empty.classList.add('hidden');
+    return `<th style="width:${cw}px;min-width:${cw}px;">
+      <div class="th-content">
+        <span class="th-label">${c}${canDel?` <span onclick="deleteHoldCol('${c}')" style="cursor:pointer;color:var(--text3);font-size:11px;">✕</span>`:''}</span>
+      </div>
+      <div class="resizer" onmousedown="startHoldResize(event,'${c}')"></div>
+    </th>`;
+  }).join('')+'<th style="width:56px;min-width:56px;"></th></tr>';
+
+  if(!data.rows.length){tbody.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
   tbody.innerHTML=data.rows.map((row,ri)=>`<tr>${data.cols.map(c=>{
     const val=row[c]||'';
-    if(c==='수익률(%)'){const p=parseFloat(val);return `<td class="${p>0?'pos':p<0?'neg':'center'}" style="font-family:'DM Mono',monospace;">${val?val+'%':'-'}</td>`;}
-    if(c==='평가손익'){const pl=parseInt(val)||0;return `<td class="${pl>0?'pos':pl<0?'neg':'center'}" style="font-family:'DM Mono',monospace;">${pl?pl.toLocaleString()+'원':'-'}</td>`;}
+    const cw=w[c]||HOLD_COL_W[c]||110;
+    if(c==='수익률(%)'){const p=parseFloat(val);return `<td class="${p>0?'pos-c':p<0?'neg-c':'muted-c'}" style="width:${cw}px;">${val?val+'%':'-'}</td>`;}
+    if(c==='평가손익'){const pl=parseInt(val)||0;return `<td class="${pl>0?'pos-c':pl<0?'neg-c':'muted-c'}" style="width:${cw}px;">${pl?fmtNum(pl)+'원':'-'}</td>`;}
     const isNum=['수량','매수가','현재가','목표가','손절가'].includes(c);
-    return `<td><input type="${isNum?'number':'text'}" value="${String(val).replace(/"/g,'&quot;')}" onblur="updateHoldCell(${ri},'${c}',this.value)" placeholder="${c}..." style="font-family:${isNum?'\'DM Mono\',monospace':'inherit'};"></td>`;
-  }).join('')}<td class="center"><button class="del-btn" onclick="deleteHoldRow(${ri})">삭제</button></td></tr>`).join('');
+    const dispVal=isNum&&val?fmtNum(val):'';
+    return `<td style="width:${cw}px;"><input type="text" value="${isNum?(dispVal||String(val)):String(val).replace(/"/g,'&quot;')}" onfocus="if(${isNum}){this.value='${String(val).replace(/'/g,"\\'")}';}" onblur="updateHoldCell(${ri},'${c}',this.value)" placeholder="${c}..." style="font-family:${isNum?'\'DM Mono\',monospace':'inherit'};"></td>`;
+  }).join('')}<td style="width:56px;" class="center-c"><button class="del-btn" onclick="deleteHoldRow(${ri})">삭제</button></td></tr>`).join('');
 }
+
+let holdResizing=false,holdResizeCol='',holdResizeStartX=0,holdResizeStartW=0;
+function startHoldResize(e,col){
+  e.preventDefault();holdResizing=true;holdResizeCol=col;holdResizeStartX=e.clientX;
+  const w=getHoldW();holdResizeStartW=w[col]||HOLD_COL_W[col]||110;
+  document.addEventListener('mousemove',doHoldResize);document.addEventListener('mouseup',stopHoldResize);
+}
+function doHoldResize(e){
+  if(!holdResizing)return;
+  const newW=Math.max(50,holdResizeStartW+(e.clientX-holdResizeStartX));
+  const w=getHoldW();w[holdResizeCol]=newW;saveHoldW(w);
+  const table=document.getElementById('hold-table');
+  const data=getHoldData();const idx=data.cols.indexOf(holdResizeCol);
+  if(idx>=0){
+    const ths=table.querySelectorAll('thead th');
+    if(ths[idx]){ths[idx].style.width=newW+'px';ths[idx].style.minWidth=newW+'px';}
+    table.querySelectorAll('tbody tr').forEach(tr=>{const tds=tr.querySelectorAll('td');if(tds[idx])tds[idx].style.width=newW+'px';});
+  }
+}
+function stopHoldResize(){holdResizing=false;document.removeEventListener('mousemove',doHoldResize);document.removeEventListener('mouseup',stopHoldResize);}
 
 function addHoldRow(){const data=getHoldData();const row={};data.cols.forEach(c=>row[c]='');data.rows.unshift(row);saveHoldData(data);renderHoldTable();}
 function addHoldCol(){const name=prompt('새 열 이름:');if(!name||!name.trim())return;const data=getHoldData();if(data.cols.includes(name.trim())){showConfirm('이미 있는 열');return;}data.cols.push(name.trim());data.rows.forEach(r=>r[name.trim()]=r[name.trim()]||'');saveHoldData(data);renderHoldTable();}
-function deleteHoldRow(idx){if(!confirm('삭제할까요?'))return;const data=getHoldData();data.rows.splice(idx,1);saveHoldData(data);renderHoldTable();}
-function deleteHoldCol(col){if(FIXED_HOLD.includes(col)){showConfirm('기본 열은 삭제할 수 없어요');return;}if(!confirm('"'+col+'" 열 삭제?'))return;const data=getHoldData();data.cols=data.cols.filter(c=>c!==col);data.rows.forEach(r=>delete r[col]);saveHoldData(data);renderHoldTable();}
-function updateHoldCell(ri,col,val){const data=getHoldData();if(!data.rows[ri])return;data.rows[ri][col]=val;if(['매수가','현재가','수량'].includes(col))calcHoldRow(data.rows[ri]);saveHoldData(data);renderHoldTable();}
+function deleteHoldRow(idx){if(!confirm('삭제?'))return;const data=getHoldData();data.rows.splice(idx,1);saveHoldData(data);renderHoldTable();}
+function deleteHoldCol(col){if(FIXED_HOLD.includes(col)){showConfirm('기본 열 삭제 불가');return;}if(!confirm('"'+col+'" 열 삭제?'))return;const data=getHoldData();data.cols=data.cols.filter(c=>c!==col);data.rows.forEach(r=>delete r[col]);saveHoldData(data);renderHoldTable();}
+function updateHoldCell(ri,col,val){
+  const data=getHoldData();if(!data.rows[ri])return;
+  const clean=String(val).replace(/,/g,'');
+  data.rows[ri][col]=clean;
+  if(['매수가','현재가','수량'].includes(col))calcHoldRow(data.rows[ri]);
+  saveHoldData(data);renderHoldTable();
+}
 
 function exportExcel(){
   const data=getHoldData();if(!data.rows.length){showConfirm('데이터가 없어요');return;}
@@ -394,7 +394,7 @@ function importExcel(input,mode){
     rawRows.slice(1).forEach(row=>{
       if(!row.some(v=>v))return;
       const r={};data.cols.forEach(c=>r[c]='');
-      headers.forEach((h,i)=>{if(h&&row[i]!==undefined)r[h]=String(row[i]);});
+      headers.forEach((h,i)=>{if(h&&row[i]!==undefined)r[h]=String(row[i]).replace(/,/g,'');});
       calcHoldRow(r);data.rows.push(r);
     });
     saveHoldData(data);renderHoldTable();
