@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>종목/검색식 복기</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ian-dashboard.firebaseapp.com",projectId:"ian-dashboard",storageBucket:"ian-dashboard.firebasestorage.app",messagingSenderId:"47067460467",appId:"1:47067460467:web:37906ad2ddb74133238b06"};
+if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
+const db=firebase.firestore();const UID='ian';
+async function fbSave(){try{const d={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(d,{merge:true});}catch(e){console.warn('FB:',e);}}
+async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){Object.entries(doc.data()).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB:',e);}if(cb)cb();}
+</script>
+<style>
+:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.2);--border2:rgba(255,255,255,0.3);--text:#f0f0f0;--text2:#ccc;--text3:#999;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:17px;}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100;}
+.nav-left{display:flex;align-items:center;gap:10px;}
+.nav-back{font-size:22px;color:var(--text2);text-decoration:none;}
+.nav-logo{font-family:'DM Mono',monospace;font-size:16px;color:var(--text2);letter-spacing:0.08em;}
+.nav-date{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);}
+.toolbar{display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
+.btn{font-size:15px;padding:9px 18px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;}
+.btn:hover{border-color:var(--stock);color:var(--stock);}
+.btn.primary{border-color:var(--stock);color:var(--stock);}
+.confirm-bar{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);padding:8px 20px;min-height:32px;}
+.wrap{padding:20px;}
+
+/* 년/월 그룹 */
+.year-group{margin-bottom:16px;}
+.year-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:background .15s;margin-bottom:6px;}
+.year-header:hover{background:var(--bg3);}
+.year-label{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--text);}
+.year-stats{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);}
+.year-toggle{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);transition:transform .2s;}
+.year-toggle.open{transform:rotate(180deg);}
+
+.month-group{margin-bottom:10px;margin-left:16px;}
+.month-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);cursor:pointer;transition:background .15s;}
+.month-header:hover{background:rgba(255,255,255,0.04);}
+.month-label{font-family:'DM Mono',monospace;font-size:15px;color:var(--text2);}
+.month-stats{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);}
+.month-toggle{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);transition:transform .2s;}
+.month-toggle.open{transform:rotate(180deg);}
+.month-body{margin-top:6px;}
+
+/* 테이블 */
+.tbl-outer{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:15px;}
+th{font-family:'DM Mono',monospace;font-size:13px;color:var(--text2);padding:12px 14px;border:2px solid var(--border2);background:var(--bg2);text-align:left;white-space:nowrap;}
+td{padding:0;border:2px solid var(--border2);vertical-align:middle;}
+td textarea,td input[type=text]{width:100%;background:transparent;border:none;color:var(--text);font-size:15px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;}
+td textarea{min-height:64px;}
+td input[type=text]:focus,td textarea:focus{background:rgba(251,191,36,0.05);}
+td.date-td{padding:10px 12px;font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);white-space:nowrap;min-width:120px;}
+tr:hover td{background:rgba(255,255,255,0.02);}
+.del-btn{font-size:13px;color:var(--text3);cursor:pointer;padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:transparent;transition:all .15s;}
+.del-btn:hover{border-color:var(--neg);color:var(--neg);}
+.add-row-btn{width:100%;padding:13px;font-size:15px;font-family:'DM Mono',monospace;border:1px dashed var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;}
+.add-row-btn:hover{border-color:var(--stock);color:var(--stock);}
+.empty-msg{text-align:center;padding:48px;color:var(--text3);font-size:16px;font-family:'DM Mono',monospace;}
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="nav-left"><a class="nav-back" href="home.html">←</a><div class="nav-logo">종목 / 검색식 복기</div></div>
+  <div class="nav-date" id="nav-date"></div>
+</div>
+<div class="toolbar">
+  <button class="btn primary" onclick="addRow()">+ 행 추가</button>
+  <button class="btn" onclick="addCol()">+ 열 추가</button>
+  <div style="width:1px;height:24px;background:var(--border2);"></div>
+  <label class="btn" style="cursor:pointer;">📂 엑셀 불러오기 (추가)<input type="file" accept=".xlsx,.xls" class="hidden" onchange="importExcel(this,'append')"></label>
+  <label class="btn" style="cursor:pointer;">📂 엑셀 불러오기 (덮어쓰기)<input type="file" accept=".xlsx,.xls" class="hidden" onchange="importExcel(this,'overwrite')"></label>
+  <button class="btn" onclick="exportExcel()">⬇ 엑셀 다운로드</button>
+</div>
+<div class="confirm-bar" id="confirm-bar"></div>
+
+<div class="wrap">
+  <div id="content"></div>
+  <div id="empty-msg" class="empty-msg hidden">기록이 없어요<br><span style="font-size:14px;">"+ 행 추가" 버튼으로 시작하세요</span></div>
+</div>
+
+<script>
+const DEFAULT_COLS=['날짜','종목명','검색식','메모'];
+const FIXED_COLS=['날짜'];
+const DAYS=['일','월','화','수','목','금','토'];
+const openState={years:new Set(),months:new Set()};
+
+function pad(n){return String(n).padStart(2,'0');}
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function ls(k){return localStorage.getItem(k);}
+function lss(k,v){localStorage.setItem(k,v);}
+function showConfirm(msg){const el=document.getElementById('confirm-bar');el.textContent=msg;setTimeout(()=>el.textContent='',3000);}
+function getData(){return JSON.parse(ls('search_review')||JSON.stringify({cols:[...DEFAULT_COLS],rows:[]}));}
+function saveData(d){lss('search_review',JSON.stringify(d));fbSave();}
+
+function addRow(){
+  const data=getData();const row={};
+  data.cols.forEach(c=>row[c]='');
+  row['날짜']=todayStr();
+  data.rows.unshift(row);saveData(data);render();
+}
+
+function addCol(){
+  const name=prompt('새 열 이름:');if(!name||!name.trim())return;
+  const data=getData();
+  if(data.cols.includes(name.trim())){showConfirm('이미 있는 열이에요');return;}
+  data.cols.push(name.trim());data.rows.forEach(r=>r[name.trim()]=r[name.trim()]||'');
+  saveData(data);render();
+}
+
+function deleteRow(idx){
+  if(!confirm('삭제할까요?'))return;
+  const data=getData();data.rows.splice(idx,1);saveData(data);render();
+}
+
+function deleteCol(col){
+  if(FIXED_COLS.includes(col)){showConfirm('날짜 열은 삭제할 수 없어요');return;}
+  if(!confirm('"'+col+'" 열 삭제?'))return;
+  const data=getData();data.cols=data.cols.filter(c=>c!==col);data.rows.forEach(r=>delete r[col]);saveData(data);render();
+}
+
+function updateCell(idx,col,val){
+  const data=getData();if(!data.rows[idx])return;
+  data.rows[idx][col]=val;
+  if(col==='날짜')data.rows[idx]['날짜']=val;
+  saveData(data);
+}
+
+function render(){
+  const data=getData();
+  const content=document.getElementById('content');
+  const empty=document.getElementById('empty-msg');
+  if(!data.rows.length){content.innerHTML='';empty.classList.remove('hidden');return;}
+  empty.classList.add('hidden');
+
+  // 년/월 그룹핑
+  const byYear={};
+  data.rows.forEach((row,idx)=>{
+    const date=row['날짜']||'';
+    const year=date?date.slice(0,4):'미분류';
+    const month=date?date.slice(0,7):'미분류';
+    if(!byYear[year])byYear[year]={};
+    if(!byYear[year][month])byYear[year][month]=[];
+    byYear[year][month].push({row,idx});
+  });
+
+  const sortedYears=Object.keys(byYear).sort((a,b)=>b.localeCompare(a));
+  const curYear=new Date().getFullYear().toString();
+  const curMonth=new Date().getFullYear()+'-'+pad(new Date().getMonth()+1);
+
+  // 현재 년/월 기본 오픈
+  if(!openState._init){openState.years.add(curYear);openState.months.add(curMonth);openState._init=true;}
+
+  const cols=data.cols;
+
+  content.innerHTML=sortedYears.map(year=>{
+    const months=byYear[year];
+    const totalRows=Object.values(months).reduce((a,b)=>a+b.length,0);
+    const isYearOpen=openState.years.has(year);
+    const sortedMonths=Object.keys(months).sort((a,b)=>b.localeCompare(a));
+
+    return `<div class="year-group">
+      <div class="year-header" onclick="toggleYear('${year}')">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span class="year-label">${year}년</span>
+          <span class="year-stats">${totalRows}건</span>
+        </div>
+        <span class="year-toggle ${isYearOpen?'open':''}">▼</span>
+      </div>
+      <div id="year-body-${year}" class="${isYearOpen?'':'hidden'}">
+        ${sortedMonths.map(month=>{
+          const mRows=months[month];
+          const isMonthOpen=openState.months.has(month);
+          const [y,m]=month.split('-');
+          const label=parseInt(m)+'월';
+
+          const tableRows=mRows.map(({row,idx})=>`<tr>
+            <td class="date-td"><input type="date" value="${row['날짜']||''}" onchange="updateCell(${idx},'날짜',this.value)" style="background:transparent;border:none;color:var(--text2);font-size:14px;font-family:'DM Mono',monospace;outline:none;width:130px;"></td>
+            ${cols.filter(c=>c!=='날짜').map(c=>`<td><textarea rows="2" onblur="updateCell(${idx},'${c}',this.value)" placeholder="${c}...">${(row[c]||'').replace(/</g,'&lt;')}</textarea></td>`).join('')}
+            <td style="text-align:center;padding:8px;min-width:60px;"><button class="del-btn" onclick="deleteRow(${idx})">삭제</button></td>
+          </tr>`).join('');
+
+          return `<div class="month-group">
+            <div class="month-header" onclick="toggleMonth('${month}')">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span class="month-label">${label}</span>
+                <span class="month-stats">${mRows.length}건</span>
+              </div>
+              <span class="month-toggle ${isMonthOpen?'open':''}">▼</span>
+            </div>
+            <div id="month-body-${month}" class="month-body ${isMonthOpen?'':'hidden'}">
+              <div class="tbl-outer">
+                <table>
+                  <thead><tr>
+                    <th style="min-width:130px;">날짜</th>
+                    ${cols.filter(c=>c!=='날짜').map(c=>`<th style="min-width:180px;">${c} <span onclick="deleteCol('${c}')" style="cursor:pointer;color:var(--text3);font-size:12px;">✕</span></th>`).join('')}
+                    <th style="min-width:60px;"></th>
+                  </tr></thead>
+                  <tbody>${tableRows}</tbody>
+                </table>
+              </div>
+              <button class="add-row-btn" onclick="addRow()">+ 행 추가</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleYear(year){
+  if(openState.years.has(year))openState.years.delete(year);
+  else openState.years.add(year);
+  const body=document.getElementById('year-body-'+year);
+  const toggle=body.previousElementSibling.querySelector('.year-toggle');
+  body.classList.toggle('hidden',!openState.years.has(year));
+  toggle.classList.toggle('open',openState.years.has(year));
+}
+
+function toggleMonth(month){
+  if(openState.months.has(month))openState.months.delete(month);
+  else openState.months.add(month);
+  const body=document.getElementById('month-body-'+month);
+  const toggle=body.previousElementSibling.querySelector('.month-toggle');
+  body.classList.toggle('hidden',!openState.months.has(month));
+  toggle.classList.toggle('open',openState.months.has(month));
+}
+
+function exportExcel(){
+  const data=getData();if(!data.rows.length){showConfirm('데이터가 없어요');return;}
+  const rows=[data.cols,...data.rows.map(r=>data.cols.map(c=>r[c]||''))];
+  const ws=XLSX.utils.aoa_to_sheet(rows);const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,'검색식복기',ws);
+  const d=new Date();XLSX.writeFile(wb,'검색식복기_'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'.xlsx');
+  showConfirm('다운로드 완료!');
+}
+
+function importExcel(input,mode){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const wb=XLSX.read(e.target.result,{type:'binary'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rawRows=XLSX.utils.sheet_to_json(ws,{header:1});
+    if(rawRows.length<2){showConfirm('데이터가 없어요');return;}
+    const headers=rawRows[0].map(h=>String(h||'').trim());
+    const data=mode==='overwrite'?{cols:[...DEFAULT_COLS],rows:[]}:getData();
+    headers.forEach(h=>{if(h&&!data.cols.includes(h))data.cols.push(h);});
+    rawRows.slice(1).forEach(row=>{
+      if(!row.some(v=>v))return;
+      const r={};data.cols.forEach(c=>r[c]='');
+      headers.forEach((h,i)=>{if(h&&row[i]!==undefined)r[h]=String(row[i]);});
+      data.rows.push(r);
+    });
+    saveData(data);render();
+    showConfirm(mode==='overwrite'?'덮어쓰기 완료!':'추가 완료!');
+  };
+  reader.readAsBinaryString(file);input.value='';
+}
+
+const d=new Date();
+document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+DAYS[d.getDay()];
+fbSync(()=>{render();});
+</script>
+</body>
+</html>
