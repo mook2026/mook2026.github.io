@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주요 경제지표</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ian-dashboard.firebaseapp.com",projectId:"ian-dashboard",storageBucket:"ian-dashboard.firebasestorage.app",messagingSenderId:"47067460467",appId:"1:47067460467:web:37906ad2ddb74133238b06"};
+if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
+const db=firebase.firestore();const UID='ian';
+async function fbSave(){try{const d={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(d,{merge:true});}catch(e){console.warn('FB:',e);}}
+async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){Object.entries(doc.data()).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB:',e);}if(cb)cb();}
+</script>
+<style>
+:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.2);--border2:rgba(255,255,255,0.3);--text:#f0f0f0;--text2:#ccc;--text3:#999;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100;}
+.nav-left{display:flex;align-items:center;gap:10px;}
+.nav-back{font-size:22px;color:var(--text2);text-decoration:none;}
+.nav-logo{font-family:'DM Mono',monospace;font-size:15px;color:var(--text2);letter-spacing:0.08em;}
+.toolbar{display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
+.btn{font-size:14px;padding:8px 16px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;}
+.btn:hover{border-color:var(--stock);color:var(--stock);}
+.btn.primary{border-color:var(--stock);color:var(--stock);}
+.btn.active{background:var(--stock);color:#0c0c0e;border-color:var(--stock);}
+.status-bar{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);padding:7px 20px;min-height:30px;}
+.wrap{padding:20px;}
+.section-title{font-size:17px;font-weight:600;color:var(--stock);margin-bottom:14px;}
+
+/* 지표 카드 그리드 */
+.index-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;}
+.idx-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;cursor:pointer;transition:border-color .2s;position:relative;overflow:hidden;}
+.idx-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.idx-card.selected{border-color:var(--stock);}
+.idx-card.pos-card::before{background:var(--pos);}
+.idx-card.neg-card::before{background:var(--neg);}
+.idx-card.neutral-card::before{background:var(--text3);}
+.idx-card:hover{border-color:var(--border2);}
+.idx-name{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+.idx-val{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;color:var(--text);margin-bottom:4px;}
+.idx-chg{font-family:'DM Mono',monospace;font-size:13px;}
+.idx-chg.pos{color:var(--pos)}.idx-chg.neg{color:var(--neg)}.idx-chg.neutral{color:var(--text3);}
+.idx-time{font-size:11px;color:var(--text3);margin-top:6px;}
+.spark{width:100%;height:36px;margin-top:8px;}
+
+/* 그래프 섹션 */
+.chart-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px;}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+.chart-title{font-size:16px;font-weight:600;color:var(--text);}
+.chart-sub{font-size:13px;color:var(--text3);margin-top:2px;}
+.period-btns{display:flex;gap:6px;}
+.period-btn{font-family:'DM Mono',monospace;font-size:12px;padding:5px 12px;border-radius:5px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;}
+.period-btn:hover{border-color:var(--stock);color:var(--stock);}
+.period-btn.active{background:var(--stock);color:#0c0c0e;border-color:var(--stock);}
+.chart-wrap{position:relative;height:240px;}
+.loading-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg2);font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);}
+.error-msg{text-align:center;color:var(--neg);font-family:'DM Mono',monospace;font-size:13px;padding:20px;}
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="nav-left"><a class="nav-back" href="home.html">←</a><div class="nav-logo">주요 경제지표</div></div>
+  <span id="last-update" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);"></span>
+</div>
+<div class="toolbar">
+  <button class="btn primary" onclick="fetchAll()">↻ 전체 업데이트</button>
+  <div style="display:flex;gap:6px;">
+    <button class="period-btn active" id="pb-1mo" onclick="setPeriod('1mo',this)">1개월</button>
+    <button class="period-btn" id="pb-3mo" onclick="setPeriod('3mo',this)">3개월</button>
+    <button class="period-btn" id="pb-6mo" onclick="setPeriod('6mo',this)">6개월</button>
+    <button class="period-btn" id="pb-1y" onclick="setPeriod('1y',this)">1년</button>
+  </div>
+</div>
+<div class="status-bar" id="status-bar"></div>
+
+<div class="wrap">
+  <div class="section-title">현재값</div>
+  <div class="index-grid" id="index-grid"></div>
+
+  <div class="section-title">트렌드 그래프</div>
+  <div id="charts-wrap"></div>
+</div>
+
+<script>
+const INDICATORS=[
+  {key:'KOSPI',sym:'^KS11',name:'코스피',unit:'',color:'#a78bfa'},
+  {key:'KOSDAQ',sym:'^KQ11',name:'코스닥',unit:'',color:'#34d399'},
+  {key:'SP500',sym:'^GSPC',name:'S&P 500',unit:'',color:'#60a5fa'},
+  {key:'NASDAQ',sym:'^IXIC',name:'나스닥',unit:'',color:'#f472b6'},
+  {key:'DJI',sym:'^DJI',name:'다우존스',unit:'',color:'#fb923c'},
+  {key:'USD_KRW',sym:'KRW=X',name:'USD/KRW',unit:'₩',color:'#fbbf24'},
+  {key:'TNX',sym:'^TNX',name:'미10년금리',unit:'%',color:'#e879f9'},
+  {key:'VIX',sym:'^VIX',name:'VIX 공포지수',unit:'',color:'#f87171'},
+  {key:'GOLD',sym:'GC=F',name:'금 (Gold)',unit:'$',color:'#fde047'},
+  {key:'OIL',sym:'CL=F',name:'WTI 유가',unit:'$',color:'#86efac'},
+];
+
+const DAYS=['일','월','화','수','목','금','토'];
+let currentPeriod='1mo';
+let selectedKey=null;
+let cachedData={};
+let charts={};
+
+function pad(n){return String(n).padStart(2,'0');}
+function ls(k){return localStorage.getItem(k);}
+function lss(k,v){localStorage.setItem(k,v);}
+function setStatus(msg){document.getElementById('status-bar').textContent=msg;}
+
+// 야후 파이낸스 API 호출 (프록시 경유)
+async function fetchQuote(sym){
+  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d`;
+  const proxy=`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+  try{
+    const res=await fetch(proxy,{signal:AbortSignal.timeout(8000)});
+    const data=await res.json();
+    const parsed=JSON.parse(data.contents);
+    const result=parsed?.chart?.result?.[0];
+    if(!result)return null;
+    const meta=result.meta;
+    return {
+      price:meta.regularMarketPrice||meta.previousClose,
+      prev:meta.previousClose||meta.chartPreviousClose,
+      time:new Date(meta.regularMarketTime*1000).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})
+    };
+  }catch(e){return null;}
+}
+
+async function fetchHistory(sym,period){
+  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${period}`;
+  const proxy=`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+  try{
+    const res=await fetch(proxy,{signal:AbortSignal.timeout(10000)});
+    const data=await res.json();
+    const parsed=JSON.parse(data.contents);
+    const result=parsed?.chart?.result?.[0];
+    if(!result)return null;
+    const timestamps=result.timestamp||[];
+    const closes=result.indicators?.quote?.[0]?.close||[];
+    return timestamps.map((t,i)=>({
+      date:new Date(t*1000).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'}),
+      value:closes[i]
+    })).filter(d=>d.value!=null);
+  }catch(e){return null;}
+}
+
+async function fetchAll(){
+  setStatus('업데이트 중...');
+  const grid=document.getElementById('index-grid');
+  // 로딩 상태 표시
+  grid.innerHTML=INDICATORS.map(ind=>`
+    <div class="idx-card neutral-card" id="card-${ind.key}">
+      <div class="idx-name">${ind.name}</div>
+      <div class="idx-val" style="color:var(--text3);">로딩중...</div>
+      <div class="idx-chg neutral">-</div>
+    </div>
+  `).join('');
+
+  let success=0;
+  for(const ind of INDICATORS){
+    const q=await fetchQuote(ind.sym);
+    if(q){
+      cachedData[ind.key]={...ind,...q};
+      renderCard(ind.key,q,ind);
+      success++;
+      // localStorage 캐시
+      lss('idx_cache_'+ind.key,JSON.stringify({...q,ts:Date.now()}));
+    } else {
+      // 캐시에서 복구
+      const cached=ls('idx_cache_'+ind.key);
+      if(cached){
+        const c=JSON.parse(cached);
+        cachedData[ind.key]={...ind,...c};
+        renderCard(ind.key,c,ind,true);
+      }
+    }
+  }
+  const now=new Date();
+  const timeStr=now.getFullYear()+'.'+pad(now.getMonth()+1)+'.'+pad(now.getDate())+' '+now.getHours()+':'+pad(now.getMinutes());
+  document.getElementById('last-update').textContent='업데이트: '+timeStr;
+  setStatus(success+'/'+INDICATORS.length+' 업데이트 완료'+(success<INDICATORS.length?' (일부 캐시 사용)':''));
+  renderAllCharts();
+}
+
+function renderCard(key,q,ind,fromCache=false){
+  const card=document.getElementById('card-'+key);
+  if(!card)return;
+  const chg=q.price-q.prev;
+  const chgPct=(chg/q.prev*100);
+  const isPos=chg>=0;
+  const fmtVal=ind.unit==='%'?q.price.toFixed(2):(q.price>=1000?q.price.toLocaleString('en-US',{maximumFractionDigits:2}):q.price.toFixed(2));
+  card.className=`idx-card ${isPos?'pos-card':'neg-card'}${selectedKey===key?' selected':''}`;
+  card.onclick=()=>selectIndicator(key);
+  card.innerHTML=`
+    <div class="idx-name">${ind.name}${fromCache?' (캐시)':''}</div>
+    <div class="idx-val">${ind.unit==='$'?'$':''}${fmtVal}${ind.unit==='%'?'%':''}${ind.unit==='₩'?'₩':''}</div>
+    <div class="idx-chg ${isPos?'pos':'neg'}">${isPos?'▲':'▼'} ${Math.abs(chg).toFixed(ind.unit==='%'?2:2)} (${isPos?'+':''}${chgPct.toFixed(2)}%)</div>
+    <div class="idx-time">${q.time||''}</div>
+  `;
+}
+
+function selectIndicator(key){
+  selectedKey=key;
+  document.querySelectorAll('.idx-card').forEach(c=>c.classList.remove('selected'));
+  const card=document.getElementById('card-'+key);
+  if(card)card.classList.add('selected');
+  // 해당 그래프로 스크롤
+  const chartEl=document.getElementById('chart-section-'+key);
+  if(chartEl)chartEl.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function setPeriod(p,btn){
+  currentPeriod=p;
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAllCharts();
+}
+
+async function renderAllCharts(){
+  const wrap=document.getElementById('charts-wrap');
+  wrap.innerHTML=INDICATORS.map(ind=>`
+    <div class="chart-section" id="chart-section-${ind.key}">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">${ind.name}</div>
+          <div class="chart-sub" id="chart-sub-${ind.key}">로딩 중...</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chart-${ind.key}"></canvas>
+        <div class="loading-overlay" id="chart-loading-${ind.key}">데이터 로딩 중...</div>
+      </div>
+    </div>
+  `).join('');
+
+  for(const ind of INDICATORS){
+    renderChart(ind);
+  }
+}
+
+async function renderChart(ind){
+  const loading=document.getElementById('chart-loading-'+ind.key);
+  const canvas=document.getElementById('chart-'+ind.key);
+  const sub=document.getElementById('chart-sub-'+ind.key);
+  if(!canvas)return;
+
+  const hist=await fetchHistory(ind.sym,currentPeriod);
+  if(loading)loading.style.display='none';
+
+  if(!hist||!hist.length){
+    canvas.parentElement.innerHTML=`<div class="error-msg">데이터를 불러오지 못했어요. 새로고침 해보세요.</div>`;
+    return;
+  }
+
+  const labels=hist.map(d=>d.date);
+  const values=hist.map(d=>d.value);
+  const first=values[0],last=values[values.length-1];
+  const chg=last-first,chgPct=(chg/first*100);
+  const isPos=chg>=0;
+
+  if(sub){
+    const fmtLast=ind.unit==='%'?last.toFixed(2):(last>=1000?last.toLocaleString('en-US',{maximumFractionDigits:2}):last.toFixed(2));
+    sub.innerHTML=`<span style="color:var(--text);font-weight:500;">${ind.unit==='$'?'$':''}${fmtLast}${ind.unit==='%'?'%':''}</span> &nbsp; <span style="color:${isPos?'var(--pos)':'var(--neg)'};">${isPos?'▲':'▼'} ${Math.abs(chgPct).toFixed(2)}% (${currentPeriod})</span>`;
+  }
+
+  // 기존 차트 제거
+  if(charts[ind.key])charts[ind.key].destroy();
+
+  const ctx=canvas.getContext('2d');
+  const gradient=ctx.createLinearGradient(0,0,0,240);
+  gradient.addColorStop(0,isPos?'rgba(52,211,153,0.3)':'rgba(251,113,133,0.3)');
+  gradient.addColorStop(1,'rgba(0,0,0,0)');
+
+  charts[ind.key]=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        data:values,
+        borderColor:isPos?'var(--pos)':'var(--neg)',
+        backgroundColor:gradient,
+        borderWidth:2,
+        pointRadius:0,
+        pointHoverRadius:4,
+        fill:true,
+        tension:0.3
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          mode:'index',
+          intersect:false,
+          backgroundColor:'#1c1c1f',
+          borderColor:'rgba(255,255,255,0.2)',
+          borderWidth:1,
+          titleColor:'#ccc',
+          bodyColor:'#f0f0f0',
+          callbacks:{
+            label:ctx=>`${ind.name}: ${ind.unit==='$'?'$':''}${ctx.raw>=1000?ctx.raw.toLocaleString('en-US',{maximumFractionDigits:2}):ctx.raw.toFixed(2)}${ind.unit==='%'?'%':''}`
+          }
+        }
+      },
+      scales:{
+        x:{
+          grid:{color:'rgba(255,255,255,0.05)'},
+          ticks:{color:'#888',maxTicksLimit:8,font:{size:11}},
+          border:{display:false}
+        },
+        y:{
+          grid:{color:'rgba(255,255,255,0.05)'},
+          ticks:{color:'#888',font:{size:11},callback:v=>ind.unit==='$'?'$'+v.toLocaleString():v>=1000?v.toLocaleString():v.toFixed(2)},
+          border:{display:false},
+          position:'right'
+        }
+      },
+      interaction:{mode:'index',intersect:false}
+    }
+  });
+}
+
+// 캐시에서 복구해서 초기 렌더
+function loadFromCache(){
+  const grid=document.getElementById('index-grid');
+  grid.innerHTML=INDICATORS.map(ind=>`
+    <div class="idx-card neutral-card" id="card-${ind.key}" onclick="selectIndicator('${ind.key}')">
+      <div class="idx-name">${ind.name}</div>
+      <div class="idx-val" style="color:var(--text3);">-</div>
+      <div class="idx-chg neutral">-</div>
+    </div>
+  `).join('');
+
+  let hasCached=false;
+  INDICATORS.forEach(ind=>{
+    const cached=ls('idx_cache_'+ind.key);
+    if(cached){
+      const c=JSON.parse(cached);
+      cachedData[ind.key]={...ind,...c};
+      renderCard(ind.key,c,ind,true);
+      hasCached=true;
+    }
+  });
+  if(hasCached)setStatus('캐시된 데이터 표시 중 · 업데이트 버튼으로 최신값 불러오기');
+  renderAllCharts();
+}
+
+fbSync(()=>{loadFromCache();fetchAll();});
+</script>
+</body>
+</html>

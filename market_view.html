@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시황뷰</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ian-dashboard.firebaseapp.com",projectId:"ian-dashboard",storageBucket:"ian-dashboard.firebasestorage.app",messagingSenderId:"47067460467",appId:"1:47067460467:web:37906ad2ddb74133238b06"};
+if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
+const db=firebase.firestore();const UID='ian';
+async function fbSave(){try{const d={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(d,{merge:true});}catch(e){console.warn('FB:',e);}}
+async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){Object.entries(doc.data()).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB:',e);}if(cb)cb();}
+</script>
+<style>
+:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.2);--border2:rgba(255,255,255,0.3);--text:#f0f0f0;--text2:#ccc;--text3:#999;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100;}
+.nav-left{display:flex;align-items:center;gap:10px;}
+.nav-back{font-size:22px;color:var(--text2);text-decoration:none;}
+.nav-logo{font-family:'DM Mono',monospace;font-size:15px;color:var(--text2);letter-spacing:0.08em;}
+.nav-date{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);}
+.toolbar{display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
+.btn{font-size:14px;padding:8px 16px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;}
+.btn:hover{border-color:var(--stock);color:var(--stock);}
+.btn.primary{border-color:var(--stock);color:var(--stock);}
+.confirm-bar{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);padding:7px 20px;min-height:30px;}
+.wrap{padding:20px;overflow-x:auto;}
+/* 테이블 */
+.resizable-table{width:max-content;min-width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px;}
+.resizable-table th{font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);padding:10px 12px;border:2px solid var(--border2);background:var(--bg2);text-align:left;white-space:nowrap;position:relative;user-select:none;}
+.th-content{display:flex;align-items:center;justify-content:space-between;gap:4px;}
+.th-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;}
+.resizer{width:5px;height:100%;position:absolute;right:0;top:0;cursor:col-resize;background:transparent;z-index:1;}
+.resizer:hover{background:var(--stock);}
+.resizable-table td{padding:0;border:2px solid var(--border2);vertical-align:top;overflow:hidden;}
+.resizable-table td textarea,.resizable-table td input[type=text]{width:100%;background:transparent;border:none;color:var(--text);font-size:14px;padding:9px 11px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;box-sizing:border-box;}
+.resizable-table td textarea{min-height:72px;}
+.resizable-table td input[type=text]:focus,.resizable-table td textarea:focus{background:rgba(251,191,36,0.05);}
+td.date-td{padding:10px 12px;font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);white-space:nowrap;vertical-align:middle;}
+tr:hover td{background:rgba(255,255,255,0.02);}
+.drag-handle{cursor:grab;color:var(--text3);padding:8px 6px;font-size:14px;user-select:none;display:block;text-align:center;}
+.drag-handle:active{cursor:grabbing;}
+.resizable-table tr.dragging{opacity:0.4;}
+.resizable-table tr.drag-over td{border-top:2px solid var(--stock)!important;}
+.del-btn{font-size:12px;color:var(--text3);cursor:pointer;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:transparent;transition:all .15s;white-space:nowrap;}
+.del-btn:hover{border-color:var(--neg);color:var(--neg);}
+.add-row-btn{width:100%;padding:12px;font-size:14px;font-family:'DM Mono',monospace;border:1px dashed var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;}
+.add-row-btn:hover{border-color:var(--stock);color:var(--stock);}
+.empty-msg{text-align:center;padding:40px;color:var(--text3);font-size:15px;font-family:'DM Mono',monospace;}
+.hidden{display:none!important;}
+/* 년/월 그룹 */
+.year-group{margin-bottom:14px;}
+.year-header{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);cursor:pointer;margin-bottom:6px;}
+.year-header:hover{background:var(--bg3);}
+.year-label{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;}
+.year-toggle{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);transition:transform .2s;}
+.year-toggle.open{transform:rotate(180deg);}
+.month-group{margin-bottom:8px;margin-left:14px;}
+.month-header{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);cursor:pointer;}
+.month-header:hover{background:rgba(255,255,255,0.04);}
+.month-label{font-family:'DM Mono',monospace;font-size:14px;color:var(--text2);}
+.month-toggle{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);transition:transform .2s;}
+.month-toggle.open{transform:rotate(180deg);}
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="nav-left"><a class="nav-back" href="home.html">←</a><div class="nav-logo">시황뷰</div></div>
+  <div class="nav-date" id="nav-date"></div>
+</div>
+<div class="toolbar">
+  <button class="btn primary" onclick="addRow()">+ 행 추가</button>
+  <button class="btn" onclick="addCol()">+ 열 추가</button>
+  <div style="width:1px;height:22px;background:var(--border2);flex-shrink:0;"></div>
+  <label class="btn" style="cursor:pointer;">📂 추가<input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importExcel(this,'append')"></label>
+  <label class="btn" style="cursor:pointer;">📂 덮어쓰기<input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importExcel(this,'overwrite')"></label>
+  <button class="btn" onclick="exportExcel()">⬇ 다운로드</button>
+</div>
+<div class="confirm-bar" id="confirm-bar"></div>
+<div class="wrap">
+  <div id="content"></div>
+  <div id="empty-msg" class="empty-msg hidden">기록이 없어요<br><span style="font-size:13px;">"+ 행 추가" 버튼으로 시작하세요</span></div>
+</div>
+<script>
+const DEFAULT_COLS=['날짜','시황뷰','선정이유','차트패턴','목표가','손절가','결과','메모'];
+const FIXED_COLS=['날짜'];
+const COL_W={날짜:110,시황뷰:120,선정이유:200,차트패턴:160,목표가:110,손절가:110,결과:110,메모:200};
+const DAYS=['일','월','화','수','목','금','토'];
+const openState={years:new Set(),months:new Set(),_init:false};
+let dragSrc=-1;
+
+function pad(n){return String(n).padStart(2,'0');}
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function ls(k){return localStorage.getItem(k);}
+function lss(k,v){localStorage.setItem(k,v);}
+function showConfirm(msg){const el=document.getElementById('confirm-bar');el.textContent=msg;setTimeout(()=>el.textContent='',3000);}
+function getData(){return JSON.parse(ls('market_view_data')||JSON.stringify({cols:[...DEFAULT_COLS],rows:[],colWidths:{}}));}
+function saveData(d){lss('market_view_data',JSON.stringify(d));fbSave();}
+
+function addRow(){
+  const data=getData();const row={};data.cols.forEach(c=>row[c]='');row['날짜']=todayStr();
+  data.rows.unshift(row);saveData(data);render();
+}
+function addCol(){
+  const name=prompt('새 열 이름:');if(!name?.trim())return;
+  const data=getData();if(data.cols.includes(name.trim())){showConfirm('이미 있는 열');return;}
+  data.cols.push(name.trim());data.rows.forEach(r=>r[name.trim()]=r[name.trim()]||'');saveData(data);render();
+}
+function deleteRow(idx){
+  if(!confirm('삭제?'))return;const data=getData();data.rows.splice(idx,1);saveData(data);render();
+}
+function deleteCol(col){
+  if(FIXED_COLS.includes(col)){showConfirm('날짜 열은 삭제 불가');return;}
+  if(!confirm('"'+col+'" 열 삭제?'))return;
+  const data=getData();data.cols=data.cols.filter(c=>c!==col);data.rows.forEach(r=>delete r[col]);saveData(data);render();
+}
+function updateCell(idx,col,val){
+  const data=getData();if(!data.rows[idx])return;data.rows[idx][col]=val;saveData(data);
+}
+
+// 드래그 정렬
+function dragStart(e,ri){dragSrc=ri;e.currentTarget.classList.add('dragging');}
+function dragOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over');}
+function dragLeave(e){e.currentTarget.classList.remove('drag-over');}
+function dragDrop(e,ri){
+  e.preventDefault();e.currentTarget.classList.remove('drag-over');
+  if(dragSrc===ri)return;
+  const data=getData();const row=data.rows.splice(dragSrc,1)[0];data.rows.splice(ri,0,row);
+  saveData(data);render();dragSrc=-1;
+}
+
+// 열 너비 드래그
+let rCol='',rStartX=0,rStartW=0;
+function startResize(e,col){
+  e.preventDefault();rCol=col;rStartX=e.clientX;
+  const data=getData();rStartW=(data.colWidths||{})[col]||COL_W[col]||140;
+  const mm=ev=>{
+    const nw=Math.max(50,rStartW+(ev.clientX-rStartX));
+    document.querySelectorAll(`[data-col="${rCol}"]`).forEach(el=>{el.style.width=nw+'px';el.style.minWidth=nw+'px';});
+  };
+  const mu=()=>{
+    document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);
+    const data2=getData();if(!data2.colWidths)data2.colWidths={};
+    const th=document.querySelector(`th[data-col="${rCol}"]`);if(th)data2.colWidths[rCol]=th.offsetWidth;
+    saveData(data2);
+  };
+  document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
+}
+
+function render(){
+  const data=getData();
+  const content=document.getElementById('content');
+  const empty=document.getElementById('empty-msg');
+  if(!data.rows.length){content.innerHTML='';empty.classList.remove('hidden');return;}
+  empty.classList.add('hidden');
+
+  const byYear={};
+  data.rows.forEach((row,idx)=>{
+    const date=row['날짜']||'';
+    const year=date?date.slice(0,4):'미분류';
+    const month=date?date.slice(0,7):'미분류';
+    if(!byYear[year])byYear[year]={};
+    if(!byYear[year][month])byYear[year][month]=[];
+    byYear[year][month].push({row,idx});
+  });
+
+  const sortedYears=Object.keys(byYear).sort((a,b)=>b.localeCompare(a));
+  const curYear=new Date().getFullYear().toString();
+  const curMonth=new Date().getFullYear()+'-'+pad(new Date().getMonth()+1);
+  if(!openState._init){openState.years.add(curYear);openState.months.add(curMonth);openState._init=true;}
+  const cw=data.colWidths||{};
+  const cols=data.cols;
+
+  content.innerHTML=sortedYears.map(year=>{
+    const months=byYear[year];
+    const total=Object.values(months).reduce((a,b)=>a+b.length,0);
+    const isYearOpen=openState.years.has(year);
+    const sortedMonths=Object.keys(months).sort((a,b)=>b.localeCompare(a));
+    return `<div class="year-group">
+      <div class="year-header" onclick="toggleYear('${year}')">
+        <div style="display:flex;align-items:center;gap:12px;"><span class="year-label">${year}년</span><span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);">${total}건</span></div>
+        <span class="year-toggle ${isYearOpen?'open':''}">▼</span>
+      </div>
+      <div id="yb-${year}" ${isYearOpen?'':'style="display:none;"'}>
+        ${sortedMonths.map(month=>{
+          const mRows=months[month];
+          const isMonthOpen=openState.months.has(month);
+          const [y,m]=month.split('-');
+          const trs=mRows.map(({row,idx})=>`<tr draggable="true" ondragstart="dragStart(event,${idx})" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dragDrop(event,${idx})">
+            <td style="width:28px;text-align:center;padding:4px;vertical-align:middle;"><span class="drag-handle">⠿</span></td>
+            <td class="date-td" data-col="날짜" style="width:${cw['날짜']||COL_W['날짜']||110}px;"><input type="date" value="${row['날짜']||''}" onchange="updateCell(${idx},'날짜',this.value)" style="background:transparent;border:none;color:var(--text2);font-size:13px;font-family:'DM Mono',monospace;outline:none;width:120px;"></td>
+            ${cols.filter(c=>c!=='날짜').map(c=>`<td data-col="${c}" style="width:${cw[c]||COL_W[c]||140}px;"><textarea rows="3" onblur="updateCell(${idx},'${c}',this.value)" placeholder="${c}...">${(row[c]||'').replace(/</g,'&lt;')}</textarea></td>`).join('')}
+            <td style="width:52px;text-align:center;vertical-align:middle;padding:8px;"><button class="del-btn" onclick="deleteRow(${idx})">삭제</button></td>
+          </tr>`).join('');
+          return `<div class="month-group">
+            <div class="month-header" onclick="toggleMonth('${month}')">
+              <div style="display:flex;align-items:center;gap:10px;"><span class="month-label">${parseInt(m)}월</span><span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);">${mRows.length}건</span></div>
+              <span class="month-toggle ${isMonthOpen?'open':''}">▼</span>
+            </div>
+            <div id="mb-${month}" ${isMonthOpen?'':'style="display:none;"'}>
+              <div style="overflow-x:auto;">
+                <table class="resizable-table">
+                  <thead><tr>
+                    <th style="width:28px;min-width:28px;"><div class="th-content"><span class="th-label">↕</span></div></th>
+                    <th data-col="날짜" style="width:${cw['날짜']||110}px;min-width:${cw['날짜']||110}px;"><div class="th-content"><span class="th-label">날짜</span></div><div class="resizer" onmousedown="startResize(event,'날짜')"></div></th>
+                    ${cols.filter(c=>c!=='날짜').map(c=>`<th data-col="${c}" style="width:${cw[c]||COL_W[c]||140}px;min-width:${cw[c]||COL_W[c]||140}px;">
+                      <div class="th-content"><span class="th-label">${c} <span onclick="deleteCol('${c}')" style="cursor:pointer;color:var(--text3);font-size:11px;">✕</span></span></div>
+                      <div class="resizer" onmousedown="startResize(event,'${c}')"></div>
+                    </th>`).join('')}
+                    <th style="width:52px;min-width:52px;"></th>
+                  </tr></thead>
+                  <tbody>${trs}</tbody>
+                </table>
+              </div>
+              <button class="add-row-btn" onclick="addRow()">+ 행 추가</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleYear(y){
+  if(openState.years.has(y))openState.years.delete(y);else openState.years.add(y);
+  const b=document.getElementById('yb-'+y),t=b.previousElementSibling.querySelector('.year-toggle');
+  b.style.display=openState.years.has(y)?'block':'none';t.classList.toggle('open',openState.years.has(y));
+}
+function toggleMonth(m){
+  if(openState.months.has(m))openState.months.delete(m);else openState.months.add(m);
+  const b=document.getElementById('mb-'+m),t=b.previousElementSibling.querySelector('.month-toggle');
+  b.style.display=openState.months.has(m)?'block':'none';t.classList.toggle('open',openState.months.has(m));
+}
+
+function exportExcel(){
+  const data=getData();if(!data.rows.length){showConfirm('데이터가 없어요');return;}
+  const rows=[data.cols,...data.rows.map(r=>data.cols.map(c=>r[c]||''))];
+  const ws=XLSX.utils.aoa_to_sheet(rows);const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,'시황뷰',ws);
+  const d=new Date();XLSX.writeFile(wb,'원픽_'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'.xlsx');
+  showConfirm('다운로드 완료!');
+}
+function importExcel(input,mode){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const wb=XLSX.read(e.target.result,{type:'binary'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rawRows=XLSX.utils.sheet_to_json(ws,{header:1});
+    if(rawRows.length<2){showConfirm('데이터가 없어요');return;}
+    const headers=rawRows[0].map(h=>String(h||'').trim());
+    const data=mode==='overwrite'?{cols:[...DEFAULT_COLS],rows:[],colWidths:{}}:getData();
+    headers.forEach(h=>{if(h&&!data.cols.includes(h))data.cols.push(h);});
+    rawRows.slice(1).forEach(row=>{
+      if(!row.some(v=>v))return;
+      const r={};data.cols.forEach(c=>r[c]='');
+      headers.forEach((h,i)=>{if(h&&row[i]!==undefined)r[h]=String(row[i]);});
+      data.rows.push(r);
+    });
+    saveData(data);render();showConfirm(mode==='overwrite'?'덮어쓰기 완료!':'추가 완료!');
+  };
+  reader.readAsBinaryString(file);input.value='';
+}
+
+const d=new Date();
+document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+DAYS[d.getDay()];
+fbSync(()=>{render();});
+</script>
+</body>
+</html>
