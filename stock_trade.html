@@ -355,12 +355,14 @@ function importKiwoom(input){
   const file=input.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=function(e){
-    const wb=XLSX.read(e.target.result,{type:'binary'});
+    // raw:true로 읽어서 날짜 숫자값도 처리
+    const wb=XLSX.read(e.target.result,{type:'binary',cellDates:true});
     const ws=wb.Sheets[wb.SheetNames[0]];
-    const rawRows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false});
+    // raw:false로 문자열 변환 (날짜는 cellDates로 처리)
+    const rawRows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:'yyyy-mm-dd'});
     if(rawRows.length<2){showConfirm('데이터가 없어요');return;}
 
-    // 헤더 찾기 (첫번째 행이 헤더가 아닐 수 있음)
+    // 헤더 찾기
     let headerRow=-1;
     for(let i=0;i<Math.min(5,rawRows.length);i++){
       if(rawRows[i].some(v=>String(v||'').includes('일자')||String(v||'').includes('종목명'))){
@@ -381,27 +383,40 @@ function importKiwoom(input){
         const mapped=KIWOOM_MAP[h];
         if(!mapped)return;
         let val=String(row[i]||'').replace(/,/g,'').trim();
-        if(!val||val==='-')return;
+        if(!val||val==='-'||val==='null'||val==='undefined')return;
 
         if(mapped==='날짜'){
-          // 날짜 형식 정규화
+          // 다양한 날짜 형식 정규화
+          // yyyy-mm-dd 형식으로 통일
           val=val.replace(/\./g,'-').replace(/\//g,'-');
-          if(val.length===8&&!val.includes('-'))val=val.slice(0,4)+'-'+val.slice(4,6)+'-'+val.slice(6,8);
+          // yyyymmdd → yyyy-mm-dd
+          if(/^\d{8}$/.test(val))val=val.slice(0,4)+'-'+val.slice(4,6)+'-'+val.slice(6,8);
+          // Date 객체 문자열 처리 (예: Mon Apr 27 2026...)
+          if(val.includes(' ')&&val.length>10){
+            const d=new Date(val);
+            if(!isNaN(d.getTime())){
+              const y=d.getFullYear();
+              const m=String(d.getMonth()+1).padStart(2,'0');
+              const dd=String(d.getDate()).padStart(2,'0');
+              val=y+'-'+m+'-'+dd;
+            }
+          }
+          // 최종 검증: yyyy-mm-dd 형식인지 확인
+          if(!/^\d{4}-\d{2}-\d{2}$/.test(val))return;
         }
         if(mapped==='수익률(%)'){
-          // 수익률에서 % 제거, 소수점 처리
           val=val.replace(/%/g,'').trim();
         }
         r[mapped]=val;
       });
 
-      if(!r['종목']&&!r['날짜'])return;
-      // 수익률/실현손익이 있으면 calcRow 스킵 (키움에서 직접 받은 값 신뢰)
-      if(!r['수익률(%)']&&!r['실현손익'])calcRow(r);
+      if(!r['종목']||!r['날짜'])return;
+      // 키움 데이터 신뢰 - calcRow 스킵
       data.rows.push(r);
       added++;
     });
 
+    if(!added){showConfirm('추가된 데이터가 없어요. 키움 엑셀 형식인지 확인해주세요.');return;}
     // 날짜 내림차순 정렬
     data.rows.sort((a,b)=>(b['날짜']||'').localeCompare(a['날짜']||''));
     saveData(data);renderTable();renderStats();
