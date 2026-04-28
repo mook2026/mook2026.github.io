@@ -355,11 +355,10 @@ function importKiwoom(input){
   const file=input.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=function(e){
-    // raw:true로 읽어서 날짜 숫자값도 처리
-    const wb=XLSX.read(e.target.result,{type:'binary',cellDates:true});
+    // raw:true로 읽어서 날짜를 숫자(시리얼)로 받음
+    const wb=XLSX.read(e.target.result,{type:'binary',cellDates:false});
     const ws=wb.Sheets[wb.SheetNames[0]];
-    // raw:false로 문자열 변환 (날짜는 cellDates로 처리)
-    const rawRows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:'yyyy-mm-dd'});
+    const rawRows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
     if(rawRows.length<2){showConfirm('데이터가 없어요');return;}
 
     // 헤더 찾기
@@ -382,26 +381,30 @@ function importKiwoom(input){
       headers.forEach((h,i)=>{
         const mapped=KIWOOM_MAP[h];
         if(!mapped)return;
-        let val=String(row[i]||'').replace(/,/g,'').trim();
-        if(!val||val==='-'||val==='null'||val==='undefined')return;
+        // 날짜는 아래에서 raw 값으로 직접 처리
+        let val=mapped==='날짜'?'':String(row[i]||'').replace(/,/g,'').trim();
+        if(mapped!=='날짜'&&(!val||val==='-'||val==='null'||val==='undefined'))return;
 
         if(mapped==='날짜'){
-          // 다양한 날짜 형식 정규화
-          // yyyy-mm-dd 형식으로 통일
-          val=val.replace(/\./g,'-').replace(/\//g,'-');
-          // yyyymmdd → yyyy-mm-dd
-          if(/^\d{8}$/.test(val))val=val.slice(0,4)+'-'+val.slice(4,6)+'-'+val.slice(6,8);
-          // Date 객체 문자열 처리 (예: Mon Apr 27 2026...)
-          if(val.includes(' ')&&val.length>10){
-            const d=new Date(val);
-            if(!isNaN(d.getTime())){
-              const y=d.getFullYear();
-              const m=String(d.getMonth()+1).padStart(2,'0');
-              const dd=String(d.getDate()).padStart(2,'0');
-              val=y+'-'+m+'-'+dd;
+          // Excel 시리얼 숫자 → yyyy-mm-dd 변환
+          const rawVal=row[i];
+          if(typeof rawVal==='number'){
+            // Excel 날짜 시리얼: 1900-01-01 = 1
+            const d=new Date((rawVal-25569)*86400*1000);
+            const y=d.getUTCFullYear();
+            const m=String(d.getUTCMonth()+1).padStart(2,'0');
+            const dd=String(d.getUTCDate()).padStart(2,'0');
+            val=y+'-'+m+'-'+dd;
+          } else {
+            // 문자열 날짜 정규화
+            val=String(rawVal||'').replace(/,/g,'').trim();
+            val=val.replace(/\./g,'-').replace(/\//g,'-');
+            if(/^\d{8}$/.test(val))val=val.slice(0,4)+'-'+val.slice(4,6)+'-'+val.slice(6,8);
+            if(val.includes(' ')&&val.length>10){
+              const d=new Date(val);
+              if(!isNaN(d.getTime())){val=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
             }
           }
-          // 최종 검증: yyyy-mm-dd 형식인지 확인
           if(!/^\d{4}-\d{2}-\d{2}$/.test(val))return;
         }
         if(mapped==='수익률(%)'){
