@@ -350,83 +350,83 @@ function renderStats(){
   document.getElementById('st-bd').textContent=rows.filter(r=>r['정상/뇌동']==='뇌동').length;
 }
 
-// 키움증권 엑셀 업로드
+// 키움증권 엑셀 업로드 - 완전 재작성
 function importKiwoom(input){
   const file=input.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=function(e){
-    // raw:true로 읽어서 날짜를 숫자(시리얼)로 받음
-    const wb=XLSX.read(e.target.result,{type:'binary',cellDates:false});
-    const ws=wb.Sheets[wb.SheetNames[0]];
-    const rawRows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
-    if(rawRows.length<2){showConfirm('데이터가 없어요');return;}
-
-    // 헤더 찾기
-    let headerRow=-1;
-    for(let i=0;i<Math.min(5,rawRows.length);i++){
-      if(rawRows[i].some(v=>String(v||'').includes('일자')||String(v||'').includes('종목명'))){
-        headerRow=i;break;
+    try{
+      // cellDates:true 로 날짜를 JS Date 객체로 변환
+      const wb=XLSX.read(e.target.result,{type:'binary',cellDates:true,dateNF:'yyyy-mm-dd'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      // raw:false 로 모든 값을 문자열로
+      const rawRows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:'yyyy-mm-dd'});
+      
+      if(rawRows.length<2){showConfirm('데이터가 없어요');return;}
+      
+      // 헤더 행 찾기
+      let headerIdx=0;
+      for(let i=0;i<Math.min(5,rawRows.length);i++){
+        if(rawRows[i].some(v=>String(v||'').trim()==='일자'||String(v||'').trim()==='종목명')){
+          headerIdx=i;break;
+        }
       }
-    }
-    if(headerRow<0)headerRow=0;
-
-    const headers=rawRows[headerRow].map(h=>String(h||'').trim());
-    const data=getData();
-    let added=0;
-
-    rawRows.slice(headerRow+1).forEach(row=>{
-      if(!row.some(v=>v))return;
-      const r={};data.cols.forEach(c=>r[c]='');
-
-      headers.forEach((h,i)=>{
-        const mapped=KIWOOM_MAP[h];
-        if(!mapped)return;
-        // 날짜는 아래에서 raw 값으로 직접 처리
-        let val=mapped==='날짜'?'':String(row[i]||'').replace(/,/g,'').trim();
-        if(mapped!=='날짜'&&(!val||val==='-'||val==='null'||val==='undefined'))return;
-
-        if(mapped==='날짜'){
-          // Excel 시리얼 숫자 → yyyy-mm-dd 변환
-          const rawVal=row[i];
-          if(typeof rawVal==='number'){
-            // Excel 날짜 시리얼: 1900-01-01 = 1
-            const d=new Date((rawVal-25569)*86400*1000);
-            const y=d.getUTCFullYear();
-            const m=String(d.getUTCMonth()+1).padStart(2,'0');
-            const dd=String(d.getUTCDate()).padStart(2,'0');
-            val=y+'-'+m+'-'+dd;
-          } else {
-            // 문자열 날짜 정규화
-            val=String(rawVal||'').replace(/,/g,'').trim();
-            val=val.replace(/\./g,'-').replace(/\//g,'-');
+      
+      const headers=rawRows[headerIdx].map(h=>String(h||'').trim());
+      const data=getData();
+      let added=0;
+      
+      rawRows.slice(headerIdx+1).forEach(row=>{
+        if(!row||!row.some(v=>v))return;
+        const r={};data.cols.forEach(c=>r[c]='');
+        
+        headers.forEach((h,i)=>{
+          const mapped=KIWOOM_MAP[h];
+          if(!mapped)return;
+          let raw=row[i];
+          if(raw===null||raw===undefined||raw==='')return;
+          let val=String(raw).replace(/,/g,'').trim();
+          if(!val||val==='-')return;
+          
+          if(mapped==='날짜'){
+            // XLSX cellDates:true + dateNF:'yyyy-mm-dd' 로 읽으면
+            // 날짜가 'yyyy-mm-dd' 문자열로 옴
+            // 혹시 다른 형식이면 정규화
+            val=val.replace(/\//g,'-').replace(/\./g,'-');
+            // yyyymmdd
             if(/^\d{8}$/.test(val))val=val.slice(0,4)+'-'+val.slice(4,6)+'-'+val.slice(6,8);
-            if(val.includes(' ')&&val.length>10){
+            // 유효성 검사
+            if(!/^\d{4}-\d{2}-\d{2}$/.test(val)){
+              // Date 파싱 시도
               const d=new Date(val);
-              if(!isNaN(d.getTime())){val=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+              if(!isNaN(d.getTime())){
+                val=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+              } else return;
             }
           }
-          if(!/^\d{4}-\d{2}-\d{2}$/.test(val))return;
-        }
-        if(mapped==='수익률(%)'){
-          val=val.replace(/%/g,'').trim();
-        }
-        r[mapped]=val;
+          if(mapped==='수익률(%)'){
+            val=val.replace(/%/g,'').trim();
+          }
+          r[mapped]=val;
+        });
+        
+        if(!r['종목']||!r['날짜'])return;
+        data.rows.push(r);
+        added++;
       });
-
-      if(!r['종목']||!r['날짜'])return;
-      // 키움 데이터 신뢰 - calcRow 스킵
-      data.rows.push(r);
-      added++;
-    });
-
-    if(!added){showConfirm('추가된 데이터가 없어요. 키움 엑셀 형식인지 확인해주세요.');return;}
-    // 날짜 내림차순 정렬
-    data.rows.sort((a,b)=>(b['날짜']||'').localeCompare(a['날짜']||''));
-    saveData(data);renderTable();renderStats();
-    showConfirm('키움 엑셀 '+added+'건 추가 완료!');
+      
+      if(!added){showConfirm('추가된 데이터가 없어요. 키움 엑셀 형식인지 확인해주세요.');return;}
+      data.rows.sort((a,b)=>(b['날짜']||'').localeCompare(a['날짜']||''));
+      saveData(data);renderTable();renderStats();
+      showConfirm('키움 엑셀 '+added+'건 추가 완료!');
+    }catch(err){
+      console.error('키움 엑셀 파싱 오류:', err);
+      showConfirm('파싱 오류: '+err.message);
+    }
   };
   reader.readAsBinaryString(file);input.value='';
 }
+
 
 function exportExcel(){
   const data=getData();if(!data.rows.length){showConfirm('데이터가 없어요');return;}

@@ -18,116 +18,134 @@ async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get
 <style>
 :root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.2);--border2:rgba(255,255,255,0.3);--text:#f0f0f0;--text2:#ccc;--text3:#999;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:17px;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;}
 .nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100;}
 .nav-left{display:flex;align-items:center;gap:10px;}
 .nav-back{font-size:22px;color:var(--text2);text-decoration:none;}
-.nav-logo{font-family:'DM Mono',monospace;font-size:16px;color:var(--text2);letter-spacing:0.08em;}
-.nav-date{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);}
+.nav-logo{font-family:'DM Mono',monospace;font-size:15px;color:var(--text2);}
 .tabs{display:flex;padding:0 20px;border-bottom:1px solid var(--border);}
-.tab{font-family:'DM Mono',monospace;font-size:15px;color:var(--text3);padding:14px 18px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;}
+.tab{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);padding:13px 16px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;}
 .tab:hover{color:var(--text2);}
 .tab.on{color:var(--text);border-bottom-color:var(--stock);}
 .toolbar{display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
-.btn{font-size:15px;padding:9px 18px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;}
+.btn{font-size:14px;padding:8px 15px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;}
 .btn:hover{border-color:var(--stock);color:var(--stock);}
 .btn.primary{border-color:var(--stock);color:var(--stock);}
-.btn.danger{border-color:var(--neg);color:var(--neg);}
-.confirm-bar{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);padding:8px 20px;min-height:32px;}
+.confirm-bar{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);padding:7px 20px;min-height:30px;}
+
+/* 종목 목록 테이블 */
 .wrap{padding:20px;overflow-x:auto;}
-
-/* 지표 편집 */
-.ind-editor{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:16px;}
-.ind-editor-title{font-size:16px;font-weight:600;color:var(--stock);margin-bottom:14px;}
-.ind-list{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
-.ind-row{display:flex;align-items:center;gap:10px;}
-.ind-num{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);width:24px;flex-shrink:0;}
-.ind-input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:15px;padding:9px 12px;font-family:'Noto Sans KR',sans-serif;outline:none;transition:border-color .15s;}
-.ind-input:focus{border-color:var(--stock);}
-.ind-del{font-size:13px;color:var(--text3);cursor:pointer;padding:6px 10px;border:1px solid var(--border);border-radius:4px;background:transparent;transition:all .15s;white-space:nowrap;}
-.ind-del:hover{border-color:var(--neg);color:var(--neg);}
-.add-ind-btn{width:100%;padding:10px;font-size:15px;font-family:'DM Mono',monospace;border:1px dashed var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;border-radius:var(--r-sm);}
-.add-ind-btn:hover{border-color:var(--stock);color:var(--stock);}
-
-/* 테이블 */
-table{width:100%;border-collapse:collapse;font-size:15px;}
-th{font-family:'DM Mono',monospace;font-size:13px;color:var(--text2);padding:12px 14px;border:2px solid var(--border2);background:var(--bg2);text-align:left;white-space:nowrap;position:sticky;top:0;z-index:5;}
-th.ticker-h{min-width:110px;position:sticky;left:0;z-index:20;background:var(--bg2);}
-th.ind-h{min-width:300px;position:sticky;left:110px;z-index:20;background:var(--bg2);}
-td{padding:0;border:2px solid var(--border2);vertical-align:middle;}
-td.ticker-td{font-size:15px;font-weight:600;color:var(--text);background:var(--bg2);position:sticky;left:0;z-index:5;min-width:110px;padding:10px 12px;white-space:nowrap;}
-td.ind-td{font-size:14px;color:var(--text2);background:var(--bg3);position:sticky;left:110px;z-index:5;min-width:300px;padding:10px 14px;line-height:1.5;}
-td.val-td{min-width:100px;text-align:center;}
-td.val-td input{width:100%;background:transparent;border:none;color:var(--text);font-size:15px;padding:10px 12px;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;}
-td.val-td input:focus{background:rgba(251,191,36,0.05);}
-.yn-cell{display:flex;justify-content:center;gap:0;}
-.yn-btn{padding:8px 12px;font-size:14px;border:none;background:transparent;cursor:pointer;color:var(--text3);font-family:'DM Mono',monospace;transition:all .15s;line-height:1;}
-.yn-btn.y.on{color:var(--pos);font-weight:700;font-size:16px;}
-.yn-btn.n.on{color:var(--neg);font-weight:700;font-size:16px;}
-.yn-btn:hover{color:var(--text);}
-.date-h{min-width:100px;}
-.date-h.today{color:var(--stock)!important;}
-.del-col-btn{font-size:11px;color:var(--text3);cursor:pointer;display:block;margin-top:2px;transition:color .15s;}
-.del-col-btn:hover{color:var(--neg);}
-.del-ticker-btn{font-size:12px;color:var(--text3);cursor:pointer;margin-left:6px;transition:color .15s;}
-.del-ticker-btn:hover{color:var(--neg);}
-tr.sep-row td{border-top:3px solid var(--border2);}
-tr.all-y td.ticker-td{color:var(--pos);}
-tr.all-y td{background:rgba(52,211,153,0.04);}
-.add-row-btn{width:100%;padding:13px;font-size:15px;font-family:'DM Mono',monospace;border:1px dashed var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;margin-top:-2px;}
+.resizable-table{width:max-content;min-width:100%;border-collapse:collapse;table-layout:fixed;}
+.resizable-table th{font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);padding:10px 12px;border:2px solid var(--border2);background:var(--bg2);text-align:left;white-space:nowrap;position:relative;user-select:none;}
+.th-inner{display:flex;align-items:center;justify-content:space-between;gap:4px;}
+.th-input{background:transparent;border:none;color:var(--text2);font-family:'DM Mono',monospace;font-size:12px;outline:none;width:calc(100% - 20px);cursor:text;}
+.th-input:focus{color:var(--text);border-bottom:1px solid var(--stock);}
+.th-del{cursor:pointer;color:var(--text3);font-size:11px;flex-shrink:0;}
+.th-del:hover{color:var(--neg);}
+.resizer{width:6px;height:100%;position:absolute;right:0;top:0;cursor:col-resize;background:transparent;z-index:2;}
+.resizer:hover,.resizer.active{background:var(--stock);}
+.resizable-table td{padding:0;border:2px solid var(--border2);vertical-align:middle;overflow:hidden;}
+.resizable-table td input[type=text]{width:100%;background:transparent;border:none;color:var(--text);font-size:14px;padding:9px 11px;font-family:'Noto Sans KR',sans-serif;outline:none;}
+.resizable-table td input[type=text]:focus{background:rgba(251,191,36,0.05);}
+td.ticker-td{padding:9px 12px;font-size:15px;font-weight:600;color:var(--stock);cursor:pointer;white-space:nowrap;}
+td.ticker-td:hover{text-decoration:underline;}
+td.center-c{padding:9px 11px;text-align:center;color:var(--text2);}
+tr:hover td{background:rgba(255,255,255,0.02);}
+.del-btn{font-size:12px;color:var(--text3);cursor:pointer;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:transparent;transition:all .15s;}
+.del-btn:hover{border-color:var(--neg);color:var(--neg);}
+.add-row-btn{width:100%;padding:12px;font-size:14px;font-family:'DM Mono',monospace;border:1px dashed var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;}
 .add-row-btn:hover{border-color:var(--stock);color:var(--stock);}
-.empty-msg{text-align:center;padding:48px;color:var(--text3);font-size:16px;font-family:'DM Mono',monospace;}
-.hidden{display:none!important;}
-.ticker-input{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:15px;padding:9px 14px;font-family:'Noto Sans KR',sans-serif;outline:none;width:160px;}
+.empty-msg{text-align:center;padding:48px;color:var(--text3);font-size:15px;font-family:'DM Mono',monospace;}
 
-.resizer{width:5px;height:100%;position:absolute;right:0;top:0;cursor:col-resize;background:transparent;z-index:2;}
-.resizer:hover{background:var(--stock);}
+/* 지표 체크 패널 */
+.ind-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;}
+.ind-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.ind-panel-title{font-size:17px;font-weight:600;color:var(--stock);}
+.ind-panel-close{font-size:22px;color:var(--text2);cursor:pointer;padding:0 4px;}
+.ind-panel-close:hover{color:var(--neg);}
+.date-row{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.date-row label{font-size:14px;color:var(--text2);}
+.date-row input[type=date]{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:14px;padding:8px 12px;font-family:'DM Mono',monospace;outline:none;}
+.date-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.date-chip{font-family:'DM Mono',monospace;font-size:12px;padding:4px 10px;border-radius:4px;border:1px solid var(--border2);background:var(--bg3);color:var(--text3);cursor:pointer;transition:all .15s;}
+.date-chip:hover{border-color:var(--stock);color:var(--stock);}
+.date-chip.on{background:var(--stock);color:#0c0c0e;border-color:var(--stock);}
+.ind-list{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.ind-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);}
+.ind-num{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);width:22px;flex-shrink:0;}
+.ind-text{flex:1;font-size:14px;color:var(--text2);}
+.ind-text input{background:transparent;border:none;color:var(--text2);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;width:100%;}
+.ind-text input:focus{border-bottom:1px solid var(--stock);color:var(--text);}
+.yn-btns{display:flex;gap:6px;flex-shrink:0;}
+.yn-btn{font-family:'DM Mono',monospace;font-size:13px;padding:5px 12px;border-radius:5px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;}
+.yn-btn.y.on{background:var(--pos);border-color:var(--pos);color:#fff;font-weight:700;}
+.yn-btn.n.on{background:var(--neg);border-color:var(--neg);color:#fff;font-weight:700;}
+.yn-btn:hover{border-color:var(--border2);color:var(--text);}
+.ind-note{width:140px;flex-shrink:0;}
+.ind-note input{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:5px;color:var(--text2);font-size:13px;padding:5px 8px;font-family:'Noto Sans KR',sans-serif;outline:none;}
+.ind-del{cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;flex-shrink:0;}
+.ind-del:hover{color:var(--neg);}
+.add-ind-btn{width:100%;padding:10px;font-size:14px;font-family:'DM Mono',monospace;border:1px dashed var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;border-radius:var(--r-sm);}
+.add-ind-btn:hover{border-color:var(--stock);color:var(--stock);}
+.score-badge{font-family:'DM Mono',monospace;font-size:14px;padding:4px 12px;border-radius:4px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);}
+.score-badge.good{color:var(--pos);border-color:var(--pos);background:rgba(52,211,153,0.1);}
+.score-badge.bad{color:var(--neg);border-color:var(--neg);background:rgba(251,113,133,0.1);}
+.hidden{display:none!important;}
 </style>
 </head>
 <body>
 <div class="nav">
   <div class="nav-left"><a class="nav-back" href="home.html">←</a><div class="nav-logo">PORTFOLIO WATCH</div></div>
-  <div class="nav-date" id="nav-date"></div>
 </div>
 <div class="tabs">
-  <div class="tab on" onclick="showTab('table')">트래킹 테이블</div>
-  <div class="tab" onclick="showTab('indicators')">지표 편집</div>
+  <div class="tab on" id="tab-btn-list" onclick="showTab('list')">종목 목록</div>
+  <div class="tab hidden" id="tab-btn-ind" onclick="showTab('ind')">● <span id="selected-ticker-name">-</span> 지표</div>
 </div>
 <div class="toolbar">
-  <input class="ticker-input" id="new-ticker" placeholder="종목명 입력" onkeydown="if(event.key==='Enter')addTicker()">
   <button class="btn primary" onclick="addTicker()">+ 종목 추가</button>
-  <button class="btn" onclick="addDateCol()">+ 오늘 날짜 추가</button>
-  <div style="width:1px;height:24px;background:var(--border2);"></div>
-  <label class="btn" style="cursor:pointer;">📂 엑셀 불러오기 (추가)<input type="file" accept=".xlsx,.xls" class="hidden" onchange="importExcel(this,'append')"></label>
-  <label class="btn" style="cursor:pointer;">📂 엑셀 불러오기 (덮어쓰기)<input type="file" accept=".xlsx,.xls" class="hidden" onchange="importExcel(this,'overwrite')"></label>
-  <button class="btn" onclick="exportExcel()">⬇ 엑셀 다운로드</button>
+  <button class="btn" onclick="addListCol()">+ 열 추가</button>
+  <div style="width:1px;height:22px;background:var(--border2);flex-shrink:0;"></div>
+  <button class="btn" onclick="exportExcel()">⬇ 다운로드</button>
 </div>
 <div class="confirm-bar" id="confirm-bar"></div>
 
-<!-- 트래킹 테이블 -->
-<div id="tab-table" class="wrap">
+<!-- 종목 목록 탭 -->
+<div id="pane-list" class="wrap">
   <div style="overflow-x:auto;">
-    <table id="ptable">
-      <thead id="pthead"></thead>
-      <tbody id="ptbody"></tbody>
+    <table class="resizable-table" id="list-table">
+      <thead id="list-thead"></thead>
+      <tbody id="list-tbody"></tbody>
     </table>
     <button class="add-row-btn" onclick="addTicker()">+ 종목 추가</button>
-    <div id="pt-empty" class="empty-msg hidden">종목을 추가하고 날짜 열을 추가해주세요</div>
+    <div id="list-empty" class="empty-msg" style="display:none;">종목명을 클릭하면 지표 체크 탭이 열려요</div>
   </div>
 </div>
 
-<!-- 지표 편집 -->
-<div id="tab-indicators" class="wrap hidden">
-  <div class="ind-editor">
-    <div class="ind-editor-title">지표 항목 편집</div>
+<!-- 지표 탭 -->
+<div id="pane-ind" class="wrap hidden">
+  <div class="ind-panel">
+    <div class="ind-panel-header">
+      <div>
+        <div class="ind-panel-title" id="ind-ticker-title">-</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:3px;" id="ind-score-wrap"></div>
+      </div>
+      <span class="ind-panel-close" onclick="showTab('list')">←목록</span>
+    </div>
+    <div class="date-row">
+      <label>날짜</label>
+      <input type="date" id="ind-date" onchange="loadIndData()">
+      <div class="date-chips" id="date-chips"></div>
+      <button class="btn" onclick="addDateAndLoad()">+ 오늘 추가</button>
+    </div>
     <div class="ind-list" id="ind-list"></div>
     <button class="add-ind-btn" onclick="addIndicator()">+ 지표 추가</button>
   </div>
-  <button style="width:100%;padding:13px;font-size:15px;font-family:'DM Mono',monospace;border:1px solid var(--stock);border-radius:var(--r-sm);background:transparent;color:var(--stock);cursor:pointer;transition:all .15s;" onclick="saveIndicators()">지표 저장</button>
-  <div class="confirm-bar" id="ind-confirm"></div>
 </div>
 
 <script>
+const DEFAULT_LIST_COLS=['종목','날짜','메모'];
+const DEFAULT_LIST_W={종목:120,날짜:110,메모:300};
+const FIXED_LIST=['종목'];
 const DEFAULT_INDICATORS=[
   '지수가 매수 가능 구간인가?',
   '차트는 어떤 유형인가?',
@@ -135,221 +153,269 @@ const DEFAULT_INDICATORS=[
   '일봉이 단기 저항을 돌파했나? (5일선/그물망/기준선)',
   '5일선이 모든 선 중 최상단인가?',
   'RSI가 70 돌파했거나 근접인가?',
-  '추세가 상승추세인가? (턴어라운드 / 추세상승초입(주봉장대양봉 직후조정) / 눌림목)',
+  '추세가 상승추세인가? (턴어라운드/추세상승초입/눌림목)',
   '주봉이 볼밴상단 돌파 전 또는 했나?',
   '테마/섹터 모멘텀이 살아있는가? (상승률Top30 트렌드)',
   '재료 강도와 지속성이 충분한가?',
   '거래대금이 충분한가? (500억+)'
 ];
-const TEXT_INDICATORS_DEFAULT=[1,6]; // 텍스트 입력 기본값
-const DAYS=['일','월','화','수','목','금','토'];
+// 텍스트 입력 지표 인덱스 (1=차트유형, 6=추세유형)
+const TEXT_IND_IDX=[1,6];
+
+let selectedTicker='';
+let rCol='',rStartX=0,rStartW=0;
+
 function pad(n){return String(n).padStart(2,'0');}
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
 function ls(k){return localStorage.getItem(k);}
 function lss(k,v){localStorage.setItem(k,v);}
-function showConfirm(msg,id='confirm-bar'){const el=document.getElementById(id);el.textContent=msg;setTimeout(()=>el.textContent='',3000);}
+function showConfirm(msg){const el=document.getElementById('confirm-bar');el.textContent=msg;setTimeout(()=>el.textContent='',3000);}
 
-function getIndicators(){return JSON.parse(ls('portfolio_indicators')||JSON.stringify(DEFAULT_INDICATORS));}
-function saveIndicatorData(arr){lss('portfolio_indicators',JSON.stringify(arr));fbSave();}
-function getData(){return JSON.parse(ls('portfolio_data')||JSON.stringify({tickers:[],dates:[],data:{}}));}
-function saveData(d){lss('portfolio_data',JSON.stringify(d));fbSave();}
+function getListData(){return JSON.parse(ls('portfolio_list')||JSON.stringify({cols:[...DEFAULT_LIST_COLS],rows:[],colWidths:{}}));}
+function saveListData(d){lss('portfolio_list',JSON.stringify(d));fbSave();}
+function getIndData(ticker){return JSON.parse(ls('portfolio_ind_'+ticker)||JSON.stringify({indicators:[...DEFAULT_INDICATORS],dates:[],data:{}}));}
+function saveIndData(ticker,d){lss('portfolio_ind_'+ticker,JSON.stringify(d));fbSave();}
 
-// 텍스트 입력 여부: 2번(차트유형), 6번(추세유형) 기본
-function isTextInd(ii){
-  const textInds=JSON.parse(ls('portfolio_text_inds')||JSON.stringify(TEXT_INDICATORS_DEFAULT));
-  return textInds.includes(ii);
-}
-
+// 종목 목록
 function addTicker(){
-  const input=document.getElementById('new-ticker');
-  const name=input.value.trim();if(!name)return;
-  const d=getData();
-  if(d.tickers.includes(name)){showConfirm('이미 있는 종목이에요');return;}
-  d.tickers.push(name);if(!d.data[name])d.data[name]={};
-  saveData(d);input.value='';render();showConfirm(name+' 추가됨');
+  const name=prompt('종목명:');if(!name?.trim())return;
+  const data=getListData();
+  if(data.rows.find(r=>r['종목']===name.trim())){showConfirm('이미 있는 종목');return;}
+  const row={};data.cols.forEach(c=>row[c]='');row['종목']=name.trim();row['날짜']=todayStr();
+  data.rows.push(row);saveListData(data);renderList();
 }
 
-function deleteTicker(name){
-  if(!confirm(name+' 삭제?'))return;
-  const d=getData();d.tickers=d.tickers.filter(t=>t!==name);delete d.data[name];saveData(d);render();
+function addListCol(){
+  const name=prompt('새 열 이름:');if(!name?.trim())return;
+  const data=getListData();if(data.cols.includes(name.trim())){showConfirm('이미 있는 열');return;}
+  data.cols.push(name.trim());data.rows.forEach(r=>r[name.trim()]=r[name.trim()]||'');
+  saveListData(data);renderList();
 }
 
-function addDateCol(){
-  const today=todayStr();const d=getData();
-  if(d.dates.includes(today)){showConfirm('오늘 날짜는 이미 있어요');return;}
-  d.dates.push(today);saveData(d);render();showConfirm(today+' 추가됨');
+function renameListCol(old,nw){
+  if(!nw?.trim()||nw===old)return;
+  const data=getListData();if(FIXED_LIST.includes(old))return;
+  const idx=data.cols.indexOf(old);if(idx<0)return;
+  data.cols[idx]=nw.trim();
+  data.rows.forEach(r=>{r[nw.trim()]=r[old]||'';if(nw.trim()!==old)delete r[old];});
+  if(data.colWidths?.[old]){data.colWidths[nw.trim()]=data.colWidths[old];delete data.colWidths[old];}
+  saveListData(data);renderList();
 }
 
-function deleteDateCol(date){
-  if(!confirm(date+' 열 삭제?'))return;
-  const d=getData();d.dates=d.dates.filter(dt=>dt!==date);saveData(d);render();
+function deleteListCol(col){
+  if(FIXED_LIST.includes(col)){showConfirm('종목 열은 삭제 불가');return;}
+  if(!confirm('"'+col+'" 열 삭제?'))return;
+  const data=getListData();data.cols=data.cols.filter(c=>c!==col);data.rows.forEach(r=>delete r[col]);saveListData(data);renderList();
 }
 
-function setValue(ticker,ii,date,val){
-  const d=getData();
-  if(!d.data[ticker])d.data[ticker]={};
-  if(!d.data[ticker][ii])d.data[ticker][ii]={};
-  d.data[ticker][ii][date]=val;saveData(d);checkAllY(ticker);
+function deleteListRow(idx){
+  if(!confirm('종목을 삭제할까요?'))return;
+  const data=getListData();data.rows.splice(idx,1);saveListData(data);renderList();
 }
 
-function setYN(ticker,ii,date,val){setValue(ticker,ii,date,val);render();}
+function updateListCell(ri,col,val){
+  const data=getListData();if(!data.rows[ri])return;data.rows[ri][col]=val;saveListData(data);
+}
 
-function checkAllY(ticker){}
+function startResize(e,col){
+  e.preventDefault();rCol=col;rStartX=e.clientX;
+  const data=getListData();rStartW=(data.colWidths||{})[col]||DEFAULT_LIST_W[col]||150;
+  e.target.classList.add('active');
+  const mm=ev=>{
+    const nw=Math.max(40,rStartW+(ev.clientX-rStartX));
+    document.querySelectorAll(`[data-col="${rCol}"]`).forEach(el=>{el.style.width=nw+'px';el.style.minWidth=nw+'px';});
+  };
+  const mu=()=>{
+    e.target.classList.remove('active');
+    document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);
+    const data2=getListData();if(!data2.colWidths)data2.colWidths={};
+    const th=document.querySelector(`th[data-col="${rCol}"]`);if(th)data2.colWidths[rCol]=th.offsetWidth;
+    saveListData(data2);
+  };
+  document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
+}
 
-function render(){
-  const d=getData();
-  const indicators=getIndicators();
-  const wrap=document.getElementById('ptbody');
-  const thead=document.getElementById('pthead');
-  const empty=document.getElementById('pt-empty');
+function renderList(){
+  const data=getListData();
+  const cw=data.colWidths||{};
+  const cols=data.cols;
+  const thead=document.getElementById('list-thead');
+  const tbody=document.getElementById('list-tbody');
+  const empty=document.getElementById('list-empty');
 
-  if(!d.tickers.length){wrap.innerHTML='';thead.innerHTML='';empty.classList.remove('hidden');return;}
-  empty.classList.add('hidden');
+  thead.innerHTML='<tr>'+cols.map(c=>{
+    const w=cw[c]||DEFAULT_LIST_W[c]||150;
+    const canDel=!FIXED_LIST.includes(c);
+    return `<th data-col="${c}" style="width:${w}px;min-width:${w}px;">
+      <div class="th-inner">
+        <input class="th-input" value="${c}" onblur="renameListCol('${c}',this.value)" onclick="event.stopPropagation()" ${FIXED_LIST.includes(c)?'readonly style="cursor:default;"':''}>
+        ${canDel?`<span class="th-del" onclick="deleteListCol('${c}')">✕</span>`:''}
+      </div>
+      <div class="resizer" onmousedown="startResize(event,'${c}')"></div>
+    </th>`;
+  }).join('')+'<th style="width:56px;min-width:56px;border:2px solid var(--border2);font-size:12px;color:var(--text3);text-align:center;">지표</th><th style="width:52px;min-width:52px;border:2px solid var(--border2);"></th></tr>';
 
+  if(!data.rows.length){tbody.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+
+  tbody.innerHTML=data.rows.map((row,ri)=>`<tr>
+    ${cols.map(c=>{
+      const val=row[c]||'';
+      const w=cw[c]||DEFAULT_LIST_W[c]||150;
+      if(c==='종목')return `<td class="ticker-td" data-col="${c}" style="width:${w}px;" onclick="openInd('${val}')">${val}</td>`;
+      if(c==='날짜')return `<td data-col="${c}" style="width:${w}px;padding:0;"><input type="date" value="${val}" onchange="updateListCell(${ri},'${c}',this.value)" style="width:100%;background:transparent;border:none;color:var(--text2);font-size:13px;font-family:'DM Mono',monospace;outline:none;padding:9px 11px;"></td>`;
+      return `<td data-col="${c}" style="width:${w}px;"><input type="text" value="${String(val).replace(/"/g,'&quot;')}" onblur="updateListCell(${ri},'${c}',this.value)" placeholder="${c}..."></td>`;
+    }).join('')}
+    <td style="width:56px;text-align:center;padding:8px;border:2px solid var(--border2);">
+      <button class="btn" style="font-size:12px;padding:4px 8px;" onclick="openInd('${row['종목']}')">체크</button>
+    </td>
+    <td style="width:52px;text-align:center;padding:8px;border:2px solid var(--border2);">
+      <button class="del-btn" onclick="deleteListRow(${ri})">삭제</button>
+    </td>
+  </tr>`).join('');
+}
+
+// 지표 체크
+function openInd(ticker){
+  if(!ticker)return;
+  selectedTicker=ticker;
+  document.getElementById('ind-ticker-title').textContent=ticker;
+  document.getElementById('selected-ticker-name').textContent=ticker;
+  document.getElementById('tab-btn-ind').classList.remove('hidden');
+  showTab('ind');
   const today=todayStr();
-  // 헤더
-  thead.innerHTML='<tr><th class="ticker-h">종목</th><th class="ind-h">지표</th>'+
-    d.dates.map(date=>`<th class="date-h${date===today?' today':''}" style="position:relative;"><div style="display:flex;flex-direction:column;align-items:center;">${date.slice(5)}<span class="del-col-btn" onclick="deleteDateCol('${date}')">✕</span></div><div class="resizer" onmousedown="pStartResize(event,'${date}','ptbl_col_w')"></div></th>`).join('')+
-    '</tr>';
-
-  let rows='';
-  d.tickers.forEach((ticker,ti)=>{
-    const lastDate=d.dates[d.dates.length-1];
-    const ynInds=indicators.map((_,i)=>i).filter(i=>!isTextInd(i));
-    const allY=lastDate&&ynInds.every(i=>d.data[ticker]?.[i]?.[lastDate]==='Y');
-
-    indicators.forEach((ind,ii)=>{
-      const isFirst=ii===0;
-      const isSep=isFirst&&ti>0;
-      rows+=`<tr class="${allY?'all-y':''}${isSep?' sep-row':''}">`;
-      if(isFirst){
-        rows+=`<td class="ticker-td" rowspan="${indicators.length}">${ticker}<span class="del-ticker-btn" onclick="deleteTicker('${ticker}')">✕</span></td>`;
-      }
-      rows+=`<td class="ind-td">${ind}</td>`;
-      d.dates.forEach(date=>{
-        const val=d.data[ticker]?.[ii]?.[date]||'';
-        rows+=`<td class="val-td">`;
-        if(isTextInd(ii)){
-          rows+=`<input value="${String(val).replace(/"/g,'&quot;')}" placeholder="-" onblur="setValue('${ticker}',${ii},'${date}',this.value)">`;
-        } else {
-          const isY=val==='Y',isN=val==='N';
-          rows+=`<div class="yn-cell"><button class="yn-btn y${isY?' on':''}" onclick="setYN('${ticker}',${ii},'${date}','Y')">Y</button><button class="yn-btn n${isN?' on':''}" onclick="setYN('${ticker}',${ii},'${date}','N')">N</button></div>`;
-        }
-        rows+=`</td>`;
-      });
-      rows+=`</tr>`;
-    });
-  });
-  wrap.innerHTML=rows;
+  document.getElementById('ind-date').value=today;
+  const indData=getIndData(ticker);
+  if(!indData.dates.includes(today)){indData.dates.push(today);saveIndData(ticker,indData);}
+  renderDateChips();loadIndData();
 }
 
-// 지표 편집
-function renderIndicatorEditor(){
-  const indicators=getIndicators();
-  const list=document.getElementById('ind-list');
-  list.innerHTML=indicators.map((ind,i)=>`
-    <div class="ind-row">
+function addDateAndLoad(){
+  const today=todayStr();
+  const indData=getIndData(selectedTicker);
+  if(!indData.dates.includes(today)){indData.dates.push(today);saveIndData(selectedTicker,indData);}
+  document.getElementById('ind-date').value=today;
+  renderDateChips();loadIndData();showConfirm('오늘 날짜 추가됨');
+}
+
+function renderDateChips(){
+  const indData=getIndData(selectedTicker);
+  const curDate=document.getElementById('ind-date').value;
+  const sorted=[...indData.dates].sort((a,b)=>b.localeCompare(a));
+  document.getElementById('date-chips').innerHTML=sorted.map(d=>`
+    <span class="date-chip${d===curDate?' on':''}" onclick="selectDate('${d}')">${d.slice(5)}</span>`).join('');
+}
+
+function selectDate(d){
+  document.getElementById('ind-date').value=d;
+  renderDateChips();loadIndData();
+}
+
+function loadIndData(){
+  const date=document.getElementById('ind-date').value;
+  const indData=getIndData(selectedTicker);
+  renderIndList(indData,date);
+  renderScore(indData,date);
+}
+
+function renderScore(indData,date){
+  const checks=indData.data[date]||{};
+  const total=indData.indicators.length;
+  const yn=indData.indicators.filter((_,i)=>!TEXT_IND_IDX.includes(i));
+  const yCount=yn.filter((_,i)=>{
+    const realI=indData.indicators.indexOf(_);
+    return checks[realI]==='Y';
+  }).length;
+  const pct=yn.length?Math.round(yCount/yn.length*100):0;
+  const wrap=document.getElementById('ind-score-wrap');
+  const cls=pct>=80?'good':pct>=50?'':'bad';
+  wrap.innerHTML=`<span class="score-badge ${cls}">${yCount}/${yn.length} (${pct}%)</span>`;
+}
+
+function renderIndList(indData,date){
+  const checks=indData.data[date]||{};
+  document.getElementById('ind-list').innerHTML=indData.indicators.map((ind,i)=>{
+    const isText=TEXT_IND_IDX.includes(i);
+    const val=checks[i]||'';
+    return `<div class="ind-row">
       <span class="ind-num">${i+1}</span>
-      <input class="ind-input" id="ind-input-${i}" value="${ind}">
-      <button class="ind-del" onclick="deleteIndicator(${i})">삭제</button>
-    </div>
-  `).join('');
+      <div class="ind-text"><input value="${ind}" onblur="renameIndicator(${i},this.value)" placeholder="지표명..."></div>
+      ${isText
+        ?`<div class="ind-note"><input value="${val}" onblur="setIndVal(${i},this.value)" placeholder="직접 입력..."></div>`
+        :`<div class="yn-btns">
+            <button class="yn-btn y ${val==='Y'?'on':''}" onclick="setIndVal(${i},'Y')">Y</button>
+            <button class="yn-btn n ${val==='N'?'on':''}" onclick="setIndVal(${i},'N')">N</button>
+          </div>`
+      }
+      <span class="ind-del" onclick="deleteIndicator(${i})">×</span>
+    </div>`;
+  }).join('');
+}
+
+function setIndVal(idx,val){
+  const date=document.getElementById('ind-date').value;if(!date)return;
+  const indData=getIndData(selectedTicker);
+  if(!indData.data[date])indData.data[date]={};
+  // Y/N 토글
+  if(val==='Y'||val==='N'){
+    indData.data[date][idx]=(indData.data[date][idx]===val)?'':val;
+  } else {
+    indData.data[date][idx]=val;
+  }
+  saveIndData(selectedTicker,indData);
+  renderIndList(indData,date);renderScore(indData,date);
+}
+
+function renameIndicator(idx,val){
+  if(!val?.trim())return;
+  const indData=getIndData(selectedTicker);
+  indData.indicators[idx]=val.trim();
+  saveIndData(selectedTicker,indData);
 }
 
 function addIndicator(){
-  const indicators=getIndicators();indicators.push('새 지표');
-  saveIndicatorData(indicators);renderIndicatorEditor();
+  const indData=getIndData(selectedTicker);
+  indData.indicators.push('새 지표');
+  saveIndData(selectedTicker,indData);
+  const date=document.getElementById('ind-date').value;
+  renderIndList(indData,date);
 }
 
 function deleteIndicator(idx){
-  if(!confirm('이 지표를 삭제할까요?'))return;
-  const indicators=getIndicators();indicators.splice(idx,1);
-  saveIndicatorData(indicators);renderIndicatorEditor();
-}
-
-function saveIndicators(){
-  const inputs=document.querySelectorAll('.ind-input');
-  const arr=Array.from(inputs).map(el=>el.value.trim()).filter(v=>v);
-  saveIndicatorData(arr);
-  showConfirm('지표 저장 완료!','ind-confirm');
-  render();
+  if(!confirm('지표 삭제?'))return;
+  const indData=getIndData(selectedTicker);
+  indData.indicators.splice(idx,1);
+  // 데이터에서도 제거
+  Object.keys(indData.data).forEach(date=>{
+    const newData={};
+    Object.entries(indData.data[date]).forEach(([k,v])=>{
+      const ki=parseInt(k);if(ki<idx)newData[ki]=v;else if(ki>idx)newData[ki-1]=v;
+    });
+    indData.data[date]=newData;
+  });
+  saveIndData(selectedTicker,indData);
+  const date=document.getElementById('ind-date').value;
+  renderIndList(indData,date);renderScore(indData,date);
 }
 
 function exportExcel(){
-  const d=getData();const indicators=getIndicators();
-  if(!d.tickers.length){showConfirm('데이터가 없어요');return;}
-  const rows=[['종목','지표',...d.dates]];
-  d.tickers.forEach(ticker=>{
-    indicators.forEach((ind,ii)=>{
-      const row=[ticker,ind];
-      d.dates.forEach(date=>{row.push(d.data[ticker]?.[ii]?.[date]||'');});
-      rows.push(row);
-    });
-  });
+  const data=getListData();
+  if(!data.rows.length){showConfirm('데이터가 없어요');return;}
+  const rows=[data.cols,...data.rows.map(r=>data.cols.map(c=>r[c]||''))];
   const ws=XLSX.utils.aoa_to_sheet(rows);const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,'포트폴리오',ws);
-  XLSX.writeFile(wb,'portfolio_'+todayStr()+'.xlsx');showConfirm('다운로드 완료!');
-}
-
-function importExcel(input,mode){
-  const file=input.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=function(e){
-    const wb=XLSX.read(e.target.result,{type:'binary'});
-    const ws=wb.Sheets[wb.SheetNames[0]];
-    const rawRows=XLSX.utils.sheet_to_json(ws,{header:1});
-    if(!rawRows.length)return;
-    const headerRow=rawRows[0];const dates=headerRow.slice(2).map(String);
-    const d=mode==='overwrite'?{tickers:[],dates:[],data:{}}:getData();
-    dates.forEach(dt=>{if(dt&&!d.dates.includes(dt))d.dates.push(dt);});
-    const indicators=getIndicators();
-    rawRows.slice(1).forEach(row=>{
-      const ticker=String(row[0]||'');const ind=String(row[1]||'');
-      if(!ticker||!ind)return;
-      if(!d.tickers.includes(ticker))d.tickers.push(ticker);
-      if(!d.data[ticker])d.data[ticker]={};
-      const ii=indicators.indexOf(ind);if(ii<0)return;
-      if(!d.data[ticker][ii])d.data[ticker][ii]={};
-      dates.forEach((dt,di)=>{const val=row[di+2];if(val!==undefined&&val!=='')d.data[ticker][ii][dt]=String(val);});
-    });
-    saveData(d);render();showConfirm(mode==='overwrite'?'덮어쓰기 완료!':'추가 완료!');
-  };
-  reader.readAsBinaryString(file);input.value='';
+  const d=new Date();XLSX.writeFile(wb,'portfolio_'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'.xlsx');
+  showConfirm('다운로드 완료!');
 }
 
 function showTab(t){
-  document.getElementById('tab-table').classList.toggle('hidden',t!=='table');
-  document.getElementById('tab-indicators').classList.toggle('hidden',t!=='indicators');
-  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('on',['table','indicators'][i]===t));
-  if(t==='indicators')renderIndicatorEditor();
+  document.getElementById('pane-list').classList.toggle('hidden',t!=='list');
+  document.getElementById('pane-ind').classList.toggle('hidden',t!=='ind');
+  document.getElementById('tab-btn-list').classList.toggle('on',t==='list');
+  document.getElementById('tab-btn-ind').classList.toggle('on',t==='ind');
 }
 
-const d=new Date();
-document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+DAYS[d.getDay()];
-fbSync(()=>{render();});
+fbSync(()=>{renderList();});
 </script>
-
-<script>
-window.fmtN=window.fmtN||function(v){const n=parseInt(String(v||'').replace(/,/g,''));return isNaN(n)?v:n.toLocaleString('ko-KR');};
-(function(){
-  let _s=false,_x=0,_w=0,_th=null,_col='',_sk='';
-  window.pStartResize=function(e,col,sk){
-    e.preventDefault();_s=true;_col=col;_sk=sk;_x=e.clientX;
-    _th=e.target.parentElement;_w=_th?_th.offsetWidth:100;
-    const mm=ev=>{
-      if(!_s)return;const nw=Math.max(50,_w+(ev.clientX-_x));
-      if(_th){_th.style.width=nw+'px';_th.style.minWidth=nw+'px';}
-    };
-    const mu=()=>{
-      _s=false;document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);
-      const sv=JSON.parse(localStorage.getItem(_sk)||'{}');
-      if(_th)sv[_col]=_th.offsetWidth;
-      localStorage.setItem(_sk,JSON.stringify(sv));
-    };
-    document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
-  };
-})();
-</script>
-
 </body>
 </html>
