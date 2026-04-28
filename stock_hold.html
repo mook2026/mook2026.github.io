@@ -176,7 +176,8 @@ function pad(n){return String(n).padStart(2,'0');}
 function ls(k){return localStorage.getItem(k);}
 function lss(k,v){localStorage.setItem(k,v);}
 function showConfirm(msg){const el=document.getElementById('confirm-bar');el.textContent=msg;setTimeout(()=>el.textContent='',3000);}
-function fmtN(v){const n=parseInt(String(v||'').replace(/,/g,''));return isNaN(n)?v:n.toLocaleString('ko-KR');}
+function cleanN(v){return String(v||'').replace(/,/g,'').trim();}
+function fmtN(v,dec=0){const n=parseFloat(String(v||'').replace(/,/g,''));if(isNaN(n))return v;return dec>0?n.toLocaleString('ko-KR',{minimumFractionDigits:0,maximumFractionDigits:dec}):n.toLocaleString('ko-KR');}
 function cleanN(v){return String(v||'').replace(/,/g,'');}
 
 function getHoldData(idx){return JSON.parse(ls('hold_tbl_'+idx)||JSON.stringify({title:'보유종목'+idx,cols:[...DEFAULT_COLS],rows:[]}));}
@@ -200,12 +201,12 @@ function calcRow(row){
 function refreshAll(){
   const trade=getTradeData();
   const rows=trade.rows||[];
-  const closed=rows.filter(r=>r['매도가']&&parseFloat(cleanN(r['매도가']))>0);
+  const closed=rows.filter(r=>r['매도가']&&r['매도가']!==''&&parseFloat(String(r['매도가']).replace(/,/g,''))>0);
   const pcts=closed.map(r=>parseFloat(r['수익률(%)'])).filter(p=>!isNaN(p)&&p!==0);
   const wins=pcts.filter(p=>p>0);
   const wr=pcts.length?Math.round(wins.length/pcts.length*100):0;
   const avgWin=wins.length?wins.reduce((a,b)=>a+b,0)/wins.length:0;
-  const totalPL=closed.reduce((a,r)=>a+(parseInt(r['실현손익'])||0),0);
+  const totalPL=closed.reduce((a,r)=>a+(parseFloat(cleanN(r['실현손익']))||0),0);
   document.getElementById('sum-total').textContent=rows.length;
   document.getElementById('sum-closed').textContent=closed.length;
   document.getElementById('sum-wr').textContent=pcts.length?wr+'%':'-';
@@ -225,7 +226,7 @@ function renderMonthly(closed){
   el.innerHTML=[4,5,6,7,8,9,10,11,12].map(m=>{
     const g=GOALS[m]||0;
     const mRows=closed.filter(r=>{const d=r['날짜']||'';return d&&parseInt(d.split('-')[1])===m&&parseInt(d.split('-')[0])===curY;});
-    const actual=mRows.reduce((a,r)=>a+(parseInt(r['실현손익'])||0),0);
+    const actual=mRows.reduce((a,r)=>a+(parseFloat(cleanN(r['실현손익']))||0),0);
     const hasData=mRows.length>0;
     const pct=hasData?Math.min(200,Math.round(actual/g*100)):0;
     const isPast=m<curM,isCur=m===curM;
@@ -252,7 +253,7 @@ function renderTradeMonths(rows){
   if(!openMonths.has('_init')){openMonths.add(curKey);openMonths.add('_init');}
   container.innerHTML=sorted.map(key=>{
     const mRows=byMonth[key];
-    const pl=mRows.reduce((a,r)=>a+(parseInt(r['실현손익'])||0),0);
+    const pl=mRows.reduce((a,r)=>a+(parseFloat(cleanN(r['실현손익']))||0),0);
     const pcts=mRows.map(r=>parseFloat(r['수익률(%)'])).filter(p=>!isNaN(p)&&p!==0);
     const wins=pcts.filter(p=>p>0);
     const wr=pcts.length?Math.round(wins.length/pcts.length*100):0;
@@ -300,7 +301,7 @@ function populateMonth(key,mRows,cols){
   const trs=mRows.map(r=>`<tr>${cols.map(c=>{
     const val=r[c]||'';
     if(c==='수익률(%)'){const p=parseFloat(val);return `<td class="${isNaN(p)||p===0?'muted-c':p>0?'pos-c':'neg-c'}">${val?val+'%':'진행중'}</td>`;}
-    if(c==='실현손익'){const pl=parseInt(val)||0;return `<td class="${pl>0?'pos-c':pl<0?'neg-c':'muted-c'}">${pl?fmtN(pl)+'원':'-'}</td>`;}
+    if(c==='실현손익'){const pl=parseFloat(String(val||'').replace(/,/g,''))||0;return `<td class="${pl>0?'pos-c':pl<0?'neg-c':'muted-c'}">${pl?fmtN(pl)+'원':'-'}</td>`;}
     if(c==='정상/뇌동')return `<td class="center-c" style="color:${val==='뇌동'?'var(--neg)':'var(--pos)'};">${val||'-'}</td>`;
     const isNum=NUM_COLS.includes(c)||c==='매도가';
     return `<td><input type="text" value="${isNum&&val?fmtN(val):String(val).replace(/"/g,'&quot;')}" readonly style="color:var(--text2);cursor:default;font-family:${isNum?'\'DM Mono\',monospace':'inherit'};"></td>`;
