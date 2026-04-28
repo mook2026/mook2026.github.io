@@ -142,8 +142,8 @@ function startResize(e,col){
   const data=getData();rStartW=(data.colWidths||{})[col]||DEFAULT_COL_W[col]||180;
   e.target.classList.add('active');
   const mm=ev=>{
-    const nw=Math.max(40,rStartW+(ev.clientX-rStartX));
-    document.querySelectorAll(`[data-col="${rCol}"]`).forEach(el=>{el.style.width=nw+'px';el.style.minWidth=nw+'px';});
+    const nw=Math.max(1,rStartW+(ev.clientX-rStartX));
+    document.querySelectorAll(`[data-col="${rCol}"]`).forEach(el=>{el.style.width=nw+'px';});
   };
   const mu=()=>{
     e.target.classList.remove('active');
