@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>영어 노트</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+let db=null;const UID='ian';
+try{
+  const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ian-dashboard.firebaseapp.com",projectId:"ian-dashboard",storageBucket:"ian-dashboard.firebasestorage.app",messagingSenderId:"47067460467",appId:"1:47067460467:web:37906ad2ddb74133238b06"};
+  if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
+  db=firebase.firestore();
+}catch(e){console.warn('FB:',e);}
+async function fbSave(){if(!db)return;try{const d={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(d,{merge:true});}catch(e){console.warn('FB:',e);}}
+async function fbSync(cb){if(!db){if(cb)cb();return;}try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){Object.entries(doc.data()).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB:',e);}if(cb)cb();}
+</script>
+<style>
+:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.2);--border2:rgba(255,255,255,0.3);--text:#f0f0f0;--text2:#ccc;--text3:#999;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--acc:#a78bfa;--r:10px;--r-sm:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:200;}
+.nav-left{display:flex;align-items:center;gap:10px;}
+.nav-back{font-size:22px;color:var(--text2);text-decoration:none;}
+.nav-logo{font-family:'DM Mono',monospace;font-size:15px;color:var(--text2);}
+.nav-date{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);}
+
+/* 툴바 */
+.toolbar{display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
+.btn{font-size:14px;padding:8px 15px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;}
+.btn:hover{border-color:var(--acc);color:var(--acc);}
+.btn.primary{border-color:var(--acc);color:var(--acc);}
+.btn.primary:hover{background:var(--acc);color:#fff;}
+.search-input{flex:1;max-width:280px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:14px;padding:8px 14px;font-family:'Noto Sans KR',sans-serif;outline:none;}
+.search-input:focus{border-color:var(--acc);}
+.tag-filter{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.tag-chip{font-family:'DM Mono',monospace;font-size:12px;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;}
+.tag-chip:hover{border-color:var(--border2);color:var(--text2);}
+.tag-chip.on{color:#fff;border-color:transparent;}
+
+/* 카드 그리드 */
+.wrap{padding:20px;}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;position:relative;overflow:hidden;}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.card:hover{border-color:var(--border2);transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;}
+.card-date{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);}
+.card-lec{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;}
+.card-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px;line-height:1.4;}
+.card-preview{font-size:13px;color:var(--text3);line-height:1.6;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;}
+.card-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px;}
+.card-tag{font-family:'DM Mono',monospace;font-size:11px;padding:2px 8px;border-radius:3px;border:1px solid transparent;}
+.card-del{position:absolute;top:10px;right:10px;font-size:16px;color:var(--text3);cursor:pointer;opacity:0;transition:opacity .15s;padding:2px 6px;}
+.card:hover .card-del{opacity:1;}
+.card-del:hover{color:var(--neg);}
+.empty-msg{text-align:center;padding:60px 20px;color:var(--text3);font-size:15px;font-family:'DM Mono',monospace;}
+
+/* 모달 - 카드 펼치기 */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);width:100%;max-width:680px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.modal-head-left{display:flex;align-items:center;gap:10px;flex:1;}
+.modal-title-input{background:transparent;border:none;color:var(--text);font-size:18px;font-weight:600;font-family:'Noto Sans KR',sans-serif;outline:none;flex:1;}
+.modal-title-input::placeholder{color:var(--text3);}
+.modal-close{font-size:22px;color:var(--text2);cursor:pointer;flex-shrink:0;padding:0 4px;transition:color .15s;}
+.modal-close:hover{color:var(--neg);}
+.modal-meta{display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
+.meta-input{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-size:13px;padding:6px 10px;font-family:'DM Mono',monospace;outline:none;}
+.meta-input:focus{border-color:var(--acc);}
+.meta-input[type=date]{width:140px;}
+.meta-lec{width:80px;}
+.tag-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.modal-tag{font-family:'DM Mono',monospace;font-size:12px;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;}
+.modal-tag.on{color:#fff;border-color:transparent;}
+.modal-tag-add{font-size:12px;color:var(--text3);cursor:pointer;border:1px dashed var(--border2);padding:4px 10px;border-radius:20px;background:transparent;font-family:'DM Mono',monospace;transition:all .15s;}
+.modal-tag-add:hover{border-color:var(--acc);color:var(--acc);}
+.modal-body{flex:1;overflow-y:auto;padding:0;}
+.modal-textarea{width:100%;height:100%;min-height:320px;background:transparent;border:none;color:var(--text);font-size:15px;padding:20px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.8;}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.save-indicator{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);}
+.save-indicator.saved{color:var(--pos);}
+.hidden{display:none!important;}
+
+/* 태그 색상 */
+.t-패턴{background:rgba(167,139,250,0.15);color:#a78bfa;border-color:#a78bfa!important;}
+.t-표현{background:rgba(52,211,153,0.15);color:#34d399;border-color:#34d399!important;}
+.t-단어{background:rgba(251,191,36,0.15);color:#fbbf24;border-color:#fbbf24!important;}
+.t-문법{background:rgba(96,165,250,0.15);color:#60a5fa;border-color:#60a5fa!important;}
+.t-복습{background:rgba(251,113,133,0.15);color:#fb7185;border-color:#fb7185!important;}
+.t-기타{background:rgba(156,163,175,0.15);color:#9ca3af;border-color:#9ca3af!important;}
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="nav-left"><a class="nav-back" href="home.html">←</a><div class="nav-logo">영어 노트</div></div>
+  <div class="nav-date" id="nav-date"></div>
+</div>
+<div class="toolbar">
+  <button class="btn primary" onclick="newNote()">+ 새 메모</button>
+  <input class="search-input" id="search-input" placeholder="🔍 검색..." oninput="renderCards()">
+  <div class="tag-filter" id="tag-filter"></div>
+</div>
+<div class="wrap">
+  <div class="cards-grid" id="cards-grid"></div>
+  <div id="empty-msg" class="empty-msg hidden">메모가 없어요<br><span style="font-size:13px;">+ 새 메모 버튼으로 시작하세요</span></div>
+</div>
+
+<!-- 메모 모달 -->
+<div class="modal-bg hidden" id="modal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-head-left">
+        <input class="modal-title-input" id="m-title" placeholder="제목 (예: should have p.p / 구동사 패턴)" oninput="autoSave()">
+      </div>
+      <span class="modal-close" onclick="closeModal()">✕</span>
+    </div>
+    <div class="modal-meta">
+      <input class="meta-input" type="date" id="m-date" oninput="autoSave()">
+      <input class="meta-input meta-lec" id="m-lec" placeholder="강의번호" oninput="autoSave()">
+      <div class="tag-row" id="m-tags"></div>
+      <button class="modal-tag-add" onclick="addCustomTag()">+ 태그</button>
+    </div>
+    <div class="modal-body">
+      <textarea class="modal-textarea" id="m-body" placeholder="패턴, 예문, 설명 자유롭게 작성..." oninput="autoSave()"></textarea>
+    </div>
+    <div class="modal-footer">
+      <span class="save-indicator" id="save-indicator">자동저장</span>
+      <button class="btn" style="border-color:var(--neg);color:var(--neg);" onclick="deleteCurrentNote()">삭제</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DAYS=['일','월','화','수','목','금','토'];
+const DEFAULT_TAGS=['패턴','표현','단어','문법','복습','기타'];
+let currentId=null;
+let filterTag='전체';
+let saveTimer=null;
+
+function pad(n){return String(n).padStart(2,'0');}
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function ls(k){return localStorage.getItem(k);}
+function lss(k,v){localStorage.setItem(k,v);}
+function getNotes(){return JSON.parse(ls('english_notes')||'[]');}
+function saveNotes(arr){lss('english_notes',JSON.stringify(arr));fbSave();}
+function getTags(){return JSON.parse(ls('english_tags')||JSON.stringify(DEFAULT_TAGS));}
+function saveTags(arr){lss('english_tags',JSON.stringify(arr));}
+
+function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+function newNote(){
+  const note={id:genId(),title:'',body:'',date:todayStr(),lec:'',tags:[],created:Date.now()};
+  const notes=getNotes();
+  notes.unshift(note);
+  saveNotes(notes);
+  openModal(note.id);
+}
+
+function openModal(id){
+  currentId=id;
+  const notes=getNotes();
+  const note=notes.find(n=>n.id===id);
+  if(!note)return;
+  document.getElementById('m-title').value=note.title||'';
+  document.getElementById('m-date').value=note.date||todayStr();
+  document.getElementById('m-lec').value=note.lec||'';
+  document.getElementById('m-body').value=note.body||'';
+  renderModalTags(note.tags||[]);
+  document.getElementById('save-indicator').textContent='자동저장';
+  document.getElementById('save-indicator').classList.remove('saved');
+  document.getElementById('modal').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('m-title').focus(),100);
+}
+
+function closeModal(){
+  document.getElementById('modal').classList.add('hidden');
+  currentId=null;
+  renderCards();
+}
+
+function renderModalTags(selectedTags){
+  const tags=getTags();
+  document.getElementById('m-tags').innerHTML=tags.map(t=>`
+    <span class="modal-tag t-${t} ${selectedTags.includes(t)?'on':''}" onclick="toggleTag('${t}')">${t}</span>
+  `).join('');
+}
+
+function toggleTag(tag){
+  if(!currentId)return;
+  const notes=getNotes();
+  const note=notes.find(n=>n.id===currentId);
+  if(!note)return;
+  if(!note.tags)note.tags=[];
+  if(note.tags.includes(tag))note.tags=note.tags.filter(t=>t!==tag);
+  else note.tags.push(tag);
+  saveNotes(notes);
+  renderModalTags(note.tags);
+}
+
+function addCustomTag(){
+  const name=prompt('새 태그 이름:');
+  if(!name?.trim())return;
+  const tags=getTags();
+  if(!tags.includes(name.trim()))tags.push(name.trim());
+  saveTags(tags);
+  const notes=getNotes();
+  const note=notes.find(n=>n.id===currentId);
+  renderModalTags(note?.tags||[]);
+  renderTagFilter();
+}
+
+function autoSave(){
+  if(!currentId)return;
+  clearTimeout(saveTimer);
+  const ind=document.getElementById('save-indicator');
+  ind.textContent='저장중...';ind.classList.remove('saved');
+  saveTimer=setTimeout(()=>{
+    const notes=getNotes();
+    const idx=notes.findIndex(n=>n.id===currentId);
+    if(idx<0)return;
+    notes[idx].title=document.getElementById('m-title').value;
+    notes[idx].body=document.getElementById('m-body').value;
+    notes[idx].date=document.getElementById('m-date').value;
+    notes[idx].lec=document.getElementById('m-lec').value;
+    notes[idx].updated=Date.now();
+    saveNotes(notes);
+    ind.textContent='저장됨 ✓';ind.classList.add('saved');
+  },600);
+}
+
+function deleteCurrentNote(){
+  if(!currentId)return;
+  if(!confirm('메모를 삭제할까요?'))return;
+  const notes=getNotes().filter(n=>n.id!==currentId);
+  saveNotes(notes);
+  closeModal();
+}
+
+function renderTagFilter(){
+  const tags=['전체',...getTags()];
+  const TAG_COLORS={'패턴':'#a78bfa','표현':'#34d399','단어':'#fbbf24','문법':'#60a5fa','복습':'#fb7185','기타':'#9ca3af'};
+  document.getElementById('tag-filter').innerHTML=tags.map(t=>`
+    <span class="tag-chip ${filterTag===t?'on':''}"
+      style="${filterTag===t&&t!=='전체'?`background:${TAG_COLORS[t]||'#888'};`:''}"
+      onclick="setFilter('${t}')">${t}</span>
+  `).join('');
+}
+
+function setFilter(tag){
+  filterTag=tag;
+  renderTagFilter();
+  renderCards();
+}
+
+function renderCards(){
+  const notes=getNotes();
+  const query=document.getElementById('search-input').value.toLowerCase().trim();
+  const TAG_COLORS={'패턴':'#a78bfa','표현':'#34d399','단어':'#fbbf24','문법':'#60a5fa','복습':'#fb7185','기타':'#9ca3af'};
+
+  let filtered=notes.filter(n=>{
+    if(filterTag!=='전체'&&!(n.tags||[]).includes(filterTag))return false;
+    if(query){
+      const hay=(n.title+' '+n.body+' '+(n.tags||[]).join(' ')).toLowerCase();
+      if(!hay.includes(query))return false;
+    }
+    return true;
+  });
+
+  const grid=document.getElementById('cards-grid');
+  const empty=document.getElementById('empty-msg');
+
+  if(!filtered.length){
+    grid.innerHTML='';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  grid.innerHTML=filtered.map(note=>{
+    const color=note.tags?.[0]?TAG_COLORS[note.tags[0]]||'#888':'rgba(255,255,255,0.1)';
+    const preview=note.body?note.body.slice(0,120)+(note.body.length>120?'...':''):'내용 없음';
+    return `<div class="card" onclick="openModal('${note.id}')" style="border-top-color:${color}">
+      <span class="card-del" onclick="event.stopPropagation();quickDelete('${note.id}')">×</span>
+      <div class="card-header">
+        <span class="card-date">${note.date||''}</span>
+        ${note.lec?`<span class="card-lec">${note.lec}강</span>`:''}
+      </div>
+      <div class="card-title">${note.title||'(제목 없음)'}</div>
+      <div class="card-preview">${preview.replace(/</g,'&lt;')}</div>
+      <div class="card-tags">
+        ${(note.tags||[]).map(t=>`<span class="card-tag t-${t}">${t}</span>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function quickDelete(id){
+  if(!confirm('삭제할까요?'))return;
+  saveNotes(getNotes().filter(n=>n.id!==id));
+  renderCards();
+}
+
+// 모달 바깥 클릭 닫기
+document.getElementById('modal').addEventListener('click',function(e){
+  if(e.target===this)closeModal();
+});
+
+// 키보드 ESC
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape')closeModal();
+});
+
+const d=new Date();
+document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+DAYS[d.getDay()];
+
+fbSync(()=>{renderTagFilter();renderCards();});
+</script>
+</body>
+</html>

@@ -71,7 +71,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .hold-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:16px;overflow:hidden;}
 .hold-section-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);}
 .hold-title-wrap{display:flex;align-items:center;gap:10px;}
-.hold-title{font-size:16px;font-weight:600;color:var(--stock);cursor:pointer;border:none;background:transparent;color:var(--stock);font-family:'Noto Sans KR',sans-serif;font-size:16px;font-weight:600;outline:none;min-width:80px;}
+.hold-title{font-size:16px;font-weight:600;color:var(--stock);cursor:pointer;border:none;background:transparent;color:var(--stock);font-family:'Noto Sans KR',sans-serif;font-size:16px;font-weight:600;outline:none;}
 .hold-title:focus{border-bottom:1px solid var(--stock);}
 .hold-actions{display:flex;gap:8px;}
 .sm-btn{font-size:13px;padding:6px 12px;border-radius:5px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;}
@@ -326,7 +326,7 @@ function populateMonth(key,mRows,cols){
     const isNum=NUM_COLS.includes(c)||c==='매도가';
     return `<td><input type="text" value="${isNum&&val?fmtN(val):String(val).replace(/"/g,'&quot;')}" readonly style="color:var(--text2);cursor:default;font-family:${isNum?'\'DM Mono\',monospace':'inherit'};"></td>`;
   }).join('')}</tr>`).join('');
-  body.innerHTML=`<table class="resizable-table"><thead><tr>${cols.map(c=>`<th style="min-width:90px;"><div class="th-content"><span class="th-label">${c}</span></div></th>`).join('')}</tr></thead><tbody>${trs}</tbody></table>`;
+  body.innerHTML=`<table class="resizable-table"><thead><tr>${cols.map(c=>`<th style=""><div class="th-content"><span class="th-label">${c}</span></div></th>`).join('')}</tr></thead><tbody>${trs}</tbody></table>`;
 }
 
 // ===== 보유종목 =====
@@ -374,18 +374,18 @@ function renderHoldTable(idx){
   const empty=document.getElementById('hold-empty-'+idx);
   if(!thead||!tbody)return;
 
-  thead.innerHTML='<tr><th style="width:28px;min-width:28px;padding:8px 4px;"><div class="th-content"><span class="th-label">↕</span></div></th>'+
+  thead.innerHTML='<tr><th style="width:28px;padding:8px 4px;"><div class="th-content"><span class="th-label">↕</span></div></th>'+
     data.cols.map(c=>{
       const cw=w[c]||COL_W[c]||110;
       const canDel=!FIXED.includes(c);
-      return `<th data-col="${c}" style="width:${cw}px;min-width:${cw}px;">
+      return `<th data-col="${c}" style="width:${cw}px;">
         <div class="th-content">
           <span class="th-label">${c}${canDel?` <span onclick="deleteHoldCol(${idx},'${c}')" style="cursor:pointer;color:var(--text3);font-size:11px;">✕</span>`:''}</span>
         </div>
         <div class="resizer" onmousedown="startHoldResize(event,${idx},'${c}')"></div>
       </th>`;
     }).join('')+
-    '<th style="width:52px;min-width:52px;"></th></tr>';
+    '<th style="width:52px;"></th></tr>';
 
   if(!data.rows.length){tbody.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
@@ -446,7 +446,7 @@ function startHoldResize(e,idx,col){
   e.preventDefault();rIdx=idx;rCol=col;rStartX=e.clientX;
   const w=getColW(idx);rStartW=w[col]||COL_W[col]||110;
   const mm=ev=>{
-    const nw=Math.max(50,rStartW+(ev.clientX-rStartX));
+    const nw=Math.max(1, rStartW+(ev.clientX-rStartX));
     const tbl=document.getElementById('hold-tbl-'+rIdx);
     if(!tbl)return;
     const data=getHoldData(rIdx);const ci=data.cols.indexOf(rCol);
@@ -561,5 +561,41 @@ const d=new Date();
 document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+DAYS[d.getDay()];
 fbSync(()=>{renderHoldSections();refreshAll();});
 </script>
+
+// 테이블 셀 키보드 네비게이션 (엑셀처럼)
+document.addEventListener('keydown', function(e){
+  const el = document.activeElement;
+  if(!el) return;
+  const isInput = el.tagName==='INPUT' || el.tagName==='TEXTAREA';
+  if(!isInput) return;
+  const td = el.closest('td');
+  if(!td) return;
+  const tr = td.closest('tr');
+  if(!tr) return;
+  const table = tr.closest('table');
+  if(!table) return;
+
+  if(e.key==='Enter' && !e.shiftKey){
+    e.preventDefault();
+    // 아래 행 같은 열로 이동
+    const tdIdx = Array.from(tr.cells).indexOf(td);
+    const nextTr = tr.nextElementSibling;
+    if(nextTr && nextTr.cells[tdIdx]){
+      const nextEl = nextTr.cells[tdIdx].querySelector('input,textarea');
+      if(nextEl){ nextEl.focus(); if(nextEl.select) nextEl.select(); }
+    }
+  } else if(e.key==='Tab'){
+    e.preventDefault();
+    const allCells = Array.from(table.querySelectorAll('tbody td input, tbody td textarea'));
+    const curIdx = allCells.indexOf(el);
+    if(curIdx < 0) return;
+    const nextIdx = e.shiftKey ? curIdx-1 : curIdx+1;
+    if(nextIdx >= 0 && nextIdx < allCells.length){
+      allCells[nextIdx].focus();
+      if(allCells[nextIdx].select) allCells[nextIdx].select();
+    }
+  }
+});
+
 </body>
 </html>

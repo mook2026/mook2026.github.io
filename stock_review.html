@@ -68,8 +68,8 @@ th{font-family:'DM Mono',monospace;font-size:13px;color:var(--text2);padding:12p
 td{padding:0;border:2px solid var(--border2);color:var(--text2);vertical-align:top;}
 td textarea{width:100%;background:transparent;border:none;color:var(--text);font-size:15px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;min-height:72px;}
 td textarea:focus{background:rgba(251,191,36,0.05);}
-td.date-td{padding:10px 12px;font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);white-space:nowrap;min-width:100px;vertical-align:middle;}
-td.week-td{padding:10px 12px;font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);white-space:nowrap;min-width:90px;vertical-align:middle;}
+td.date-td{padding:10px 12px;font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);white-space:nowrap;vertical-align:middle;}
+td.week-td{padding:10px 12px;font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);white-space:nowrap;vertical-align:middle;}
 tr:hover td{background:rgba(255,255,255,0.02);}
 .del-btn{font-size:13px;color:var(--text3);cursor:pointer;padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:transparent;white-space:nowrap;transition:all .15s;display:block;margin:8px auto;}
 .del-btn:hover{border-color:var(--neg);color:var(--neg);}
@@ -296,8 +296,8 @@ function renderTable(){
 
   // 헤더
   thead.innerHTML='<tr><th>날짜</th><th>주차</th>'+
-    data.cols.map(c=>`<th style="min-width:160px;">${c} <span onclick="deleteCol('${c}')" style="cursor:pointer;color:var(--text3);font-size:12px;margin-left:4px;" title="열 삭제">✕</span></th>`).join('')+
-    '<th style="min-width:60px;"></th></tr>';
+    data.cols.map(c=>`<th style="">${c} <span onclick="deleteCol('${c}')" style="cursor:pointer;color:var(--text3);font-size:12px;margin-left:4px;" title="열 삭제">✕</span></th>`).join('')+
+    '<th style=""></th></tr>';
 
   if(!data.rows.length){
     tbody.innerHTML='';
@@ -311,7 +311,7 @@ function renderTable(){
       <td class="date-td"><input type="date" value="${row.date}" onchange="updateDate(${ri},this.value)" style="background:transparent;border:none;color:var(--text2);font-size:14px;font-family:'DM Mono',monospace;outline:none;width:120px;"></td>
       <td class="week-td" id="week-${ri}">${row.week||getWeekLabel(row.date)}</td>
       ${data.cols.map(c=>`<td><textarea rows="3" onblur="updateCell(${ri},'${c}',this.value)" placeholder="${c}...">${(row.cells&&row.cells[c])||''}</textarea></td>`).join('')}
-      <td style="vertical-align:middle;text-align:center;min-width:60px;"><button class="del-btn" onclick="deleteRow(${ri})">삭제</button></td>
+      <td style="vertical-align:middle;text-align:center;"><button class="del-btn" onclick="deleteRow(${ri})">삭제</button></td>
     </tr>
   `).join('');
 }
@@ -424,7 +424,7 @@ fbSync(()=>{initDate();renderTable();});
     _startX=e.clientX;_startW=th?th.offsetWidth:120;
     const rEl=e.target;if(rEl)rEl.classList.add('active');
     const mm=(ev)=>{
-      const newW=Math.max(50,_startW+(ev.clientX-_startX));
+      const newW=Math.max(1, _startW+(ev.clientX-_startX));
       const tbl=document.getElementById(_tableId);
       if(!tbl)return;
       const allThs=tbl.querySelectorAll('thead th');
@@ -453,5 +453,41 @@ fbSync(()=>{initDate();renderTable();});
   window.fmtN=function(v){const n=parseInt(String(v||'').replace(/,/g,''));return isNaN(n)?v:n.toLocaleString('ko-KR');};
 })();
 </script>
+
+// 테이블 셀 키보드 네비게이션 (엑셀처럼)
+document.addEventListener('keydown', function(e){
+  const el = document.activeElement;
+  if(!el) return;
+  const isInput = el.tagName==='INPUT' || el.tagName==='TEXTAREA';
+  if(!isInput) return;
+  const td = el.closest('td');
+  if(!td) return;
+  const tr = td.closest('tr');
+  if(!tr) return;
+  const table = tr.closest('table');
+  if(!table) return;
+
+  if(e.key==='Enter' && !e.shiftKey){
+    e.preventDefault();
+    // 아래 행 같은 열로 이동
+    const tdIdx = Array.from(tr.cells).indexOf(td);
+    const nextTr = tr.nextElementSibling;
+    if(nextTr && nextTr.cells[tdIdx]){
+      const nextEl = nextTr.cells[tdIdx].querySelector('input,textarea');
+      if(nextEl){ nextEl.focus(); if(nextEl.select) nextEl.select(); }
+    }
+  } else if(e.key==='Tab'){
+    e.preventDefault();
+    const allCells = Array.from(table.querySelectorAll('tbody td input, tbody td textarea'));
+    const curIdx = allCells.indexOf(el);
+    if(curIdx < 0) return;
+    const nextIdx = e.shiftKey ? curIdx-1 : curIdx+1;
+    if(nextIdx >= 0 && nextIdx < allCells.length){
+      allCells[nextIdx].focus();
+      if(allCells[nextIdx].select) allCells[nextIdx].select();
+    }
+  }
+});
+
 </body>
 </html>

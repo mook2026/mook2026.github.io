@@ -280,11 +280,11 @@ function renderTable(){
   thead.innerHTML='<tr>'+data.cols.map(c=>{
     const cw=w[c]||COL_W[c]||140;
     const canDel=!FIXED_COLS.includes(c);
-    return `<th data-col="${c}" style="width:${cw}px;min-width:${cw}px;">
+    return `<th data-col="${c}" style="width:${cw}px;">
       <div class="th-content"><span class="th-label">${c}${canDel?` <span onclick="deleteCol('${c}')" style="cursor:pointer;color:var(--text3);font-size:11px;">✕</span>`:''}</span></div>
       <div class="resizer" onmousedown="startResize(event,'${c}')"></div>
     </th>`;
-  }).join('')+'<th style="width:56px;min-width:56px;"></th></tr>';
+  }).join('')+'<th style="width:56px;"></th></tr>';
 
   if(!data.rows.length){tbody.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
@@ -317,10 +317,10 @@ function startResize(e,col){
   e.preventDefault();rCol=col;rStartX=e.clientX;
   const w=getW();rStartW=w[col]||COL_W[col]||140;
   const mm=ev=>{
-    const nw=Math.max(50,rStartW+(ev.clientX-rStartX));
+    const nw=Math.max(1, rStartW+(ev.clientX-rStartX));
     const tbl=document.getElementById('trade-table');
     if(!tbl)return;
-    tbl.querySelectorAll(`[data-col="${rCol}"]`).forEach(el=>{el.style.width=nw+'px';el.style.minWidth=nw+'px';});
+    tbl.querySelectorAll(`[data-col="${rCol}"]`).forEach(el=>{el.style.width=nw+'px';});
     const data=getData();const ci=data.cols.indexOf(rCol);
     tbl.querySelectorAll('tbody tr').forEach(tr=>{const tds=tr.querySelectorAll('td');if(tds[ci])tds[ci].style.width=nw+'px';});
   };
@@ -493,5 +493,41 @@ const dateEl=document.getElementById('f-date');
 if(dateEl)dateEl.value=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 fbSync(()=>{renderTable();renderStats();});
 </script>
+
+// 테이블 셀 키보드 네비게이션 (엑셀처럼)
+document.addEventListener('keydown', function(e){
+  const el = document.activeElement;
+  if(!el) return;
+  const isInput = el.tagName==='INPUT' || el.tagName==='TEXTAREA';
+  if(!isInput) return;
+  const td = el.closest('td');
+  if(!td) return;
+  const tr = td.closest('tr');
+  if(!tr) return;
+  const table = tr.closest('table');
+  if(!table) return;
+
+  if(e.key==='Enter' && !e.shiftKey){
+    e.preventDefault();
+    // 아래 행 같은 열로 이동
+    const tdIdx = Array.from(tr.cells).indexOf(td);
+    const nextTr = tr.nextElementSibling;
+    if(nextTr && nextTr.cells[tdIdx]){
+      const nextEl = nextTr.cells[tdIdx].querySelector('input,textarea');
+      if(nextEl){ nextEl.focus(); if(nextEl.select) nextEl.select(); }
+    }
+  } else if(e.key==='Tab'){
+    e.preventDefault();
+    const allCells = Array.from(table.querySelectorAll('tbody td input, tbody td textarea'));
+    const curIdx = allCells.indexOf(el);
+    if(curIdx < 0) return;
+    const nextIdx = e.shiftKey ? curIdx-1 : curIdx+1;
+    if(nextIdx >= 0 && nextIdx < allCells.length){
+      allCells[nextIdx].focus();
+      if(allCells[nextIdx].select) allCells[nextIdx].select();
+    }
+  }
+});
+
 </body>
 </html>
