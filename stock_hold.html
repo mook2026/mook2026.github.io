@@ -562,40 +562,29 @@ document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMon
 fbSync(()=>{renderHoldSections();refreshAll();});
 </script>
 
-// 테이블 셀 키보드 네비게이션 (엑셀처럼)
-document.addEventListener('keydown', function(e){
-  const el = document.activeElement;
-  if(!el) return;
-  const isInput = el.tagName==='INPUT' || el.tagName==='TEXTAREA';
-  if(!isInput) return;
-  const td = el.closest('td');
-  if(!td) return;
-  const tr = td.closest('tr');
-  if(!tr) return;
-  const table = tr.closest('table');
-  if(!table) return;
-
-  if(e.key==='Enter' && !e.shiftKey){
-    e.preventDefault();
-    // 아래 행 같은 열로 이동
-    const tdIdx = Array.from(tr.cells).indexOf(td);
-    const nextTr = tr.nextElementSibling;
-    if(nextTr && nextTr.cells[tdIdx]){
-      const nextEl = nextTr.cells[tdIdx].querySelector('input,textarea');
-      if(nextEl){ nextEl.focus(); if(nextEl.select) nextEl.select(); }
-    }
-  } else if(e.key==='Tab'){
-    e.preventDefault();
-    const allCells = Array.from(table.querySelectorAll('tbody td input, tbody td textarea'));
-    const curIdx = allCells.indexOf(el);
-    if(curIdx < 0) return;
-    const nextIdx = e.shiftKey ? curIdx-1 : curIdx+1;
-    if(nextIdx >= 0 && nextIdx < allCells.length){
-      allCells[nextIdx].focus();
-      if(allCells[nextIdx].select) allCells[nextIdx].select();
-    }
+<script>
+// textarea auto-resize
+document.addEventListener('input',function(e){
+  if(e.target.tagName==='TEXTAREA'){
+    e.target.style.height='auto';
+    e.target.style.height=Math.min(e.target.scrollHeight,400)+'px';
   }
 });
-
+// 테이블 셀 키보드 네비게이션
+document.addEventListener('keydown',function(e){
+  const el=document.activeElement;if(!el)return;
+  const isInput=el.tagName==='INPUT'||el.tagName==='TEXTAREA';if(!isInput)return;
+  const td=el.closest('td');if(!td)return;
+  const tr=td.closest('tr');if(!tr)return;
+  const table=tr.closest('table');if(!table)return;
+  if(e.key==='Tab'){
+    e.preventDefault();
+    const allCells=Array.from(table.querySelectorAll('tbody td input,tbody td textarea'));
+    const curIdx=allCells.indexOf(el);if(curIdx<0)return;
+    const nextIdx=e.shiftKey?curIdx-1:curIdx+1;
+    if(nextIdx>=0&&nextIdx<allCells.length){allCells[nextIdx].focus();if(allCells[nextIdx].select)allCells[nextIdx].select();}
+  }
+});
+</script>
 </body>
 </html>

@@ -41,7 +41,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .resizer:hover,.resizer.active{background:var(--stock);}
 .resizable-table td{padding:0;border:2px solid var(--border2);vertical-align:top;overflow:hidden;}
 .resizable-table td textarea,.resizable-table td input[type=text]{width:100%;background:transparent;border:none;color:var(--text);font-size:14px;padding:9px 11px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;box-sizing:border-box;}
-.resizable-table td textarea{min-height:80px;}
+.resizable-table td textarea{min-height:80px;max-height:400px;resize:vertical;overflow-y:auto;}
 .resizable-table td input[type=text]:focus,.resizable-table td textarea:focus{background:rgba(251,191,36,0.05);}
 td.date-td{padding:10px 12px;font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);white-space:nowrap;vertical-align:middle;}
 tr:hover td{background:rgba(255,255,255,0.02);}
@@ -231,40 +231,29 @@ const d=new Date();
 fbSync(()=>{render();});
 </script>
 
-// 테이블 셀 키보드 네비게이션 (엑셀처럼)
-document.addEventListener('keydown', function(e){
-  const el = document.activeElement;
-  if(!el) return;
-  const isInput = el.tagName==='INPUT' || el.tagName==='TEXTAREA';
-  if(!isInput) return;
-  const td = el.closest('td');
-  if(!td) return;
-  const tr = td.closest('tr');
-  if(!tr) return;
-  const table = tr.closest('table');
-  if(!table) return;
-
-  if(e.key==='Enter' && !e.shiftKey){
-    e.preventDefault();
-    // 아래 행 같은 열로 이동
-    const tdIdx = Array.from(tr.cells).indexOf(td);
-    const nextTr = tr.nextElementSibling;
-    if(nextTr && nextTr.cells[tdIdx]){
-      const nextEl = nextTr.cells[tdIdx].querySelector('input,textarea');
-      if(nextEl){ nextEl.focus(); if(nextEl.select) nextEl.select(); }
-    }
-  } else if(e.key==='Tab'){
-    e.preventDefault();
-    const allCells = Array.from(table.querySelectorAll('tbody td input, tbody td textarea'));
-    const curIdx = allCells.indexOf(el);
-    if(curIdx < 0) return;
-    const nextIdx = e.shiftKey ? curIdx-1 : curIdx+1;
-    if(nextIdx >= 0 && nextIdx < allCells.length){
-      allCells[nextIdx].focus();
-      if(allCells[nextIdx].select) allCells[nextIdx].select();
-    }
+<script>
+// textarea auto-resize
+document.addEventListener('input',function(e){
+  if(e.target.tagName==='TEXTAREA'){
+    e.target.style.height='auto';
+    e.target.style.height=Math.min(e.target.scrollHeight,400)+'px';
   }
 });
-
+// 테이블 셀 키보드 네비게이션
+document.addEventListener('keydown',function(e){
+  const el=document.activeElement;if(!el)return;
+  const isInput=el.tagName==='INPUT'||el.tagName==='TEXTAREA';if(!isInput)return;
+  const td=el.closest('td');if(!td)return;
+  const tr=td.closest('tr');if(!tr)return;
+  const table=tr.closest('table');if(!table)return;
+  if(e.key==='Tab'){
+    e.preventDefault();
+    const allCells=Array.from(table.querySelectorAll('tbody td input,tbody td textarea'));
+    const curIdx=allCells.indexOf(el);if(curIdx<0)return;
+    const nextIdx=e.shiftKey?curIdx-1:curIdx+1;
+    if(nextIdx>=0&&nextIdx<allCells.length){allCells[nextIdx].focus();if(allCells[nextIdx].select)allCells[nextIdx].select();}
+  }
+});
+</script>
 </body>
 </html>

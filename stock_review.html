@@ -66,7 +66,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 table{width:100%;border-collapse:collapse;font-size:15px;}
 th{font-family:'DM Mono',monospace;font-size:13px;color:var(--text2);padding:12px 14px;border:2px solid var(--border2);background:var(--bg2);text-align:left;white-space:nowrap;position:sticky;top:0;z-index:5;}
 td{padding:0;border:2px solid var(--border2);color:var(--text2);vertical-align:top;}
-td textarea{width:100%;background:transparent;border:none;color:var(--text);font-size:15px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;min-height:72px;}
+td textarea{width:100%;background:transparent;border:none;color:var(--text);font-size:15px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:vertical;line-height:1.6;min-height:72px;max-height:400px;overflow-y:auto;}
 td textarea:focus{background:rgba(251,191,36,0.05);}
 td.date-td{padding:10px 12px;font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);white-space:nowrap;vertical-align:middle;}
 td.week-td{padding:10px 12px;font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);white-space:nowrap;vertical-align:middle;}
@@ -314,6 +314,8 @@ function renderTable(){
       <td style="vertical-align:middle;text-align:center;"><button class="del-btn" onclick="deleteRow(${ri})">삭제</button></td>
     </tr>
   `).join('');
+  // 저장된 내용 높이 맞추기
+  setTimeout(function(){document.querySelectorAll('td textarea').forEach(function(ta){autoResize(ta);});},0);
 }
 
 function updateActual(){
@@ -399,7 +401,10 @@ function showTab(t){
 const d=new Date();
 document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+DAYS[d.getDay()];
 
-fbSync(()=>{initDate();renderTable();});
+// 즉시 로컬 데이터로 먼저 렌더 (Firebase 기다리지 않음)
+initDate();renderTable();
+// Firebase sync 후 재렌더
+fbSync(()=>{renderTable();});
 </script>
 <script>
 // 열 너비 드래그
@@ -454,6 +459,20 @@ fbSync(()=>{initDate();renderTable();});
 })();
 </script>
 
+<script>
+// textarea auto-resize
+function autoResize(el){
+  el.style.height='auto';
+  el.style.height=Math.min(el.scrollHeight, 400)+'px';
+}
+document.addEventListener('input',function(e){
+  if(e.target.tagName==='TEXTAREA') autoResize(e.target);
+});
+// 기존 데이터 로드 시 높이 맞추기
+function applyAutoResize(){
+  document.querySelectorAll('td textarea').forEach(function(ta){autoResize(ta);});
+}
+
 // 테이블 셀 키보드 네비게이션 (엑셀처럼)
 document.addEventListener('keydown', function(e){
   const el = document.activeElement;
@@ -467,16 +486,7 @@ document.addEventListener('keydown', function(e){
   const table = tr.closest('table');
   if(!table) return;
 
-  if(e.key==='Enter' && !e.shiftKey){
-    e.preventDefault();
-    // 아래 행 같은 열로 이동
-    const tdIdx = Array.from(tr.cells).indexOf(td);
-    const nextTr = tr.nextElementSibling;
-    if(nextTr && nextTr.cells[tdIdx]){
-      const nextEl = nextTr.cells[tdIdx].querySelector('input,textarea');
-      if(nextEl){ nextEl.focus(); if(nextEl.select) nextEl.select(); }
-    }
-  } else if(e.key==='Tab'){
+  if(e.key==='Tab'){
     e.preventDefault();
     const allCells = Array.from(table.querySelectorAll('tbody td input, tbody td textarea'));
     const curIdx = allCells.indexOf(el);
@@ -488,6 +498,6 @@ document.addEventListener('keydown', function(e){
     }
   }
 });
-
+</script>
 </body>
 </html>
