@@ -316,8 +316,14 @@ function initState(){
   secs.forEach(sec=>{
     const cnt=sec.items.length;
     const saved_sec=saved?.scores?.[sec.id];
-    if(saved_sec&&saved_sec.length===cnt) S.scores[sec.id]=[...saved_sec];
-    else S.scores[sec.id]=new Array(cnt).fill(0);
+    if(saved_sec){
+      // 기존 데이터 최대한 보존 - 길이 달라도 앞부분은 유지
+      const arr=new Array(cnt).fill(0);
+      for(let i=0;i<Math.min(saved_sec.length,cnt);i++) arr[i]=saved_sec[i]||0;
+      S.scores[sec.id]=arr;
+    } else {
+      S.scores[sec.id]=new Array(cnt).fill(0);
+    }
   });
 }
 
@@ -738,7 +744,23 @@ function showTab(t){
 
 const nd=new Date();
 document.getElementById('nav-date').textContent=nd.getFullYear()+'.'+pad(nd.getMonth()+1)+'.'+pad(nd.getDate())+' '+DAYS[nd.getDay()];
-fbSync(()=>{initState();renderAll();});
+fbSync(()=>{
+  // 기존 체크리스트 데이터 마이그레이션 (구버전 호환)
+  const hist=JSON.parse(localStorage.getItem('smart_history')||'[]');
+  hist.forEach(h=>{
+    // 구버전: j/e/s/sp 배열이 boolean[] → 새버전: scores 객체
+    if(!h.scores&&(h.j||h.e||h.s||h.sp)){
+      h.scores={
+        j:(h.j||[]).map(v=>v?5:0),
+        e:(h.e||[]).map(v=>v?5:0),
+        s:(h.s||[]).map(v=>v?5:0),
+        sp:(h.sp||[]).map(v=>v?5:0)
+      };
+    }
+  });
+  localStorage.setItem('smart_history',JSON.stringify(hist));
+  initState();renderAll();
+});
 </script>
 </body>
 </html>

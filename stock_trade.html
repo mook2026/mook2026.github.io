@@ -350,81 +350,101 @@ function renderStats(){
   document.getElementById('st-bd').textContent=rows.filter(r=>r['정상/뇌동']==='뇌동').length;
 }
 
-// 키움증권 엑셀 업로드 - 완전 재작성
+
+// 키움증권 엑셀 업로드 - 완전 재작성 v3
 function importKiwoom(input){
   const file=input.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=function(e){
     try{
-      // cellDates:true 로 날짜를 JS Date 객체로 변환
-      const wb=XLSX.read(e.target.result,{type:'binary',cellDates:true,dateNF:'yyyy-mm-dd'});
+      // raw:true로 읽어서 날짜 시리얼 숫자 직접 처리
+      const wb=XLSX.read(e.target.result,{type:'binary'});
       const ws=wb.Sheets[wb.SheetNames[0]];
-      // raw:false 로 모든 값을 문자열로
-      const rawRows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:'yyyy-mm-dd'});
-      
-      if(rawRows.length<2){showConfirm('데이터가 없어요');return;}
-      
-      // 헤더 행 찾기
+      const rawRows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
+      if(!rawRows||rawRows.length<2){showConfirm('데이터가 없어요');return;}
+
+      // 헤더 행 찾기 (일자/종목명 포함된 행)
       let headerIdx=0;
-      for(let i=0;i<Math.min(5,rawRows.length);i++){
-        if(rawRows[i].some(v=>String(v||'').trim()==='일자'||String(v||'').trim()==='종목명')){
+      for(let i=0;i<Math.min(10,rawRows.length);i++){
+        const row=rawRows[i];
+        if(row&&row.some(v=>String(v||'').trim()==='일자'||String(v||'').trim()==='종목명')){
           headerIdx=i;break;
         }
       }
-      
+
       const headers=rawRows[headerIdx].map(h=>String(h||'').trim());
+      console.log('키움 헤더:', headers);
+
       const data=getData();
       let added=0;
-      
-      rawRows.slice(headerIdx+1).forEach(row=>{
-        if(!row||!row.some(v=>v))return;
-        const r={};data.cols.forEach(c=>r[c]='');
-        
+
+      rawRows.slice(headerIdx+1).forEach((row,idx)=>{
+        if(!row||!row.some(v=>v!=null&&v!==''))return;
+        const r={};
+        data.cols.forEach(c=>r[c]='');
+
         headers.forEach((h,i)=>{
           const mapped=KIWOOM_MAP[h];
           if(!mapped)return;
-          let raw=row[i];
-          if(raw===null||raw===undefined||raw==='')return;
-          let val=String(raw).replace(/,/g,'').trim();
-          if(!val||val==='-')return;
-          
+          const rawVal=row[i];
+          if(rawVal==null||rawVal==='')return;
+
+          let val='';
+
           if(mapped==='날짜'){
-            // XLSX cellDates:true + dateNF:'yyyy-mm-dd' 로 읽으면
-            // 날짜가 'yyyy-mm-dd' 문자열로 옴
-            // 혹시 다른 형식이면 정규화
-            val=val.replace(/\//g,'-').replace(/\./g,'-');
-            // yyyymmdd
-            if(/^\d{8}$/.test(val))val=val.slice(0,4)+'-'+val.slice(4,6)+'-'+val.slice(6,8);
+            // Excel 날짜 시리얼 숫자 → yyyy-mm-dd
+            if(typeof rawVal==='number'){
+              // Excel 시리얼: 1900-01-00 기준, 25569 = 1970-01-01
+              const ms=(rawVal-25569)*86400*1000;
+              const d=new Date(ms);
+              val=d.getUTCFullYear()+'-'+
+                  String(d.getUTCMonth()+1).padStart(2,'0')+'-'+
+                  String(d.getUTCDate()).padStart(2,'0');
+            } else {
+              // 문자열이면 정규화
+              val=String(rawVal).replace(/\//g,'-').replace(/\./g,'-').trim();
+              if(/^\d{8}$/.test(val)) val=val.slice(0,4)+'-'+val.slice(4,6)+'-'+val.slice(6,8);
+            }
             // 유효성 검사
             if(!/^\d{4}-\d{2}-\d{2}$/.test(val)){
-              // Date 파싱 시도
-              const d=new Date(val);
-              if(!isNaN(d.getTime())){
-                val=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-              } else return;
+              console.warn('날짜 파싱 실패:', rawVal, '→', val);
+              return;
             }
+          } else if(mapped==='수익률(%)'){
+            val=String(rawVal).replace(/,/g,'').replace(/%/g,'').trim();
+          } else {
+            val=String(rawVal).replace(/,/g,'').trim();
           }
-          if(mapped==='수익률(%)'){
-            val=val.replace(/%/g,'').trim();
-          }
+
           r[mapped]=val;
         });
-        
-        if(!r['종목']||!r['날짜'])return;
+
+        // 종목과 날짜 둘다 있어야 추가
+        if(!r['종목']||!r['날짜']){
+          console.warn('행 스킵:', r);
+          return;
+        }
         data.rows.push(r);
         added++;
       });
-      
-      if(!added){showConfirm('추가된 데이터가 없어요. 키움 엑셀 형식인지 확인해주세요.');return;}
+
+      if(!added){
+        showConfirm('추가된 데이터가 없어요. 콘솔(F12)에서 오류 확인해주세요.');
+        return;
+      }
+
+      // 날짜 내림차순 정렬
       data.rows.sort((a,b)=>(b['날짜']||'').localeCompare(a['날짜']||''));
       saveData(data);renderTable();renderStats();
       showConfirm('키움 엑셀 '+added+'건 추가 완료!');
+
     }catch(err){
-      console.error('키움 엑셀 파싱 오류:', err);
+      console.error('키움 엑셀 오류:', err);
       showConfirm('파싱 오류: '+err.message);
     }
   };
-  reader.readAsBinaryString(file);input.value='';
+  reader.readAsBinaryString(file);
+  input.value='';
 }
 
 

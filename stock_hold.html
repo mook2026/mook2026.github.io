@@ -122,7 +122,8 @@ tr.sum-tr td{border-top:2px solid var(--stock)!important;}
 </div>
 <div class="toolbar">
   <button class="btn" onclick="refreshAll()">↻ 새로고침</button>
-  <label class="btn" style="cursor:pointer;">📂 추가<input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importExcel(this,'append')"></label>
+  <label class="btn" style="cursor:pointer;border-color:#34d399;color:#34d399;">📂 키움 엑셀<input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importKiwoomHold(this)"></label>
+  <label class="btn" style="cursor:pointer;">📂 일반 추가<input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importExcel(this,'append')"></label>
   <label class="btn" style="cursor:pointer;">📂 덮어쓰기<input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importExcel(this,'overwrite')"></label>
   <button class="btn" onclick="exportExcel()">⬇ 다운로드</button>
 </div>
@@ -202,7 +203,21 @@ function refreshAll(){
   const trade=getTradeData();
   const rows=trade.rows||[];
   // 매도가 OR 실현손익이 있으면 완료된 매매로 간주
+  // 이번달 완료 매매만
+  const curY=new Date().getFullYear(),curM=new Date().getMonth()+1;
   const closed=rows.filter(r=>{
+    const hasSell=r['매도가']&&String(r['매도가']).replace(/,/g,'').trim()!==''&&parseFloat(String(r['매도가']).replace(/,/g,''))>0;
+    const hasPL=r['실현손익']&&String(r['실현손익']).replace(/,/g,'').trim()!==''&&String(r['실현손익']).trim()!=='0';
+    if(!hasSell&&!hasPL)return false;
+    // 날짜 기준 이번달 필터
+    const date=r['날짜']||'';
+    if(!date)return hasSell||hasPL; // 날짜 없으면 포함
+    const parts=date.split('-');
+    const y=parseInt(parts[0]),m=parseInt(parts[1]);
+    return y===curY&&m===curM;
+  });
+  // 전체 완료 매매 (월별 집계용)
+  const allClosed=rows.filter(r=>{
     const hasSell=r['매도가']&&String(r['매도가']).replace(/,/g,'').trim()!==''&&parseFloat(String(r['매도가']).replace(/,/g,''))>0;
     const hasPL=r['실현손익']&&String(r['실현손익']).replace(/,/g,'').trim()!==''&&String(r['실현손익']).trim()!=='0';
     return hasSell||hasPL;
@@ -230,7 +245,7 @@ function renderMonthly(closed){
   const curM=new Date().getMonth()+1,curY=new Date().getFullYear();
   el.innerHTML=[4,5,6,7,8,9,10,11,12].map(m=>{
     const g=GOALS[m]||0;
-    const mRows=closed.filter(r=>{const d=r['날짜']||'';return d&&parseInt(d.split('-')[1])===m&&parseInt(d.split('-')[0])===curY;});
+    const mRows=allClosed.filter(r=>{const d=r['날짜']||'';return d&&parseInt(d.split('-')[1])===m&&parseInt(d.split('-')[0])===curY;});
     const actual=mRows.reduce((a,r)=>a+(parseFloat(String(r['실현손익']||'').replace(/,/g,''))||0),0);
     const hasData=mRows.length>0;
     const pct=hasData?Math.min(200,Math.round(actual/g*100)):0;
@@ -250,7 +265,7 @@ function renderMonthly(closed){
 function renderTradeMonths(rows){
   const curM=new Date().getMonth()+1,curY=new Date().getFullYear();
   const byMonth={};
-  rows.forEach(r=>{const d=r['날짜']||'';if(!d)return;const k=d.slice(0,7);if(!byMonth[k])byMonth[k]=[];byMonth[k].push(r);});
+  allClosed.length;rows.forEach(r=>{const d=r['날짜']||'';if(!d)return;const k=d.slice(0,7);if(!byMonth[k])byMonth[k]=[];byMonth[k].push(r);});
   const sorted=Object.keys(byMonth).sort((a,b)=>b.localeCompare(a));
   const container=document.getElementById('trade-months');
   if(!sorted.length){container.innerHTML='<div class="empty-msg">매매 기록이 없어요</div>';return;}
@@ -463,6 +478,51 @@ function updateHoldCell(idx,ri,col,val){
   data.rows[ri][col]=cleanN(val);
   if(NUM_COLS.includes(col))calcRow(data.rows[ri]);
   saveHoldData(idx,data);renderHoldTable(idx);
+}
+
+function importKiwoomHold(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(e.target.result,{type:'binary'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rawRows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
+      if(!rawRows||rawRows.length<2){showConfirm('데이터가 없어요');return;}
+      
+      // 헤더 찾기
+      let headerIdx=0;
+      for(let i=0;i<Math.min(5,rawRows.length);i++){
+        if(rawRows[i]&&rawRows[i].some(v=>String(v||'').includes('종목'))){headerIdx=i;break;}
+      }
+      const headers=rawRows[headerIdx].map(h=>String(h||'').trim());
+      
+      // 키움 보유종목 매핑
+      const MAP={'종목명':'종목명','종목코드':'종목코드','수량':'수량','매입단가':'매수가','현재가':'현재가','평가손익':'평가손익','수익률(%)':'수익률(%)','매입금액':'매입금액'};
+      
+      let added=0;
+      const data=getHoldData(1);
+      
+      rawRows.slice(headerIdx+1).forEach(row=>{
+        if(!row||!row.some(v=>v))return;
+        const r={};data.cols.forEach(c=>r[c]='');
+        headers.forEach((h,i)=>{
+          const mapped=MAP[h];if(!mapped)return;
+          const val=row[i];if(val==null||val==='')return;
+          r[mapped]=String(val).replace(/,/g,'').trim();
+        });
+        if(!r['종목명'])return;
+        data.rows.push(r);added++;
+      });
+      
+      if(!added){showConfirm('추가된 데이터가 없어요');return;}
+      saveHoldData(1,data);renderHoldTable(1);
+      showConfirm('키움 보유종목 '+added+'건 추가 완료! (보유종목1)');
+    }catch(err){
+      console.error(err);showConfirm('파싱 오류: '+err.message);
+    }
+  };
+  reader.readAsBinaryString(file);input.value='';
 }
 
 function exportExcel(){
