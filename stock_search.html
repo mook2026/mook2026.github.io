@@ -40,7 +40,12 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .resizer{width:6px;height:100%;position:absolute;right:0;top:0;cursor:col-resize;background:transparent;z-index:2;}
 .resizer:hover,.resizer.active{background:var(--stock);}
 .resizable-table td{padding:0;border:2px solid var(--border2);vertical-align:top;overflow:hidden;}
-.resizable-table td textarea{width:100%;background:transparent;border:none;color:var(--text);font-size:14px;padding:9px 11px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:vertical;line-height:1.6;box-sizing:border-box;min-height:72px;max-height:400px;overflow-y:auto;}
+.resizable-table td textarea{width:100%;background:transparent;border:none;color:var(--text);font-size:14px;padding:9px 11px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;box-sizing:border-box;min-height:60px;overflow-y:hidden;}
+/* 행 높이 조절 핸들 */
+.row-resizer{display:block;width:100%;height:6px;cursor:row-resize;background:transparent;position:relative;}
+.row-resizer::after{content:'';position:absolute;bottom:0;left:10%;right:10%;height:2px;background:var(--border2);border-radius:1px;transition:background .15s;}
+.row-resizer:hover::after{background:var(--stock);}
+td.rh-td{padding:0!important;border:2px solid var(--border2);vertical-align:bottom;}
 .resizable-table td input[type=date]{width:100%;background:transparent;border:none;color:var(--text2);font-size:13px;padding:9px 11px;font-family:'DM Mono',monospace;outline:none;box-sizing:border-box;}
 .resizable-table td textarea:focus,.resizable-table td input[type=date]:focus{background:rgba(251,191,36,0.05);}
 tr:hover td{background:rgba(255,255,255,0.02);}
@@ -134,10 +139,33 @@ function showConfirm(msg){ const el=document.getElementById('confirm-bar'); el.t
 
 function getData(){
   const raw = ls(getStorageKey());
-  if(raw){ try{ return JSON.parse(raw); }catch(e){} }
-  return {cols:[...getDefaultCols()], rows:[], colWidths:{}};
+  if(raw){ try{ const d=JSON.parse(raw); if(!d.rowHeights)d.rowHeights={}; return d; }catch(e){} }
+  return {cols:[...getDefaultCols()], rows:[], colWidths:{}, rowHeights:{}};
 }
-function saveData(d){ lss(getStorageKey(), JSON.stringify(d)); fbSave(); }
+function saveData(d){ if(!d.rowHeights)d.rowHeights={}; lss(getStorageKey(), JSON.stringify(d)); fbSave(); }
+
+// 행 높이 드래그
+let _rhRow=-1,_rhStartY=0,_rhStartH=0;
+function startRowResize(e,ri){
+  e.preventDefault();_rhRow=ri;_rhStartY=e.clientY;
+  const sfx=currentTab==='search'?'-s':'';
+  const tr=document.querySelector('#main-tbody'+sfx+' tr:nth-child('+(ri+1)+')');
+  _rhStartH=tr?tr.offsetHeight:60;
+  const mm=ev=>{
+    const newH=Math.max(36,_rhStartH+(ev.clientY-_rhStartY));
+    const sfx2=currentTab==='search'?'-s':'';
+    const tr2=document.querySelector('#main-tbody'+sfx2+' tr:nth-child('+(_rhRow+1)+')');
+    if(tr2){tr2.style.height=newH+'px';tr2.querySelectorAll('textarea').forEach(ta=>ta.style.height=(newH-20)+'px');}
+  };
+  const mu=()=>{
+    document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);
+    const sfx2=currentTab==='search'?'-s':'';
+    const tr2=document.querySelector('#main-tbody'+sfx2+' tr:nth-child('+(_rhRow+1)+')');
+    if(tr2){const data=getData();data.rowHeights[_rhRow]=tr2.offsetHeight;saveData(data);}
+    _rhRow=-1;
+  };
+  document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
+}
 
 function addRow(){
   const data = getData();
@@ -289,24 +317,27 @@ function render(){
   empty.style.display = 'none';
 
   tbody.innerHTML = data.rows.map((row, ri) => {
+    const rh = (data.rowHeights||{})[ri] || 72;
+    const taH = Math.max(36, rh-20);
     const cells = cols.map(c => {
       const val = row[c] || '';
       const w = cw[c] || DEFAULT_W[c] || 180;
       if(c === '날짜'){
-        return `<td data-rcol="${c}" style="width:${w}px;vertical-align:middle;">
+        return `<td data-rcol="${c}" style="width:${w}px;vertical-align:middle;height:${rh}px;">
           <input type="date" value="${val}"
             onchange="updateCell(${ri},'${c}',this.value)"
             style="width:100%;background:transparent;border:none;color:var(--text2);font-size:13px;font-family:'DM Mono',monospace;outline:none;padding:9px 11px;box-sizing:border-box;">
         </td>`;
       }
-      return `<td data-rcol="${c}" style="width:${w}px;">
-        <textarea rows="3"
+      return `<td data-rcol="${c}" style="width:${w}px;height:${rh}px;">
+        <textarea
           onblur="updateCell(${ri},'${c}',this.value)"
-          placeholder="${c}...">${val.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+          placeholder="${c}..."
+          style="height:${taH}px;">${val.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
       </td>`;
     }).join('');
 
-    return `<tr draggable="true"
+    return `<tr style="height:${rh}px;" draggable="true"
       ondragstart="dragStart(event,${ri})"
       ondragover="dragOver(event)"
       ondragleave="dragLeave(event)"
@@ -315,9 +346,12 @@ function render(){
         <span class="drag-handle">⠿</span>
       </td>
       ${cells}
-      <td style="width:56px;text-align:center;vertical-align:middle;border:2px solid var(--border2);padding:6px;">
+      <td style="width:56px;text-align:center;vertical-align:top;border:2px solid var(--border2);padding:6px;">
         <button class="del-btn" onclick="deleteRow(${ri})">삭제</button>
       </td>
+    </tr>
+    <tr class="rh-row">
+      <td colspan="${cols.length+2}" class="rh-td"><div class="row-resizer" onmousedown="startRowResize(event,${ri})"></div></td>
     </tr>`;
   }).join('');
 }
@@ -376,13 +410,6 @@ fbSync(() => { render(); });
 </script>
 
 <script>
-// textarea auto-resize
-document.addEventListener('input',function(e){
-  if(e.target.tagName==='TEXTAREA'){
-    e.target.style.height='auto';
-    e.target.style.height=Math.min(e.target.scrollHeight,400)+'px';
-  }
-});
 // 테이블 셀 키보드 네비게이션
 document.addEventListener('keydown', function(e){
   const el = document.activeElement;
