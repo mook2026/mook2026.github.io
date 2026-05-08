@@ -63,6 +63,73 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 .month-label{font-family:'DM Mono',monospace;font-size:14px;color:var(--text2);}
 .month-toggle{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);transition:transform .2s;}
 .month-toggle.open{transform:rotate(180deg);}
+/* ---- 엑셀 스타일 테이블 v2 ---- */
+.ex-table-wrap{overflow-x:auto;}
+.ex-table{
+  border-collapse:collapse;
+  table-layout:fixed;
+  width:auto;
+}
+.ex-table th{
+  font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);
+  padding:9px 11px;border:2px solid var(--border2);background:var(--bg2);
+  text-align:left;white-space:nowrap;position:relative;user-select:none;
+}
+.ex-table td{
+  padding:0;border:2px solid var(--border2);
+  vertical-align:top;overflow:hidden;
+  /* height는 JS로 직접 설정 */
+}
+/* textarea: td 높이 100% 채우고, 넘치면 스크롤 */
+.ex-table td textarea{
+  display:block;
+  width:100%;
+  height:100%;          /* td 높이 따라감 */
+  min-height:60px;      /* 최소 높이 */
+  background:transparent;border:none;color:var(--text);
+  font-size:14px;padding:8px 10px;
+  font-family:'Noto Sans KR',sans-serif;outline:none;
+  resize:none;
+  line-height:1.6;box-sizing:border-box;
+  overflow-y:auto;      /* 내용 넘치면 스크롤 */
+}
+.ex-table td textarea:focus{background:rgba(251,191,36,0.04);}
+.ex-table td input[type=date]{
+  display:block;width:100%;
+  background:transparent;border:none;color:var(--text2);
+  font-size:13px;padding:8px 10px;
+  font-family:'DM Mono',monospace;outline:none;box-sizing:border-box;
+}
+/* 열 너비 핸들 */
+.col-rz{
+  position:absolute;right:0;top:0;
+  width:5px;height:100%;
+  cursor:col-resize;background:transparent;z-index:3;
+}
+.col-rz:hover,.col-rz.rz-active{background:var(--stock);}
+/* 행 높이 핸들 행 */
+.rh-row td{
+  padding:0!important;
+  height:5px!important;
+  border-top:none!important;
+  border-left:2px solid var(--border2)!important;
+  border-right:2px solid var(--border2)!important;
+  border-bottom:2px solid var(--border2)!important;
+  background:transparent!important;
+  cursor:row-resize;
+  position:relative;
+}
+.rh-row td::after{
+  content:'';position:absolute;
+  bottom:1px;left:10%;right:10%;
+  height:2px;background:rgba(255,255,255,0.15);
+  border-radius:1px;transition:background .1s;
+}
+.rh-row:hover td::after{background:var(--stock);}
+/* drag reorder */
+.drag-handle{cursor:grab;color:var(--text3);font-size:14px;user-select:none;display:block;text-align:center;padding:6px 3px;}
+tr:hover .ex-table td{background:rgba(255,255,255,0.015);}
+
 </style>
 </head>
 <body>
@@ -96,8 +163,12 @@ function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth
 function ls(k){return localStorage.getItem(k);}
 function lss(k,v){localStorage.setItem(k,v);}
 function showConfirm(msg){const el=document.getElementById('confirm-bar');el.textContent=msg;setTimeout(()=>el.textContent='',3000);}
-function getData(){return JSON.parse(ls('youtube_review')||JSON.stringify({cols:[...DEFAULT_COLS],rows:[],colWidths:{}}));}
-function saveData(d){lss('youtube_review',JSON.stringify(d));fbSave();}
+function getData(){
+  const raw=ls('youtube_review');
+  if(raw){try{const d=JSON.parse(raw);if(!d.colWidths)d.colWidths={};if(!d.rowHeights)d.rowHeights={};return d;}catch(e){}}
+  return {cols:[...DEFAULT_COLS],rows:[],colWidths:{},rowHeights:{}};
+}
+function saveData(d){if(!d.colWidths)d.colWidths={};if(!d.rowHeights)d.rowHeights={};lss('youtube_review',JSON.stringify(d));fbSave();}
 
 function addRow(){
   const data=getData();const row={};data.cols.forEach(c=>row[c]='');row['날짜']=todayStr();
@@ -138,22 +209,7 @@ function updateCell(idx,col,val){
   const data=getData();if(!data.rows[idx])return;data.rows[idx][col]=val;saveData(data);
 }
 
-let rCol='',rStartX=0,rStartW=0;
-function startResize(e,col){
-  e.preventDefault();rCol=col;rStartX=e.clientX;
-  const data=getData();rStartW=(data.colWidths||{})[col]||DEFAULT_W;
-  const mm=ev=>{
-    const nw=Math.max(80,rStartW+(ev.clientX-rStartX));
-    document.querySelectorAll(`[data-col="${rCol}"]`).forEach(el=>{el.style.width=nw+'px';el.style.minWidth=nw+'px';});
-  };
-  const mu=()=>{
-    document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);
-    const data2=getData();if(!data2.colWidths)data2.colWidths={};
-    const th=document.querySelector(`th[data-col="${rCol}"]`);if(th)data2.colWidths[rCol]=th.offsetWidth;
-    saveData(data2);
-  };
-  document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
-}
+
 
 function dragStart(e,ri){dragSrc=ri;e.currentTarget.classList.add('dragging');}
 function dragOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over');}
@@ -202,12 +258,26 @@ function render(){
           const mRows=months[month];
           const isMonthOpen=openState.months.has(month);
           const [y,m]=month.split('-');
-          const trs=mRows.map(({row,idx})=>`<tr draggable="true" ondragstart="dragStart(event,${idx})" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dragDrop(event,${idx})">
-            <td style="width:28px;text-align:center;padding:4px;vertical-align:middle;"><span class="drag-handle">⠿</span></td>
-            <td class="date-td" data-col="날짜" style="width:${cw['날짜']||110}px;"><input type="date" value="${row['날짜']||''}" onchange="updateCell(${idx},'날짜',this.value)" style="background:transparent;border:none;color:var(--text2);font-size:13px;font-family:'DM Mono',monospace;outline:none;width:120px;"></td>
-            ${cols.filter(c=>c!=='날짜').map(c=>`<td data-col="${c}" style="width:${cw[c]||DEFAULT_W}px;"><textarea rows="4" onblur="updateCell(${idx},'${c}',this.value)" placeholder="${c} 핵심 내용...">${(row[c]||'').replace(/</g,'&lt;')}</textarea></td>`).join('')}
-            <td style="width:52px;text-align:center;vertical-align:middle;padding:8px;"><button class="del-btn" onclick="deleteRow(${idx})">삭제</button></td>
-          </tr>`).join('');
+          const trs=mRows.map(({row,idx})=>{
+            const rh=(data.rowHeights||{})[idx]||80;
+            return `<tr data-ri="${idx}" draggable="true" ondragstart="dragStart(event,${idx})" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dragDrop(event,${idx})">
+              <td style="width:28px;height:${rh}px;text-align:center;vertical-align:middle;border:2px solid var(--border2);padding:2px;">
+                <span class="drag-handle">⠿</span>
+              </td>
+              <td data-col="날짜" style="width:${cw['날짜']||110}px;height:${rh}px;vertical-align:middle;border:2px solid var(--border2);">
+                <input type="date" value="${row['날짜']||''}" onchange="updateCell(${idx},'날짜',this.value)">
+              </td>
+              ${cols.filter(c=>c!=='날짜').map(c=>`<td data-col="${c}" style="width:${cw[c]||DEFAULT_W}px;height:${rh}px;border:2px solid var(--border2);">
+                <textarea onblur="updateCell(${idx},'${c}',this.value)" placeholder="${c} 핵심 내용...">${(row[c]||'').replace(/</g,'&lt;')}</textarea>
+              </td>`).join('')}
+              <td style="width:52px;height:${rh}px;text-align:center;vertical-align:middle;border:2px solid var(--border2);padding:4px;">
+                <button class="del-btn" onclick="deleteRow(${idx})">삭제</button>
+              </td>
+            </tr>
+            <tr class="rh-row">
+              <td colspan="${cols.length+2}" onmousedown="startRowResize(event,'yt-tbl-${month}',${idx})"></td>
+            </tr>`;
+          }).join('');
           return `<div class="month-group">
             <div class="month-header" onclick="toggleMonth('${month}')">
               <div style="display:flex;align-items:center;gap:10px;"><span class="month-label">${parseInt(m)}월</span><span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);">${mRows.length}건</span></div>
@@ -215,17 +285,17 @@ function render(){
             </div>
             <div id="mb-${month}" ${isMonthOpen?'':'style="display:none;"'}>
               <div style="overflow-x:auto;">
-                <table class="resizable-table">
+                <table class="ex-table" id="yt-tbl-${month}">
                   <thead><tr>
-                    <th style="width:28px;min-width:28px;"><div class="th-content"><span class="th-label">↕</span></div></th>
-                    <th data-col="날짜" style="width:${cw['날짜']||110}px;min-width:${cw['날짜']||110}px;"><div class="th-content"><span class="th-label">날짜</span></div><div class="resizer" onmousedown="startResize(event,'날짜')"></div></th>
-                    ${cols.filter(c=>c!=='날짜').map(c=>`<th data-col="${c}" style="width:${cw[c]||DEFAULT_W}px;min-width:${cw[c]||DEFAULT_W}px;">
-                      <div class="th-content">
-                        <span class="th-label"><input type="text" value="${c}" onblur="renameCol('${c}',this.value)" onclick="event.stopPropagation()" style="font-family:'DM Mono',monospace;font-size:12px;background:transparent;border:none;color:var(--text2);outline:none;width:calc(100% - 20px);cursor:text;"> <span onclick="deleteCol('${c}')" style="cursor:pointer;color:var(--text3);font-size:11px;flex-shrink:0;">✕</span></span>
-                      </div>
-                      <div class="resizer" onmousedown="startResize(event,'${c}')"></div>
+                    <th style="width:28px;">↕</th>
+                    <th data-col="날짜" style="width:${cw['날짜']||110}px;">날짜<div class="col-rz" onmousedown="startColResize(event,'yt-tbl-${month}','날짜')"></div></th>
+                    ${cols.filter(c=>c!=='날짜').map(c=>`<th data-col="${c}" style="width:${cw[c]||DEFAULT_W}px;">
+                      <input style="background:transparent;border:none;color:var(--text2);font-family:'DM Mono',monospace;font-size:12px;outline:none;width:calc(100% - 22px);cursor:text;"
+                        value="${c.replace(/"/g,'&quot;')}" onblur="renameCol('${c}',this.value)" onclick="event.stopPropagation()"/>
+                      <span onclick="deleteCol('${c}')" style="cursor:pointer;color:var(--text3);font-size:11px;position:absolute;right:18px;top:50%;transform:translateY(-50%);">✕</span>
+                      <div class="col-rz" onmousedown="startColResize(event,'yt-tbl-${month}','${c}')"></div>
                     </th>`).join('')}
-                    <th style="width:52px;min-width:52px;"></th>
+                    <th style="width:52px;"></th>
                   </tr></thead>
                   <tbody>${trs}</tbody>
                 </table>
@@ -283,6 +353,88 @@ function importExcel(input,mode){
 const d=new Date();
 document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+DAYS[d.getDay()];
 fbSync(()=>{render();});
+</script>
+<script>
+/* ============================================================
+   EXCEL RESIZE ENGINE v2
+   핵심 원칙:
+   - tr에 height 주지 않음 (브라우저가 무시함)
+   - td에 height 적용 → 행 높이 제어
+   - textarea는 height:100% + min-height + overflow-y:auto
+   - 열 너비: 해당 data-col 요소만 변경, 타 열 불변
+   - 테이블: width:auto, table-layout:fixed → 제약 없이 확장
+   ============================================================ */
+
+// ---- 열 너비 드래그 ----
+let _CZ_col='', _CZ_startX=0, _CZ_startW=0, _CZ_tableId='', _CZ_el=null;
+function startColResize(e, tableId, col) {
+  e.preventDefault(); e.stopPropagation();
+  _CZ_col=col; _CZ_startX=e.clientX; _CZ_tableId=tableId; _CZ_el=e.target;
+  const tbl=document.getElementById(tableId);
+  const th=tbl?tbl.querySelector('th[data-col="'+col+'"]'):null;
+  _CZ_startW=th?th.offsetWidth:120;
+  _CZ_el.classList.add('rz-active');
+  const mm=ev=>{
+    const nw=Math.max(30, _CZ_startW+(ev.clientX-_CZ_startX));
+    const t=document.getElementById(_CZ_tableId);
+    if(!t)return;
+    // th + td: data-col 일치하는 것만. 다른 열 절대 건드리지 않음
+    t.querySelectorAll('[data-col="'+_CZ_col+'"]').forEach(el=>{ el.style.width=nw+'px'; });
+  };
+  const mu=()=>{
+    _CZ_el.classList.remove('rz-active');
+    document.removeEventListener('mousemove',mm);
+    document.removeEventListener('mouseup',mu);
+    const t=document.getElementById(_CZ_tableId);
+    const th2=t?t.querySelector('th[data-col="'+_CZ_col+'"]'):null;
+    if(!th2)return;
+    const data=getData(); if(!data.colWidths)data.colWidths={};
+    data.colWidths[_CZ_col]=th2.offsetWidth; saveData(data);
+  };
+  document.addEventListener('mousemove',mm);
+  document.addEventListener('mouseup',mu);
+}
+
+// ---- 행 높이 드래그 ----
+// rh-row의 td에 onmousedown="startRowResize(event, tableId, rowDataIdx)"
+// rowDataIdx: 데이터 배열의 인덱스 (rh-row 위 데이터 행의 논리 인덱스)
+let _RZ_rowIdx=-1, _RZ_startY=0, _RZ_startH=0, _RZ_tableId='';
+function startRowResize(e, tableId, rowDataIdx) {
+  e.preventDefault();
+  _RZ_rowIdx=rowDataIdx; _RZ_startY=e.clientY; _RZ_tableId=tableId;
+  // 현재 높이: 해당 rh-row 바로 위 tr의 첫번째 td height
+  const tbl=document.getElementById(tableId);
+  // id로 정확히 찾음: tr[data-ri="rowDataIdx"]
+  const dataTr=tbl?tbl.querySelector('tr[data-ri="'+rowDataIdx+'"]'):null;
+  const firstTd=dataTr?dataTr.querySelector('td'):null;
+  _RZ_startH=firstTd?firstTd.offsetHeight:80;
+
+  const mm=ev=>{
+    const newH=Math.max(32, _RZ_startH+(ev.clientY-_RZ_startY));
+    const t=document.getElementById(_RZ_tableId);
+    const dTr=t?t.querySelector('tr[data-ri="'+_RZ_rowIdx+'"]'):null;
+    if(dTr){
+      // 모든 td에 height 적용
+      dTr.querySelectorAll('td').forEach(td=>{ td.style.height=newH+'px'; });
+      // textarea는 height:100%로 자동 따라옴 (CSS에서 설정)
+    }
+  };
+  const mu=()=>{
+    document.removeEventListener('mousemove',mm);
+    document.removeEventListener('mouseup',mu);
+    const t=document.getElementById(_RZ_tableId);
+    const dTr=t?t.querySelector('tr[data-ri="'+_RZ_rowIdx+'"]'):null;
+    const td1=dTr?dTr.querySelector('td'):null;
+    if(td1){
+      const data=getData(); if(!data.rowHeights)data.rowHeights={};
+      data.rowHeights[_RZ_rowIdx]=td1.offsetHeight; saveData(data);
+    }
+    _RZ_rowIdx=-1;
+  };
+  document.addEventListener('mousemove',mm);
+  document.addEventListener('mouseup',mu);
+}
+
 </script>
 </body>
 </html>

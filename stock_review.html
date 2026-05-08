@@ -63,10 +63,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
 /* 테이블 */
 .tbl-wrap{overflow-x:auto;}
-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:15px;table-layout:fixed;}
-th{font-family:'DM Mono',monospace;font-size:13px;color:var(--text2);padding:10px 12px;border:2px solid var(--border2);background:var(--bg2);text-align:left;white-space:nowrap;top:0;z-index:5;user-select:none;position:relative;}
-td{padding:0;border:2px solid var(--border2);color:var(--text2);vertical-align:top;overflow:hidden;}
-td textarea{width:100%;background:transparent;border:none;color:var(--text);font-size:15px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;min-height:60px;overflow-y:hidden;box-sizing:border-box;}
+table{width:100%;border-collapse:collapse;font-size:15px;}
+th{font-family:'DM Mono',monospace;font-size:13px;color:var(--text2);padding:12px 14px;border:2px solid var(--border2);background:var(--bg2);text-align:left;white-space:nowrap;position:sticky;top:0;z-index:5;}
+td{padding:0;border:2px solid var(--border2);color:var(--text2);vertical-align:top;}
+td textarea{width:100%;background:transparent;border:none;color:var(--text);font-size:15px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:vertical;line-height:1.6;min-height:72px;max-height:400px;overflow-y:auto;}
 td textarea:focus{background:rgba(251,191,36,0.05);}
 td.date-td{padding:10px 12px;font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);white-space:nowrap;vertical-align:middle;}
 td.week-td{padding:10px 12px;font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);white-space:nowrap;vertical-align:middle;}
@@ -93,13 +93,78 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 .empty-msg{text-align:center;padding:48px;color:var(--text3);font-size:16px;font-family:'DM Mono',monospace;}
 .hidden{display:none!important;}
 
-/* 열/행 resizer */
-.col-resizer{width:6px;height:100%;position:absolute;right:0;top:0;cursor:col-resize;background:transparent;z-index:2;}
-.col-resizer:hover,.col-resizer.active{background:var(--stock);}
-.row-rz-row td{padding:0!important;height:6px!important;border-left:2px solid var(--border2)!important;border-right:2px solid var(--border2)!important;border-top:none!important;border-bottom:2px solid var(--border2)!important;background:transparent!important;}
-.row-rz-handle{display:block;width:100%;height:6px;cursor:row-resize;background:transparent;position:relative;}
-.row-rz-handle::after{content:'';position:absolute;bottom:1px;left:5%;right:5%;height:2px;background:var(--border2);border-radius:1px;transition:background .15s;}
-.row-rz-handle:hover::after{background:var(--stock);}
+/* 열 너비 조절 */
+.resizable-table{width:max-content;min-width:100%;border-collapse:collapse;table-layout:fixed;}
+.resizable-table th{position:relative;user-select:none;}
+.resizer{width:5px;height:100%;position:absolute;right:0;top:0;cursor:col-resize;background:transparent;z-index:1;}
+.resizer:hover,.resizer.active{background:var(--stock,#fbbf24);}
+/* ---- 엑셀 스타일 테이블 v2 ---- */
+.ex-table-wrap{overflow-x:auto;}
+.ex-table{
+  border-collapse:collapse;
+  table-layout:fixed;
+  width:auto;
+}
+.ex-table th{
+  font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);
+  padding:9px 11px;border:2px solid var(--border2);background:var(--bg2);
+  text-align:left;white-space:nowrap;position:relative;user-select:none;
+}
+.ex-table td{
+  padding:0;border:2px solid var(--border2);
+  vertical-align:top;overflow:hidden;
+  /* height는 JS로 직접 설정 */
+}
+/* textarea: td 높이 100% 채우고, 넘치면 스크롤 */
+.ex-table td textarea{
+  display:block;
+  width:100%;
+  height:100%;          /* td 높이 따라감 */
+  min-height:60px;      /* 최소 높이 */
+  background:transparent;border:none;color:var(--text);
+  font-size:14px;padding:8px 10px;
+  font-family:'Noto Sans KR',sans-serif;outline:none;
+  resize:none;
+  line-height:1.6;box-sizing:border-box;
+  overflow-y:auto;      /* 내용 넘치면 스크롤 */
+}
+.ex-table td textarea:focus{background:rgba(251,191,36,0.04);}
+.ex-table td input[type=date]{
+  display:block;width:100%;
+  background:transparent;border:none;color:var(--text2);
+  font-size:13px;padding:8px 10px;
+  font-family:'DM Mono',monospace;outline:none;box-sizing:border-box;
+}
+/* 열 너비 핸들 */
+.col-rz{
+  position:absolute;right:0;top:0;
+  width:5px;height:100%;
+  cursor:col-resize;background:transparent;z-index:3;
+}
+.col-rz:hover,.col-rz.rz-active{background:var(--stock);}
+/* 행 높이 핸들 행 */
+.rh-row td{
+  padding:0!important;
+  height:5px!important;
+  border-top:none!important;
+  border-left:2px solid var(--border2)!important;
+  border-right:2px solid var(--border2)!important;
+  border-bottom:2px solid var(--border2)!important;
+  background:transparent!important;
+  cursor:row-resize;
+  position:relative;
+}
+.rh-row td::after{
+  content:'';position:absolute;
+  bottom:1px;left:10%;right:10%;
+  height:2px;background:rgba(255,255,255,0.15);
+  border-radius:1px;transition:background .1s;
+}
+.rh-row:hover td::after{background:var(--stock);}
+/* drag reorder */
+.drag-handle{cursor:grab;color:var(--text3);font-size:14px;user-select:none;display:block;text-align:center;padding:6px 3px;}
+tr:hover .ex-table td{background:rgba(255,255,255,0.015);}
+
 </style>
 </head>
 <body>
@@ -125,7 +190,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 <!-- 누적 테이블 (기본) -->
 <div id="tab-table" class="wrap">
   <div class="tbl-wrap">
-    <table id="review-table">
+    <table id="review-table" class="ex-table">
       <thead id="review-thead">
         <tr>
           <th>날짜</th>
@@ -189,6 +254,7 @@ const GOALS={4:700000,5:1000000,6:1000000,7:1200000,8:1300000,9:1400000,10:15000
 const DAYS=['일','월','화','수','목','금','토'];
 const DEFAULT_COLS=['시황','내일전략','보유종목','관심종목','매매내용','반성','원칙준수'];
 
+const COL_DEF={날짜:120,주차:90,시황:220,내일전략:200,보유종목:180,관심종목:180,매매내용:200,반성:180,원칙준수:180};
 function pad(n){return String(n).padStart(2,'0');}
 function ls(k){return localStorage.getItem(k);}
 function lss(k,v){localStorage.setItem(k,v);}
@@ -243,6 +309,19 @@ function saveReview(){
   renderTable();
 }
 
+
+function renameColSR(oldName, newName){
+  if(!newName?.trim()||newName===oldName)return;
+  const data=getData();
+  if(data.cols.includes(newName.trim())&&newName.trim()!==oldName){showConfirm('이미 있는 이름');return;}
+  const idx=data.cols.indexOf(oldName);if(idx<0)return;
+  data.cols[idx]=newName.trim();
+  data.rows.forEach(r=>{
+    if(r.cells){r.cells[newName.trim()]=r.cells[oldName]||'';delete r.cells[oldName];}
+  });
+  if(data.colWidths?.[oldName]){data.colWidths[newName.trim()]=data.colWidths[oldName];delete data.colWidths[oldName];}
+  saveData(data);renderTable();
+}
 function addRow(){
   const data=getData();
   const d=new Date();
@@ -302,12 +381,18 @@ function renderTable(){
 
   // 헤더
   const cw=data.colWidths||{};
-  const COL_W={날짜:130,주차:90,시황:220,내일전략:200,보유종목:180,관심종목:180,매매내용:200,반성:180,원칙준수:180};
   thead.innerHTML='<tr>'+
-    `<th data-col="날짜" style="width:${cw['날짜']||130}px;">날짜<div class="col-resizer" onmousedown="startColResize(event,'날짜')"></div></th>`+
-    `<th data-col="주차" style="width:${cw['주차']||90}px;">주차<div class="col-resizer" onmousedown="startColResize(event,'주차')"></div></th>`+
-    data.cols.map(c=>`<th data-col="${c}" style="width:${cw[c]||COL_W[c]||180}px;">${c} <span onclick="deleteCol('${c.replace(/'/g,"\'")}'')" style="cursor:pointer;color:var(--text3);font-size:12px;margin-left:4px;" title="열 삭제">✕</span><div class="col-resizer" onmousedown="startColResize(event,'${c.replace(/'/g,"\'")}')"></div></th>`).join('')+
-    '<th style="width:56px;"></th></tr>';
+    `<th data-col="날짜" style="width:${cw['날짜']||COL_DEF['날짜']}px;">날짜<div class="col-rz" onmousedown="startColResize(event,'review-table','날짜')"></div></th>`+
+    `<th data-col="주차" style="width:${cw['주차']||COL_DEF['주차']}px;">주차<div class="col-rz" onmousedown="startColResize(event,'review-table','주차')"></div></th>`+
+    data.cols.map(c=>`<th data-col="${c}" style="width:${cw[c]||COL_DEF[c]||180}px;">
+      <input style="background:transparent;border:none;color:var(--text2);font-family:'DM Mono',monospace;font-size:12px;outline:none;width:calc(100% - 22px);cursor:text;"
+        value="${c.replace(/"/g,'&quot;')}"
+        onblur="renameColSR('${c.replace(/'/g,"\'")}',this.value)"
+        onclick="event.stopPropagation()"/>
+      <span onclick="deleteCol('${c.replace(/'/g,"\'")}'')" style="cursor:pointer;color:var(--text3);font-size:11px;position:absolute;right:18px;top:50%;transform:translateY(-50%);">✕</span>
+      <div class="col-rz" onmousedown="startColResize(event,'review-table','${c.replace(/'/g,"\'")}')"></div>
+    </th>`).join('')+
+    '<th style="width:52px;"></th></tr>';
 
   if(!data.rows.length){
     tbody.innerHTML='';
@@ -318,16 +403,21 @@ function renderTable(){
 
   const rhs=data.rowHeights||{};
   tbody.innerHTML=data.rows.map((row,ri)=>{
-    const rh=rhs[ri]||72;const taH=Math.max(36,rh-20);
-    const wDate=cw['날짜']||130,wWeek=cw['주차']||90;
-    return `<tr style="height:${rh}px;">
-      <td class="date-td" style="width:${wDate}px;vertical-align:middle;height:${rh}px;"><input type="date" value="${row.date}" onchange="updateDate(${ri},this.value)" style="background:transparent;border:none;color:var(--text2);font-size:14px;font-family:'DM Mono',monospace;outline:none;width:100%;padding:0 6px;box-sizing:border-box;"></td>
-      <td class="week-td" id="week-${ri}" style="width:${wWeek}px;height:${rh}px;">${row.week||getWeekLabel(row.date)}</td>
-      ${data.cols.map(c=>`<td style="width:${cw[c]||COL_W[c]||180}px;height:${rh}px;"><textarea onblur="updateCell(${ri},'${c}',this.value)" placeholder="${c}..." style="height:${taH}px;">${(row.cells&&row.cells[c])||''}</textarea></td>`).join('')}
-      <td style="width:56px;vertical-align:middle;text-align:center;height:${rh}px;"><button class="del-btn" onclick="deleteRow(${ri})">삭제</button></td>
+    const rh=rhs[ri]||80;
+    return `<tr data-ri="${ri}">
+      <td data-col="날짜" style="width:${cw['날짜']||COL_DEF['날짜']}px;height:${rh}px;vertical-align:middle;border:2px solid var(--border2);">
+        <input type="date" value="${row.date}" onchange="updateDate(${ri},this.value)">
+      </td>
+      <td data-col="주차" id="week-${ri}" style="width:${cw['주차']||COL_DEF['주차']}px;height:${rh}px;vertical-align:middle;border:2px solid var(--border2);padding:8px 10px;font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);">${row.week||getWeekLabel(row.date)}</td>
+      ${data.cols.map(c=>`<td data-col="${c}" style="width:${cw[c]||COL_DEF[c]||180}px;height:${rh}px;border:2px solid var(--border2);">
+        <textarea onblur="updateCell(${ri},'${c}',this.value)" placeholder="${c}...">${(row.cells&&row.cells[c])||''}</textarea>
+      </td>`).join('')}
+      <td style="width:52px;height:${rh}px;text-align:center;vertical-align:middle;border:2px solid var(--border2);padding:4px;">
+        <button class="del-btn" onclick="deleteRow(${ri})">삭제</button>
+      </td>
     </tr>
-    <tr class="row-rz-row">
-      <td colspan="${data.cols.length+3}"><div class="row-rz-handle" onmousedown="startRowResize(event,${ri})"></div></td>
+    <tr class="rh-row">
+      <td colspan="${data.cols.length+3}" onmousedown="startRowResize(event,'review-table',${ri})"></td>
     </tr>`;
   }).join('');
 }
@@ -420,71 +510,90 @@ initDate();renderTable();
 // Firebase sync 후 재렌더
 fbSync(()=>{renderTable();});
 </script>
+
+
+
 <script>
-// 열 너비 드래그 (stock_review)
-let _rCol='',_rStartX=0,_rStartW=0;
-function startColResize(e,col){
-  e.preventDefault();e.stopPropagation();
-  _rCol=col;_rStartX=e.clientX;
-  const th=document.querySelector('#review-table th[data-col="'+col+'"]');
-  _rStartW=th?th.offsetWidth:180;
-  e.target.classList.add('active');
+/* ============================================================
+   EXCEL RESIZE ENGINE v2
+   핵심 원칙:
+   - tr에 height 주지 않음 (브라우저가 무시함)
+   - td에 height 적용 → 행 높이 제어
+   - textarea는 height:100% + min-height + overflow-y:auto
+   - 열 너비: 해당 data-col 요소만 변경, 타 열 불변
+   - 테이블: width:auto, table-layout:fixed → 제약 없이 확장
+   ============================================================ */
+
+// ---- 열 너비 드래그 ----
+let _CZ_col='', _CZ_startX=0, _CZ_startW=0, _CZ_tableId='', _CZ_el=null;
+function startColResize(e, tableId, col) {
+  e.preventDefault(); e.stopPropagation();
+  _CZ_col=col; _CZ_startX=e.clientX; _CZ_tableId=tableId; _CZ_el=e.target;
+  const tbl=document.getElementById(tableId);
+  const th=tbl?tbl.querySelector('th[data-col="'+col+'"]'):null;
+  _CZ_startW=th?th.offsetWidth:120;
+  _CZ_el.classList.add('rz-active');
   const mm=ev=>{
-    const nw=Math.max(40,_rStartW+(ev.clientX-_rStartX));
-    document.querySelectorAll('#review-table th[data-col="'+_rCol+'"]').forEach(el=>el.style.width=nw+'px');
-    document.querySelectorAll('#review-tbody tr:not(.row-rz-row)').forEach(tr=>{
-      const tds=tr.querySelectorAll('td');
-      const ths=Array.from(document.querySelectorAll('#review-table thead th'));
-      const idx=ths.findIndex(t=>t.dataset.col===_rCol);
-      if(idx>=0&&tds[idx])tds[idx].style.width=nw+'px';
-    });
+    const nw=Math.max(30, _CZ_startW+(ev.clientX-_CZ_startX));
+    const t=document.getElementById(_CZ_tableId);
+    if(!t)return;
+    // th + td: data-col 일치하는 것만. 다른 열 절대 건드리지 않음
+    t.querySelectorAll('[data-col="'+_CZ_col+'"]').forEach(el=>{ el.style.width=nw+'px'; });
   };
   const mu=()=>{
-    e.target.classList.remove('active');
-    document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);
-    const data=getData();
-    const th2=document.querySelector('#review-table th[data-col="'+_rCol+'"]');
-    if(th2){data.colWidths[_rCol]=th2.offsetWidth;saveData(data);}
+    _CZ_el.classList.remove('rz-active');
+    document.removeEventListener('mousemove',mm);
+    document.removeEventListener('mouseup',mu);
+    const t=document.getElementById(_CZ_tableId);
+    const th2=t?t.querySelector('th[data-col="'+_CZ_col+'"]'):null;
+    if(!th2)return;
+    const data=getData(); if(!data.colWidths)data.colWidths={};
+    data.colWidths[_CZ_col]=th2.offsetWidth; saveData(data);
   };
-  document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
+  document.addEventListener('mousemove',mm);
+  document.addEventListener('mouseup',mu);
 }
 
-// 행 높이 드래그 (stock_review)
-let _rrRow=-1,_rrStartY=0,_rrStartH=0;
-function startRowResize(e,ri){
+// ---- 행 높이 드래그 ----
+// rh-row의 td에 onmousedown="startRowResize(event, tableId, rowDataIdx)"
+// rowDataIdx: 데이터 배열의 인덱스 (rh-row 위 데이터 행의 논리 인덱스)
+let _RZ_rowIdx=-1, _RZ_startY=0, _RZ_startH=0, _RZ_tableId='';
+function startRowResize(e, tableId, rowDataIdx) {
   e.preventDefault();
-  _rrRow=ri;_rrStartY=e.clientY;
-  const trs=document.querySelectorAll('#review-tbody tr:not(.row-rz-row)');
-  _rrStartH=trs[ri]?trs[ri].offsetHeight:72;
+  _RZ_rowIdx=rowDataIdx; _RZ_startY=e.clientY; _RZ_tableId=tableId;
+  // 현재 높이: 해당 rh-row 바로 위 tr의 첫번째 td height
+  const tbl=document.getElementById(tableId);
+  // id로 정확히 찾음: tr[data-ri="rowDataIdx"]
+  const dataTr=tbl?tbl.querySelector('tr[data-ri="'+rowDataIdx+'"]'):null;
+  const firstTd=dataTr?dataTr.querySelector('td'):null;
+  _RZ_startH=firstTd?firstTd.offsetHeight:80;
+
   const mm=ev=>{
-    const newH=Math.max(36,_rrStartH+(ev.clientY-_rrStartY));
-    const trs2=document.querySelectorAll('#review-tbody tr:not(.row-rz-row)');
-    if(trs2[_rrRow]){trs2[_rrRow].style.height=newH+'px';trs2[_rrRow].querySelectorAll('textarea').forEach(ta=>ta.style.height=(newH-20)+'px');}
+    const newH=Math.max(32, _RZ_startH+(ev.clientY-_RZ_startY));
+    const t=document.getElementById(_RZ_tableId);
+    const dTr=t?t.querySelector('tr[data-ri="'+_RZ_rowIdx+'"]'):null;
+    if(dTr){
+      // 모든 td에 height 적용
+      dTr.querySelectorAll('td').forEach(td=>{ td.style.height=newH+'px'; });
+      // textarea는 height:100%로 자동 따라옴 (CSS에서 설정)
+    }
   };
   const mu=()=>{
-    document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);
-    const trs2=document.querySelectorAll('#review-tbody tr:not(.row-rz-row)');
-    if(trs2[_rrRow]){const data=getData();data.rowHeights[_rrRow]=trs2[_rrRow].offsetHeight;saveData(data);}
-    _rrRow=-1;
+    document.removeEventListener('mousemove',mm);
+    document.removeEventListener('mouseup',mu);
+    const t=document.getElementById(_RZ_tableId);
+    const dTr=t?t.querySelector('tr[data-ri="'+_RZ_rowIdx+'"]'):null;
+    const td1=dTr?dTr.querySelector('td'):null;
+    if(td1){
+      const data=getData(); if(!data.rowHeights)data.rowHeights={};
+      data.rowHeights[_RZ_rowIdx]=td1.offsetHeight; saveData(data);
+    }
+    _RZ_rowIdx=-1;
   };
-  document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
+  document.addEventListener('mousemove',mm);
+  document.addEventListener('mouseup',mu);
 }
 
-// 테이블 셀 키보드 네비게이션
-document.addEventListener('keydown',function(e){
-  const el=document.activeElement;if(!el)return;
-  const isInput=el.tagName==='INPUT'||el.tagName==='TEXTAREA';if(!isInput)return;
-  const td=el.closest('td');if(!td)return;
-  const tr=td.closest('tr');if(!tr)return;
-  const table=tr.closest('table');if(!table)return;
-  if(e.key==='Tab'){
-    e.preventDefault();
-    const allCells=Array.from(table.querySelectorAll('tbody tr:not(.row-rz-row) td input,tbody tr:not(.row-rz-row) td textarea'));
-    const curIdx=allCells.indexOf(el);if(curIdx<0)return;
-    const nextIdx=e.shiftKey?curIdx-1:curIdx+1;
-    if(nextIdx>=0&&nextIdx<allCells.length){allCells[nextIdx].focus();if(allCells[nextIdx].select)allCells[nextIdx].select();}
-  }
-});
 </script>
 </body>
 </html>

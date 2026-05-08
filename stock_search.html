@@ -40,12 +40,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .resizer{width:6px;height:100%;position:absolute;right:0;top:0;cursor:col-resize;background:transparent;z-index:2;}
 .resizer:hover,.resizer.active{background:var(--stock);}
 .resizable-table td{padding:0;border:2px solid var(--border2);vertical-align:top;overflow:hidden;}
-.resizable-table td textarea{width:100%;background:transparent;border:none;color:var(--text);font-size:14px;padding:9px 11px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;line-height:1.6;box-sizing:border-box;min-height:60px;overflow-y:hidden;}
-/* 행 높이 조절 핸들 */
-.row-resizer{display:block;width:100%;height:6px;cursor:row-resize;background:transparent;position:relative;}
-.row-resizer::after{content:'';position:absolute;bottom:0;left:10%;right:10%;height:2px;background:var(--border2);border-radius:1px;transition:background .15s;}
-.row-resizer:hover::after{background:var(--stock);}
-td.rh-td{padding:0!important;border:2px solid var(--border2);vertical-align:bottom;}
+.resizable-table td textarea{width:100%;background:transparent;border:none;color:var(--text);font-size:14px;padding:9px 11px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:vertical;line-height:1.6;box-sizing:border-box;min-height:72px;max-height:400px;overflow-y:auto;}
 .resizable-table td input[type=date]{width:100%;background:transparent;border:none;color:var(--text2);font-size:13px;padding:9px 11px;font-family:'DM Mono',monospace;outline:none;box-sizing:border-box;}
 .resizable-table td textarea:focus,.resizable-table td input[type=date]:focus{background:rgba(251,191,36,0.05);}
 tr:hover td{background:rgba(255,255,255,0.02);}
@@ -62,6 +57,73 @@ tr.drag-over td{border-top:2px solid var(--stock)!important;}
 .tab{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);padding:13px 16px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;}
 .tab:hover{color:var(--text2);}
 .tab.on{color:var(--text);border-bottom-color:var(--stock);}
+/* ---- 엑셀 스타일 테이블 v2 ---- */
+.ex-table-wrap{overflow-x:auto;}
+.ex-table{
+  border-collapse:collapse;
+  table-layout:fixed;
+  width:auto;
+}
+.ex-table th{
+  font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);
+  padding:9px 11px;border:2px solid var(--border2);background:var(--bg2);
+  text-align:left;white-space:nowrap;position:relative;user-select:none;
+}
+.ex-table td{
+  padding:0;border:2px solid var(--border2);
+  vertical-align:top;overflow:hidden;
+  /* height는 JS로 직접 설정 */
+}
+/* textarea: td 높이 100% 채우고, 넘치면 스크롤 */
+.ex-table td textarea{
+  display:block;
+  width:100%;
+  height:100%;          /* td 높이 따라감 */
+  min-height:60px;      /* 최소 높이 */
+  background:transparent;border:none;color:var(--text);
+  font-size:14px;padding:8px 10px;
+  font-family:'Noto Sans KR',sans-serif;outline:none;
+  resize:none;
+  line-height:1.6;box-sizing:border-box;
+  overflow-y:auto;      /* 내용 넘치면 스크롤 */
+}
+.ex-table td textarea:focus{background:rgba(251,191,36,0.04);}
+.ex-table td input[type=date]{
+  display:block;width:100%;
+  background:transparent;border:none;color:var(--text2);
+  font-size:13px;padding:8px 10px;
+  font-family:'DM Mono',monospace;outline:none;box-sizing:border-box;
+}
+/* 열 너비 핸들 */
+.col-rz{
+  position:absolute;right:0;top:0;
+  width:5px;height:100%;
+  cursor:col-resize;background:transparent;z-index:3;
+}
+.col-rz:hover,.col-rz.rz-active{background:var(--stock);}
+/* 행 높이 핸들 행 */
+.rh-row td{
+  padding:0!important;
+  height:5px!important;
+  border-top:none!important;
+  border-left:2px solid var(--border2)!important;
+  border-right:2px solid var(--border2)!important;
+  border-bottom:2px solid var(--border2)!important;
+  background:transparent!important;
+  cursor:row-resize;
+  position:relative;
+}
+.rh-row td::after{
+  content:'';position:absolute;
+  bottom:1px;left:10%;right:10%;
+  height:2px;background:rgba(255,255,255,0.15);
+  border-radius:1px;transition:background .1s;
+}
+.rh-row:hover td::after{background:var(--stock);}
+/* drag reorder */
+.drag-handle{cursor:grab;color:var(--text3);font-size:14px;user-select:none;display:block;text-align:center;padding:6px 3px;}
+tr:hover .ex-table td{background:rgba(255,255,255,0.015);}
+
 </style>
 </head>
 <body>
@@ -84,7 +146,7 @@ tr.drag-over td{border-top:2px solid var(--stock)!important;}
 <div class="confirm-bar" id="confirm-bar"></div>
 <div id="pane-stock"><div class="wrap" id="main-wrap">
   <div style="overflow-x:auto;" id="tbl-outer">
-    <table class="resizable-table" id="main-table">
+    <table class="ex-table" id="main-table">
       <thead id="main-thead"></thead>
       <tbody id="main-tbody"></tbody>
     </table>
@@ -98,7 +160,7 @@ tr.drag-over td{border-top:2px solid var(--stock)!important;}
 <div id="pane-search" style="display:none;">
   <div class="wrap" id="main-wrap-s">
     <div style="overflow-x:auto;" id="tbl-outer-s">
-      <table class="resizable-table" id="main-table-s">
+      <table class="ex-table" id="main-table-s">
         <thead id="main-thead-s"></thead>
         <tbody id="main-tbody-s"></tbody>
       </table>
@@ -138,34 +200,11 @@ function lss(k,v){ localStorage.setItem(k,v); }
 function showConfirm(msg){ const el=document.getElementById('confirm-bar'); el.textContent=msg; setTimeout(()=>el.textContent='',3000); }
 
 function getData(){
-  const raw = ls(getStorageKey());
-  if(raw){ try{ const d=JSON.parse(raw); if(!d.rowHeights)d.rowHeights={}; return d; }catch(e){} }
-  return {cols:[...getDefaultCols()], rows:[], colWidths:{}, rowHeights:{}};
+  const raw=ls(getStorageKey());
+  if(raw){try{const d=JSON.parse(raw);if(!d.colWidths)d.colWidths={};if(!d.rowHeights)d.rowHeights={};return d;}catch(e){}}
+  return {cols:[...getDefaultCols()],rows:[],colWidths:{},rowHeights:{}};
 }
-function saveData(d){ if(!d.rowHeights)d.rowHeights={}; lss(getStorageKey(), JSON.stringify(d)); fbSave(); }
-
-// 행 높이 드래그
-let _rhRow=-1,_rhStartY=0,_rhStartH=0;
-function startRowResize(e,ri){
-  e.preventDefault();_rhRow=ri;_rhStartY=e.clientY;
-  const sfx=currentTab==='search'?'-s':'';
-  const tr=document.querySelector('#main-tbody'+sfx+' tr:nth-child('+(ri+1)+')');
-  _rhStartH=tr?tr.offsetHeight:60;
-  const mm=ev=>{
-    const newH=Math.max(36,_rhStartH+(ev.clientY-_rhStartY));
-    const sfx2=currentTab==='search'?'-s':'';
-    const tr2=document.querySelector('#main-tbody'+sfx2+' tr:nth-child('+(_rhRow+1)+')');
-    if(tr2){tr2.style.height=newH+'px';tr2.querySelectorAll('textarea').forEach(ta=>ta.style.height=(newH-20)+'px');}
-  };
-  const mu=()=>{
-    document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);
-    const sfx2=currentTab==='search'?'-s':'';
-    const tr2=document.querySelector('#main-tbody'+sfx2+' tr:nth-child('+(_rhRow+1)+')');
-    if(tr2){const data=getData();data.rowHeights[_rhRow]=tr2.offsetHeight;saveData(data);}
-    _rhRow=-1;
-  };
-  document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
-}
+function saveData(d){if(!d.colWidths)d.colWidths={};if(!d.rowHeights)d.rowHeights={};lss(getStorageKey(),JSON.stringify(d));fbSave();}
 
 function addRow(){
   const data = getData();
@@ -260,7 +299,7 @@ function startResize(e, col){
   e.target.classList.add('active');
   const mm = ev => {
     const nw = Math.max(1, rStartW + (ev.clientX - rStartX));
-    document.querySelectorAll(`[data-rcol="${rCol}"]`).forEach(el => {
+    document.querySelectorAll(`[data-col="${rCol}"]`).forEach(el => {
       el.style.width = nw+'px';
       
     });
@@ -271,7 +310,7 @@ function startResize(e, col){
     document.removeEventListener('mouseup', mu);
     const data2 = getData();
     if(!data2.colWidths) data2.colWidths = {};
-    const th = document.querySelector(`th[data-rcol="${rCol}"]`);
+    const th = document.querySelector(`th[data-col="${rCol}"]`);
     if(th) data2.colWidths[rCol] = th.offsetWidth;
     saveData(data2);
   };
@@ -290,23 +329,22 @@ function render(){
   const empty = document.getElementById('main-empty'+sfx);
 
   // 헤더
+  const tblId = currentTab==='search'?'main-table-s':'main-table';
   thead.innerHTML = '<tr>' +
-    '<th style="width:28px;border:2px solid var(--border2);">↕</th>' +
+    '<th style="width:28px;">↕</th>' +
     cols.map(c => {
       const w = cw[c] || DEFAULT_W[c] || 180;
       const canDel = !FIXED_COLS.includes(c);
-      return `<th data-rcol="${c}" style="width:${w}px;">
-        <div class="th-inner">
-          <input class="th-input" value="${c.replace(/"/g,'&quot;')}"
-            onblur="renameCol('${c.replace(/'/g,"\\'")}', this.value)"
-            onclick="event.stopPropagation()"
-            ${FIXED_COLS.includes(c) ? 'readonly style="cursor:default;"' : ''}>
-          ${canDel ? `<span class="th-del" onclick="deleteCol('${c.replace(/'/g,"\\'")}')">✕</span>` : ''}
-        </div>
-        <div class="resizer" onmousedown="startResize(event,'${c.replace(/'/g,"\\'")}')"></div>
+      const cSafe = c.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      return `<th data-col="${cSafe}" style="width:${w}px;">
+        <input style="background:transparent;border:none;color:var(--text2);font-family:'DM Mono',monospace;font-size:12px;outline:none;width:calc(100% - 22px);cursor:text;"
+          value="${cSafe}" onblur="renameCol('${c.replace(/'/g,"\'")}',this.value)" onclick="event.stopPropagation()"
+          ${FIXED_COLS.includes(c)?'readonly':''} />
+        ${canDel?`<span onclick="deleteCol('${c.replace(/'/g,"\'")}'')" style="cursor:pointer;color:var(--text3);font-size:11px;position:absolute;right:18px;top:50%;transform:translateY(-50%);">✕</span>`:''}
+        <div class="col-rz" onmousedown="startColResize(event,'${tblId}','${c.replace(/'/g,"\'")}')"></div>
       </th>`;
     }).join('') +
-    '<th style="width:56px;border:2px solid var(--border2);"></th>' +
+    '<th style="width:52px;"></th>' +
   '</tr>';
 
   if(!data.rows.length){
@@ -317,27 +355,40 @@ function render(){
   empty.style.display = 'none';
 
   tbody.innerHTML = data.rows.map((row, ri) => {
-    const rh = (data.rowHeights||{})[ri] || 72;
-    const taH = Math.max(36, rh-20);
+    const rh = (data.rowHeights||{})[ri] || 80;
+    const tblId2 = currentTab==='search'?'main-table-s':'main-table';
     const cells = cols.map(c => {
       const val = row[c] || '';
       const w = cw[c] || DEFAULT_W[c] || 180;
       if(c === '날짜'){
-        return `<td data-rcol="${c}" style="width:${w}px;vertical-align:middle;height:${rh}px;">
-          <input type="date" value="${val}"
-            onchange="updateCell(${ri},'${c}',this.value)"
-            style="width:100%;background:transparent;border:none;color:var(--text2);font-size:13px;font-family:'DM Mono',monospace;outline:none;padding:9px 11px;box-sizing:border-box;">
+        return `<td data-col="${c}" style="width:${w}px;height:${rh}px;vertical-align:middle;border:2px solid var(--border2);">
+          <input type="date" value="${val}" onchange="updateCell(${ri},'${c}',this.value)">
         </td>`;
       }
-      return `<td data-rcol="${c}" style="width:${w}px;height:${rh}px;">
-        <textarea
-          onblur="updateCell(${ri},'${c}',this.value)"
-          placeholder="${c}..."
-          style="height:${taH}px;">${val.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+      return `<td data-col="${c}" style="width:${w}px;height:${rh}px;border:2px solid var(--border2);">
+        <textarea onblur="updateCell(${ri},'${c}',this.value)"
+          placeholder="${c}...">${val.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
       </td>`;
     }).join('');
+    return `<tr data-ri="${ri}" draggable="true"
+      ondragstart="dragStart(event,${ri})"
+      ondragover="dragOver(event)"
+      ondragleave="dragLeave(event)"
+      ondrop="dragDrop(event,${ri})">
+      <td style="width:28px;height:${rh}px;text-align:center;vertical-align:middle;border:2px solid var(--border2);padding:2px;">
+        <span class="drag-handle">⠿</span>
+      </td>
+      ${cells}
+      <td style="width:52px;height:${rh}px;text-align:center;vertical-align:middle;border:2px solid var(--border2);padding:4px;">
+        <button class="del-btn" onclick="deleteRow(${ri})">삭제</button>
+      </td>
+    </tr>
+    <tr class="rh-row">
+      <td colspan="${cols.length+2}" onmousedown="startRowResize(event,'${tblId2}',${ri})"></td>
+    </tr>`;
+  }).join('');
 
-    return `<tr style="height:${rh}px;" draggable="true"
+    return `<tr draggable="true"
       ondragstart="dragStart(event,${ri})"
       ondragover="dragOver(event)"
       ondragleave="dragLeave(event)"
@@ -346,12 +397,9 @@ function render(){
         <span class="drag-handle">⠿</span>
       </td>
       ${cells}
-      <td style="width:56px;text-align:center;vertical-align:top;border:2px solid var(--border2);padding:6px;">
+      <td style="width:56px;text-align:center;vertical-align:middle;border:2px solid var(--border2);padding:6px;">
         <button class="del-btn" onclick="deleteRow(${ri})">삭제</button>
       </td>
-    </tr>
-    <tr class="rh-row">
-      <td colspan="${cols.length+2}" class="rh-td"><div class="row-resizer" onmousedown="startRowResize(event,${ri})"></div></td>
     </tr>`;
   }).join('');
 }
@@ -409,27 +457,88 @@ function switchTab(tab){
 fbSync(() => { render(); });
 </script>
 
+
 <script>
-// 테이블 셀 키보드 네비게이션
-document.addEventListener('keydown', function(e){
-  const el = document.activeElement;
-  if(!el) return;
-  const isInput = el.tagName==='INPUT' || el.tagName==='TEXTAREA';
-  if(!isInput) return;
-  const td = el.closest('td'); if(!td) return;
-  const tr = td.closest('tr'); if(!tr) return;
-  const table = tr.closest('table'); if(!table) return;
-  if(e.key==='Tab'){
-    e.preventDefault();
-    const allCells = Array.from(table.querySelectorAll('tbody td input, tbody td textarea'));
-    const curIdx = allCells.indexOf(el); if(curIdx < 0) return;
-    const nextIdx = e.shiftKey ? curIdx-1 : curIdx+1;
-    if(nextIdx >= 0 && nextIdx < allCells.length){
-      allCells[nextIdx].focus();
-      if(allCells[nextIdx].select) allCells[nextIdx].select();
+/* ============================================================
+   EXCEL RESIZE ENGINE v2
+   핵심 원칙:
+   - tr에 height 주지 않음 (브라우저가 무시함)
+   - td에 height 적용 → 행 높이 제어
+   - textarea는 height:100% + min-height + overflow-y:auto
+   - 열 너비: 해당 data-col 요소만 변경, 타 열 불변
+   - 테이블: width:auto, table-layout:fixed → 제약 없이 확장
+   ============================================================ */
+
+// ---- 열 너비 드래그 ----
+let _CZ_col='', _CZ_startX=0, _CZ_startW=0, _CZ_tableId='', _CZ_el=null;
+function startColResize(e, tableId, col) {
+  e.preventDefault(); e.stopPropagation();
+  _CZ_col=col; _CZ_startX=e.clientX; _CZ_tableId=tableId; _CZ_el=e.target;
+  const tbl=document.getElementById(tableId);
+  const th=tbl?tbl.querySelector('th[data-col="'+col+'"]'):null;
+  _CZ_startW=th?th.offsetWidth:120;
+  _CZ_el.classList.add('rz-active');
+  const mm=ev=>{
+    const nw=Math.max(30, _CZ_startW+(ev.clientX-_CZ_startX));
+    const t=document.getElementById(_CZ_tableId);
+    if(!t)return;
+    // th + td: data-col 일치하는 것만. 다른 열 절대 건드리지 않음
+    t.querySelectorAll('[data-col="'+_CZ_col+'"]').forEach(el=>{ el.style.width=nw+'px'; });
+  };
+  const mu=()=>{
+    _CZ_el.classList.remove('rz-active');
+    document.removeEventListener('mousemove',mm);
+    document.removeEventListener('mouseup',mu);
+    const t=document.getElementById(_CZ_tableId);
+    const th2=t?t.querySelector('th[data-col="'+_CZ_col+'"]'):null;
+    if(!th2)return;
+    const data=getData(); if(!data.colWidths)data.colWidths={};
+    data.colWidths[_CZ_col]=th2.offsetWidth; saveData(data);
+  };
+  document.addEventListener('mousemove',mm);
+  document.addEventListener('mouseup',mu);
+}
+
+// ---- 행 높이 드래그 ----
+// rh-row의 td에 onmousedown="startRowResize(event, tableId, rowDataIdx)"
+// rowDataIdx: 데이터 배열의 인덱스 (rh-row 위 데이터 행의 논리 인덱스)
+let _RZ_rowIdx=-1, _RZ_startY=0, _RZ_startH=0, _RZ_tableId='';
+function startRowResize(e, tableId, rowDataIdx) {
+  e.preventDefault();
+  _RZ_rowIdx=rowDataIdx; _RZ_startY=e.clientY; _RZ_tableId=tableId;
+  // 현재 높이: 해당 rh-row 바로 위 tr의 첫번째 td height
+  const tbl=document.getElementById(tableId);
+  // id로 정확히 찾음: tr[data-ri="rowDataIdx"]
+  const dataTr=tbl?tbl.querySelector('tr[data-ri="'+rowDataIdx+'"]'):null;
+  const firstTd=dataTr?dataTr.querySelector('td'):null;
+  _RZ_startH=firstTd?firstTd.offsetHeight:80;
+
+  const mm=ev=>{
+    const newH=Math.max(32, _RZ_startH+(ev.clientY-_RZ_startY));
+    const t=document.getElementById(_RZ_tableId);
+    const dTr=t?t.querySelector('tr[data-ri="'+_RZ_rowIdx+'"]'):null;
+    if(dTr){
+      // 모든 td에 height 적용
+      dTr.querySelectorAll('td').forEach(td=>{ td.style.height=newH+'px'; });
+      // textarea는 height:100%로 자동 따라옴 (CSS에서 설정)
     }
-  }
-});
+  };
+  const mu=()=>{
+    document.removeEventListener('mousemove',mm);
+    document.removeEventListener('mouseup',mu);
+    const t=document.getElementById(_RZ_tableId);
+    const dTr=t?t.querySelector('tr[data-ri="'+_RZ_rowIdx+'"]'):null;
+    const td1=dTr?dTr.querySelector('td'):null;
+    if(td1){
+      const data=getData(); if(!data.rowHeights)data.rowHeights={};
+      data.rowHeights[_RZ_rowIdx]=td1.offsetHeight; saveData(data);
+    }
+    _RZ_rowIdx=-1;
+  };
+  document.addEventListener('mousemove',mm);
+  document.addEventListener('mouseup',mu);
+}
+
 </script>
 </body>
 </html>
