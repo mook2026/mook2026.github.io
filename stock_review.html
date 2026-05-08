@@ -103,7 +103,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 .ex-table{
   border-collapse:collapse;
   table-layout:fixed;
-  width:auto;
+  width:max-content;
 }
 .ex-table th{
   font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);
@@ -537,8 +537,12 @@ function startColResize(e, tableId, col) {
     const nw=Math.max(30, _CZ_startW+(ev.clientX-_CZ_startX));
     const t=document.getElementById(_CZ_tableId);
     if(!t)return;
-    // th + td: data-col 일치하는 것만. 다른 열 절대 건드리지 않음
+    // 해당 열만 변경
     t.querySelectorAll('[data-col="'+_CZ_col+'"]').forEach(el=>{ el.style.width=nw+'px'; });
+    // 테이블 전체 width = 모든 th 너비 합산 → 다른 열 절대 영향 없음
+    let total=0;
+    t.querySelectorAll('thead th').forEach(th=>{ total+=th.offsetWidth; });
+    t.style.width=total+'px';
   };
   const mu=()=>{
     _CZ_el.classList.remove('rz-active');
