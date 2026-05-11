@@ -467,7 +467,15 @@ function initDefault(){
 const d=new Date();
 document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+DAYS[d.getDay()];
 
-fbSync(()=>{initDefault();renderAll();});
+// 1) localStorage 데이터 즉시 표시
+renderAll();
+// 2) Firebase sync 후 재렌더
+fbSync(()=>{
+  // initDefault는 sections가 없을 때만 실행 (Firebase 데이터 덮어쓰기 방지)
+  const d = getData();
+  if(!d.sections.length) initDefault();
+  renderAll();
+});
 
 // 키보드 네비게이션
 document.addEventListener('keydown',function(e){

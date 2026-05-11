@@ -439,6 +439,9 @@ function switchTab(tab){
   render();
 }
 
+// 1) localStorage 데이터 즉시 표시
+render();
+// 2) Firebase sync 후 재렌더 (최신 데이터 반영)
 fbSync(() => { render(); });
 </script>
 

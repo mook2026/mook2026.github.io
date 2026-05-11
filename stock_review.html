@@ -508,7 +508,8 @@ document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMon
 // 즉시 로컬 데이터로 먼저 렌더 (Firebase 기다리지 않음)
 initDate();renderTable();
 // Firebase sync 후 재렌더
-fbSync(()=>{renderTable();});
+renderTable();
+fbSync(()=>{ renderTable(); });
 </script>
 
 
