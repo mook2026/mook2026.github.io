@@ -62,7 +62,7 @@ tr.drag-over td{border-top:2px solid var(--stock)!important;}
 .ex-table{
   border-collapse:collapse;
   table-layout:fixed;
-  width:max-content;
+  width:auto;
 }
 .ex-table th{
   font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);
@@ -299,7 +299,7 @@ function startResize(e, col){
   e.target.classList.add('active');
   const mm = ev => {
     const nw = Math.max(1, rStartW + (ev.clientX - rStartX));
-    document.querySelectorAll(`[data-col="${rCol}"]`).forEach(el => {
+    document.querySelectorAll(`[data-rcol="${rCol}"]`).forEach(el => {
       el.style.width = nw+'px';
       
     });
@@ -310,7 +310,7 @@ function startResize(e, col){
     document.removeEventListener('mouseup', mu);
     const data2 = getData();
     if(!data2.colWidths) data2.colWidths = {};
-    const th = document.querySelector(`th[data-col="${rCol}"]`);
+    const th = document.querySelector(`th[data-rcol="${rCol}"]`);
     if(th) data2.colWidths[rCol] = th.offsetWidth;
     saveData(data2);
   };
@@ -324,24 +324,24 @@ function render(){
   const cols = data.cols;
   const DEFAULT_W = getDefaultW();
   const sfx = currentTab==='search'?'-s':'';
+  const tblId = currentTab==='search'?'main-table-s':'main-table';
   const thead = document.getElementById('main-thead'+sfx);
   const tbody = document.getElementById('main-tbody'+sfx);
   const empty = document.getElementById('main-empty'+sfx);
 
   // 헤더
-  const tblId = currentTab==='search'?'main-table-s':'main-table';
   thead.innerHTML = '<tr>' +
     '<th style="width:28px;">↕</th>' +
     cols.map(c => {
       const w = cw[c] || DEFAULT_W[c] || 180;
       const canDel = !FIXED_COLS.includes(c);
-      const cSafe = c.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-      return `<th data-col="${cSafe}" style="width:${w}px;">
+      const cE = c.replace(/"/g,'&quot;');
+      const cJ = c.replace(/'/g,"\\'");
+      return `<th data-col="${cE}" style="width:${w}px;">
         <input style="background:transparent;border:none;color:var(--text2);font-family:'DM Mono',monospace;font-size:12px;outline:none;width:calc(100% - 22px);cursor:text;"
-          value="${cSafe}" onblur="renameCol('${c.replace(/'/g,"\'")}',this.value)" onclick="event.stopPropagation()"
-          ${FIXED_COLS.includes(c)?'readonly':''} />
-        ${canDel?`<span onclick="deleteCol('${c.replace(/'/g,"\'")}'')" style="cursor:pointer;color:var(--text3);font-size:11px;position:absolute;right:18px;top:50%;transform:translateY(-50%);">✕</span>`:''}
-        <div class="col-rz" onmousedown="startColResize(event,'${tblId}','${c.replace(/'/g,"\'")}')"></div>
+          value="${cE}" onblur="renameCol('${cJ}',this.value)" onclick="event.stopPropagation()" ${FIXED_COLS.includes(c)?'readonly':''}/>
+        ${canDel?`<span onclick="deleteCol('${cJ}')" style="cursor:pointer;color:var(--text3);font-size:11px;position:absolute;right:18px;top:50%;transform:translateY(-50%);">✕</span>`:''}
+        <div class="col-rz" onmousedown="startColResize(event,'${tblId}','${cJ}')"></div>
       </th>`;
     }).join('') +
     '<th style="width:52px;"></th>' +
@@ -349,25 +349,25 @@ function render(){
 
   if(!data.rows.length){
     tbody.innerHTML = '';
-    empty.style.display = 'block';
+    if(empty) empty.style.display = 'block';
     return;
   }
-  empty.style.display = 'none';
+  if(empty) empty.style.display = 'none';
 
   tbody.innerHTML = data.rows.map((row, ri) => {
     const rh = (data.rowHeights||{})[ri] || 80;
-    const tblId2 = currentTab==='search'?'main-table-s':'main-table';
     const cells = cols.map(c => {
       const val = row[c] || '';
       const w = cw[c] || DEFAULT_W[c] || 180;
+      const cE = c.replace(/"/g,'&quot;');
+      const cJ = c.replace(/'/g,"\\'");
       if(c === '날짜'){
-        return `<td data-col="${c}" style="width:${w}px;height:${rh}px;vertical-align:middle;border:2px solid var(--border2);">
-          <input type="date" value="${val}" onchange="updateCell(${ri},'${c}',this.value)">
+        return `<td data-col="${cE}" style="width:${w}px;height:${rh}px;vertical-align:middle;border:2px solid var(--border2);">
+          <input type="date" value="${val}" onchange="updateCell(${ri},'${cJ}',this.value)">
         </td>`;
       }
-      return `<td data-col="${c}" style="width:${w}px;height:${rh}px;border:2px solid var(--border2);">
-        <textarea onblur="updateCell(${ri},'${c}',this.value)"
-          placeholder="${c}...">${val.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+      return `<td data-col="${cE}" style="width:${w}px;height:${rh}px;border:2px solid var(--border2);">
+        <textarea onblur="updateCell(${ri},'${cJ}',this.value)" placeholder="${cE}...">${val.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
       </td>`;
     }).join('');
     return `<tr data-ri="${ri}" draggable="true"
@@ -384,22 +384,7 @@ function render(){
       </td>
     </tr>
     <tr class="rh-row">
-      <td colspan="${cols.length+2}" onmousedown="startRowResize(event,'${tblId2}',${ri})"></td>
-    </tr>`;
-  }).join('');
-
-    return `<tr draggable="true"
-      ondragstart="dragStart(event,${ri})"
-      ondragover="dragOver(event)"
-      ondragleave="dragLeave(event)"
-      ondrop="dragDrop(event,${ri})">
-      <td style="width:28px;text-align:center;vertical-align:middle;border:2px solid var(--border2);padding:4px;">
-        <span class="drag-handle">⠿</span>
-      </td>
-      ${cells}
-      <td style="width:56px;text-align:center;vertical-align:middle;border:2px solid var(--border2);padding:6px;">
-        <button class="del-btn" onclick="deleteRow(${ri})">삭제</button>
-      </td>
+      <td colspan="${cols.length+2}" onmousedown="startRowResize(event,'${tblId}',${ri})"></td>
     </tr>`;
   }).join('');
 }
@@ -541,6 +526,15 @@ function startRowResize(e, tableId, rowDataIdx) {
   };
   document.addEventListener('mousemove',mm);
   document.addEventListener('mouseup',mu);
+}
+
+// 렌더 직후 호출: 테이블 초기 width를 열 합산으로 설정 (이후 열 드래그 시 자동 갱신됨)
+function initTableWidth(tableId) {
+  const t = document.getElementById(tableId);
+  if (!t) return;
+  let total = 0;
+  t.querySelectorAll('thead th').forEach(th => { total += th.offsetWidth; });
+  if (total > 0) t.style.width = total + 'px';
 }
 
 </script>
