@@ -113,6 +113,26 @@ tr.sum-tr td{border-top:2px solid var(--stock)!important;}
 .sec-title{font-size:17px;font-weight:600;color:var(--stock);margin-bottom:4px;}
 .sec-sub{font-size:13px;color:var(--text3);margin-bottom:14px;}
 .sec-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;}
+/* contenteditable 셀 공통 스타일 */
+.ce-cell{
+  width:100%;height:100%;
+  min-height:60px;
+  background:transparent;
+  color:var(--text);
+  font-size:14px;
+  padding:8px 10px;
+  font-family:'Noto Sans KR',sans-serif;
+  line-height:1.6;
+  box-sizing:border-box;
+  outline:none;
+  overflow-y:auto;
+  word-break:break-word;
+  white-space:pre-wrap;
+}
+.ce-cell:focus{background:rgba(251,191,36,0.04);}
+.ce-cell b, .ce-cell strong{color:inherit;}
+
+.ce-cell:empty:before{content:attr(placeholder);color:var(--text3);pointer-events:none;}
 </style>
 </head>
 <body>
@@ -402,7 +422,18 @@ function renderHoldTable(idx){
         if(c==='평가손익'){const pl=parseInt(val)||0;return `<td class="${pl>0?'pos-c':pl<0?'neg-c':'muted-c'}" style="width:${cw2}px;">${pl?fmtN(pl)+'원':'-'}</td>`;}
         const isNum=NUM_COLS.includes(c);
         const dispVal=isNum&&val?fmtN(val):'';
-        return `<td style="width:${cw2}px;"><input type="text" value="${isNum?(dispVal||String(val)):String(val).replace(/"/g,'&quot;')}" onfocus="if(${isNum}){this.value='${cleanN(val).replace(/'/g,"\\'")}';}" onblur="updateHoldCell(${idx},${ri},'${c}',this.value)" placeholder="${c}..." style="font-family:${isNum?'\'DM Mono\',monospace':'inherit'};"></td>`;
+        return `<td style="width:${cw2}px;">
+  ${isNum
+    ? `<input type="text" value="${dispVal||String(val)}"
+        onfocus="this.value='${cleanN(val).replace(/'/g,"\\'")}'"
+        onblur="updateHoldCell(${idx},${ri},'${c}',this.value)"
+        placeholder="${c}..."
+        style="width:100%;background:transparent;border:none;color:var(--text);font-family:'DM Mono',monospace;outline:none;padding:8px 10px;box-sizing:border-box;">`
+    : `<div class="ce-cell" contenteditable="true"
+        onblur="updateHoldCellCE(this,${idx},${ri},'${c}')"
+        placeholder="${c}...">${val}</div>`
+  }
+</td>`;
       }).join('')}
       <td style="width:52px;" class="center-c"><button class="del-btn" onclick="deleteHoldRow(${idx},${ri})">삭제</button></td>
     </tr>`;
@@ -472,6 +503,11 @@ function deleteHoldCol(idx,col){
   if(FIXED.includes(col)){showConfirm('기본 열 삭제 불가');return;}
   if(!confirm('"'+col+'" 열 삭제?'))return;
   const data=getHoldData(idx);data.cols=data.cols.filter(c=>c!==col);data.rows.forEach(r=>delete r[col]);saveHoldData(idx,data);renderHoldTable(idx);
+}
+function updateHoldCellCE(el,idx,ri,col){
+  const data=getHoldData(idx);if(!data.rows[ri])return;
+  data.rows[ri][col]=el.innerHTML;
+  saveHoldData(idx,data);renderHoldTable(idx);
 }
 function updateHoldCell(idx,ri,col,val){
   const data=getHoldData(idx);if(!data.rows[ri])return;
@@ -585,6 +621,142 @@ document.addEventListener('keydown',function(e){
     if(nextIdx>=0&&nextIdx<allCells.length){allCells[nextIdx].focus();if(allCells[nextIdx].select)allCells[nextIdx].select();}
   }
 });
+</script>
+<script>
+/* ============================================================
+   CONTENTEDITABLE RICH TEXT ENGINE
+   - 텍스트 선택 후 미니 툴바: 볼드, 글자색, 형광펜
+   - 저장: innerHTML (기존 plain text도 그대로 읽힘)
+   - 툴바는 선택 영역 위에 자동 위치
+   ============================================================ */
+
+(function(){
+  const TOOLBAR_ID = 'ce-toolbar';
+  const COLORS = ['#fbbf24','#fb7185','#34d399','#60a5fa','#a78bfa','#f97316','#ffffff','#000000'];
+  const HIGHLIGHTS = ['#fbbf2440','#fb718540','#34d39940','#60a5fa40','#a78bfa40','rgba(251,191,36,0.35)','rgba(251,113,133,0.35)','rgba(52,211,153,0.35)'];
+
+  function getOrCreateToolbar(){
+    let tb = document.getElementById(TOOLBAR_ID);
+    if(tb) return tb;
+    tb = document.createElement('div');
+    tb.id = TOOLBAR_ID;
+    tb.style.cssText = `
+      position:fixed;z-index:9999;
+      background:#1c1c1f;border:1px solid rgba(255,255,255,0.25);
+      border-radius:8px;padding:6px 8px;
+      display:none;flex-wrap:wrap;gap:4px;align-items:center;
+      box-shadow:0 4px 20px rgba(0,0,0,0.5);
+      max-width:320px;
+    `;
+
+    // 볼드
+    const bold = document.createElement('button');
+    bold.textContent = 'B';
+    bold.style.cssText = 'font-weight:700;font-size:13px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:#f0f0f0;border-radius:4px;padding:3px 8px;cursor:pointer;font-family:DM Mono,monospace;';
+    bold.title = '볼드';
+    bold.onmousedown = e => { e.preventDefault(); document.execCommand('bold'); };
+    tb.appendChild(bold);
+
+    // 구분선
+    const sep1 = document.createElement('div');
+    sep1.style.cssText = 'width:1px;height:18px;background:rgba(255,255,255,0.2);';
+    tb.appendChild(sep1);
+
+    // 글자색 라벨
+    const lbl1 = document.createElement('span');
+    lbl1.textContent = 'A';
+    lbl1.style.cssText = 'font-size:11px;color:#999;font-family:DM Mono,monospace;';
+    tb.appendChild(lbl1);
+
+    // 글자색 팔레트
+    COLORS.forEach(c => {
+      const dot = document.createElement('button');
+      dot.style.cssText = `width:16px;height:16px;border-radius:50%;background:${c};border:1px solid rgba(255,255,255,0.3);cursor:pointer;padding:0;flex-shrink:0;`;
+      dot.title = c;
+      dot.onmousedown = e => { e.preventDefault(); document.execCommand('foreColor', false, c); };
+      tb.appendChild(dot);
+    });
+
+    // 구분선
+    const sep2 = document.createElement('div');
+    sep2.style.cssText = 'width:1px;height:18px;background:rgba(255,255,255,0.2);';
+    tb.appendChild(sep2);
+
+    // 형광펜 라벨
+    const lbl2 = document.createElement('span');
+    lbl2.style.cssText = 'font-size:13px;color:#999;';
+    lbl2.textContent = '🖍';
+    tb.appendChild(lbl2);
+
+    // 형광펜 팔레트
+    HIGHLIGHTS.forEach(c => {
+      const dot = document.createElement('button');
+      dot.style.cssText = `width:16px;height:16px;border-radius:3px;background:${c};border:1px solid rgba(255,255,255,0.3);cursor:pointer;padding:0;flex-shrink:0;`;
+      dot.title = '형광펜';
+      dot.onmousedown = e => {
+        e.preventDefault();
+        document.execCommand('hiliteColor', false, c);
+      };
+      tb.appendChild(dot);
+    });
+
+    // 구분선
+    const sep3 = document.createElement('div');
+    sep3.style.cssText = 'width:1px;height:18px;background:rgba(255,255,255,0.2);';
+    tb.appendChild(sep3);
+
+    // 서식 제거
+    const clr = document.createElement('button');
+    clr.textContent = '✕';
+    clr.title = '서식 제거';
+    clr.style.cssText = 'font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:#999;border-radius:4px;padding:3px 7px;cursor:pointer;';
+    clr.onmousedown = e => { e.preventDefault(); document.execCommand('removeFormat'); };
+    tb.appendChild(clr);
+
+    document.body.appendChild(tb);
+    tb.style.display = 'flex';
+    tb.style.display = 'none';
+    return tb;
+  }
+
+  function showToolbar(){
+    const sel = window.getSelection();
+    if(!sel || sel.isCollapsed || !sel.toString().trim()) { hideToolbar(); return; }
+    // contenteditable 안에서만
+    let node = sel.anchorNode;
+    while(node && node.nodeType !== 1) node = node.parentNode;
+    if(!node || !node.closest('[contenteditable="true"]')) { hideToolbar(); return; }
+
+    const tb = getOrCreateToolbar();
+    const range = sel.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    tb.style.display = 'flex';
+    const tbW = tb.offsetWidth || 300;
+    let left = rect.left + (rect.width/2) - (tbW/2);
+    let top = rect.top - tb.offsetHeight - 8 + window.scrollY;
+    if(left < 4) left = 4;
+    if(left + tbW > window.innerWidth - 4) left = window.innerWidth - tbW - 4;
+    if(top < window.scrollY + 4) top = rect.bottom + 8 + window.scrollY;
+    tb.style.left = left + 'px';
+    tb.style.top = top + 'px';
+  }
+
+  function hideToolbar(){
+    const tb = document.getElementById(TOOLBAR_ID);
+    if(tb) tb.style.display = 'none';
+  }
+
+  document.addEventListener('mouseup', () => setTimeout(showToolbar, 10));
+  document.addEventListener('keyup', () => setTimeout(showToolbar, 10));
+  document.addEventListener('mousedown', e => {
+    const tb = document.getElementById(TOOLBAR_ID);
+    if(tb && !tb.contains(e.target)) hideToolbar();
+  });
+  document.addEventListener('scroll', hideToolbar, true);
+
+  window.CE_ENGINE_LOADED = true;
+})();
+
 </script>
 </body>
 </html>

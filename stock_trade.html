@@ -78,6 +78,26 @@ td.center-c{padding:9px 11px;text-align:center;color:var(--text2);font-size:14px
 .add-row-btn{width:100%;padding:12px;font-size:14px;font-family:'DM Mono',monospace;border:1px dashed var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;}
 .add-row-btn:hover{border-color:var(--stock);color:var(--stock);}
 .empty-msg{text-align:center;padding:40px;color:var(--text3);font-size:15px;font-family:'DM Mono',monospace;}
+/* contenteditable 셀 공통 스타일 */
+.ce-cell{
+  width:100%;height:100%;
+  min-height:60px;
+  background:transparent;
+  color:var(--text);
+  font-size:14px;
+  padding:8px 10px;
+  font-family:'Noto Sans KR',sans-serif;
+  line-height:1.6;
+  box-sizing:border-box;
+  outline:none;
+  overflow-y:auto;
+  word-break:break-word;
+  white-space:pre-wrap;
+}
+.ce-cell:focus{background:rgba(251,191,36,0.04);}
+.ce-cell b, .ce-cell strong{color:inherit;}
+
+.ce-cell:empty:before{content:attr(placeholder);color:var(--text3);pointer-events:none;}
 </style>
 </head>
 <body>
@@ -136,9 +156,9 @@ td.center-c{padding:9px 11px;text-align:center;color:var(--text2);font-size:14px
       <div class="fr"><label>손절가 (원)</label><input id="f-stop" type="number"></div>
       <div class="fr"><label>지수 상태</label><input id="f-index" placeholder="매수가능/급락중/변동성큼"></div>
       <div class="fr fr-full"><label>차트패턴</label><input id="f-chart" placeholder="눌림목 / 돌파 / 횡보 이탈 등"></div>
-      <div class="fr fr-full"><label>재료</label><textarea id="f-material" placeholder="재료 강도와 지속성..."></textarea></div>
+      <div class="fr fr-full"><label>재료</label><div id="f-material" class="ce-cell" contenteditable="true" placeholder="재료 강도와 지속성..."></div></div>
       <div class="fr fr-full"><label>수급</label><input id="f-supply" placeholder="기관/외인/개인 방향, 거래량"></div>
-      <div class="fr fr-full"><label>매수 사유 (종합)</label><textarea id="f-reason" placeholder="위 3가지 종합 한 줄..."></textarea></div>
+      <div class="fr fr-full"><label>매수 사유 (종합)</label><div id="f-reason" class="ce-cell" contenteditable="true" placeholder="위 3가지 종합 한 줄..."></div></div>
       <div class="fr fr-full"><label>예상 시나리오</label><input id="f-scenario" placeholder="기대 흐름 · 언제/얼마까지"></div>
       <div class="fr fr-full"><label>급락 시 대응</label><input id="f-defense" placeholder="추가매수 / 손절 / 홀딩 기준"></div>
       <div class="fr"><label>뇌동 아닌가?</label><div class="yn-row"><button class="yn-btn yes on" id="yn-yes" onclick="setYN(true)">정상 ✓</button><button class="yn-btn no" id="yn-no" onclick="setYN(false)">뇌동 ✗</button></div></div>
@@ -202,9 +222,9 @@ function addTradeFromForm(){
   row['손절가']=document.getElementById('f-stop').value;
   row['지수']=document.getElementById('f-index').value;
   row['차트패턴']=document.getElementById('f-chart').value;
-  row['재료']=document.getElementById('f-material').value;
+  row['재료']=document.getElementById('f-material').innerHTML;
   row['수급']=document.getElementById('f-supply').value;
-  row['매수사유']=document.getElementById('f-reason').value;
+  row['매수사유']=document.getElementById('f-reason').innerHTML;
   row['시나리오']=document.getElementById('f-scenario').value;
   row['급락대응']=document.getElementById('f-defense').value;
   row['정상/뇌동']=isNormal?'정상':'뇌동';
@@ -517,6 +537,142 @@ document.addEventListener('keydown',function(e){
     if(nextIdx>=0&&nextIdx<allCells.length){allCells[nextIdx].focus();if(allCells[nextIdx].select)allCells[nextIdx].select();}
   }
 });
+</script>
+<script>
+/* ============================================================
+   CONTENTEDITABLE RICH TEXT ENGINE
+   - 텍스트 선택 후 미니 툴바: 볼드, 글자색, 형광펜
+   - 저장: innerHTML (기존 plain text도 그대로 읽힘)
+   - 툴바는 선택 영역 위에 자동 위치
+   ============================================================ */
+
+(function(){
+  const TOOLBAR_ID = 'ce-toolbar';
+  const COLORS = ['#fbbf24','#fb7185','#34d399','#60a5fa','#a78bfa','#f97316','#ffffff','#000000'];
+  const HIGHLIGHTS = ['#fbbf2440','#fb718540','#34d39940','#60a5fa40','#a78bfa40','rgba(251,191,36,0.35)','rgba(251,113,133,0.35)','rgba(52,211,153,0.35)'];
+
+  function getOrCreateToolbar(){
+    let tb = document.getElementById(TOOLBAR_ID);
+    if(tb) return tb;
+    tb = document.createElement('div');
+    tb.id = TOOLBAR_ID;
+    tb.style.cssText = `
+      position:fixed;z-index:9999;
+      background:#1c1c1f;border:1px solid rgba(255,255,255,0.25);
+      border-radius:8px;padding:6px 8px;
+      display:none;flex-wrap:wrap;gap:4px;align-items:center;
+      box-shadow:0 4px 20px rgba(0,0,0,0.5);
+      max-width:320px;
+    `;
+
+    // 볼드
+    const bold = document.createElement('button');
+    bold.textContent = 'B';
+    bold.style.cssText = 'font-weight:700;font-size:13px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:#f0f0f0;border-radius:4px;padding:3px 8px;cursor:pointer;font-family:DM Mono,monospace;';
+    bold.title = '볼드';
+    bold.onmousedown = e => { e.preventDefault(); document.execCommand('bold'); };
+    tb.appendChild(bold);
+
+    // 구분선
+    const sep1 = document.createElement('div');
+    sep1.style.cssText = 'width:1px;height:18px;background:rgba(255,255,255,0.2);';
+    tb.appendChild(sep1);
+
+    // 글자색 라벨
+    const lbl1 = document.createElement('span');
+    lbl1.textContent = 'A';
+    lbl1.style.cssText = 'font-size:11px;color:#999;font-family:DM Mono,monospace;';
+    tb.appendChild(lbl1);
+
+    // 글자색 팔레트
+    COLORS.forEach(c => {
+      const dot = document.createElement('button');
+      dot.style.cssText = `width:16px;height:16px;border-radius:50%;background:${c};border:1px solid rgba(255,255,255,0.3);cursor:pointer;padding:0;flex-shrink:0;`;
+      dot.title = c;
+      dot.onmousedown = e => { e.preventDefault(); document.execCommand('foreColor', false, c); };
+      tb.appendChild(dot);
+    });
+
+    // 구분선
+    const sep2 = document.createElement('div');
+    sep2.style.cssText = 'width:1px;height:18px;background:rgba(255,255,255,0.2);';
+    tb.appendChild(sep2);
+
+    // 형광펜 라벨
+    const lbl2 = document.createElement('span');
+    lbl2.style.cssText = 'font-size:13px;color:#999;';
+    lbl2.textContent = '🖍';
+    tb.appendChild(lbl2);
+
+    // 형광펜 팔레트
+    HIGHLIGHTS.forEach(c => {
+      const dot = document.createElement('button');
+      dot.style.cssText = `width:16px;height:16px;border-radius:3px;background:${c};border:1px solid rgba(255,255,255,0.3);cursor:pointer;padding:0;flex-shrink:0;`;
+      dot.title = '형광펜';
+      dot.onmousedown = e => {
+        e.preventDefault();
+        document.execCommand('hiliteColor', false, c);
+      };
+      tb.appendChild(dot);
+    });
+
+    // 구분선
+    const sep3 = document.createElement('div');
+    sep3.style.cssText = 'width:1px;height:18px;background:rgba(255,255,255,0.2);';
+    tb.appendChild(sep3);
+
+    // 서식 제거
+    const clr = document.createElement('button');
+    clr.textContent = '✕';
+    clr.title = '서식 제거';
+    clr.style.cssText = 'font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:#999;border-radius:4px;padding:3px 7px;cursor:pointer;';
+    clr.onmousedown = e => { e.preventDefault(); document.execCommand('removeFormat'); };
+    tb.appendChild(clr);
+
+    document.body.appendChild(tb);
+    tb.style.display = 'flex';
+    tb.style.display = 'none';
+    return tb;
+  }
+
+  function showToolbar(){
+    const sel = window.getSelection();
+    if(!sel || sel.isCollapsed || !sel.toString().trim()) { hideToolbar(); return; }
+    // contenteditable 안에서만
+    let node = sel.anchorNode;
+    while(node && node.nodeType !== 1) node = node.parentNode;
+    if(!node || !node.closest('[contenteditable="true"]')) { hideToolbar(); return; }
+
+    const tb = getOrCreateToolbar();
+    const range = sel.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    tb.style.display = 'flex';
+    const tbW = tb.offsetWidth || 300;
+    let left = rect.left + (rect.width/2) - (tbW/2);
+    let top = rect.top - tb.offsetHeight - 8 + window.scrollY;
+    if(left < 4) left = 4;
+    if(left + tbW > window.innerWidth - 4) left = window.innerWidth - tbW - 4;
+    if(top < window.scrollY + 4) top = rect.bottom + 8 + window.scrollY;
+    tb.style.left = left + 'px';
+    tb.style.top = top + 'px';
+  }
+
+  function hideToolbar(){
+    const tb = document.getElementById(TOOLBAR_ID);
+    if(tb) tb.style.display = 'none';
+  }
+
+  document.addEventListener('mouseup', () => setTimeout(showToolbar, 10));
+  document.addEventListener('keyup', () => setTimeout(showToolbar, 10));
+  document.addEventListener('mousedown', e => {
+    const tb = document.getElementById(TOOLBAR_ID);
+    if(tb && !tb.contains(e.target)) hideToolbar();
+  });
+  document.addEventListener('scroll', hideToolbar, true);
+
+  window.CE_ENGINE_LOADED = true;
+})();
+
 </script>
 </body>
 </html>

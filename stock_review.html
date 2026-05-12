@@ -165,6 +165,26 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 .drag-handle{cursor:grab;color:var(--text3);font-size:14px;user-select:none;display:block;text-align:center;padding:6px 3px;}
 tr:hover .ex-table td{background:rgba(255,255,255,0.015);}
 
+/* contenteditable 셀 공통 스타일 */
+.ce-cell{
+  width:100%;height:100%;
+  min-height:60px;
+  background:transparent;
+  color:var(--text);
+  font-size:14px;
+  padding:8px 10px;
+  font-family:'Noto Sans KR',sans-serif;
+  line-height:1.6;
+  box-sizing:border-box;
+  outline:none;
+  overflow-y:auto;
+  word-break:break-word;
+  white-space:pre-wrap;
+}
+.ce-cell:focus{background:rgba(251,191,36,0.04);}
+.ce-cell b, .ce-cell strong{color:inherit;}
+
+.ce-cell:empty:before{content:attr(placeholder);color:var(--text3);pointer-events:none;}
 </style>
 </head>
 <body>
@@ -223,13 +243,13 @@ tr:hover .ex-table td{background:rgba(255,255,255,0.015);}
       <button onclick="changeDate(1)">▶</button>
     </div>
     <div class="form-grid">
-      <div class="fr fr-full"><label>시황 복기 <span class="hint">· 코스피/코스닥 방향, 섹터 동향</span></label><textarea id="r-market" rows="3" placeholder="오늘 시장 전체 흐름..."></textarea></div>
-      <div class="fr"><label>내일 전략</label><textarea id="r-tomorrow" rows="2" placeholder="내일 주목할 것 · 매매 계획..."></textarea></div>
-      <div class="fr"><label>보유종목 변화</label><textarea id="r-holdings" rows="2" placeholder="보유 종목별 오늘 흐름과 대응..."></textarea></div>
-      <div class="fr"><label>관심종목 업데이트</label><textarea id="r-watchlist" rows="2" placeholder="관심 종목 변화..."></textarea></div>
-      <div class="fr"><label>매매 내용 <span class="hint">· 미매매 시 이유</span></label><textarea id="r-trade" rows="2" placeholder="종목 · 진입근거 · 결과 또는 미매매 이유..."></textarea></div>
-      <div class="fr"><label>반성 / 잘한 점</label><textarea id="r-reflect" rows="2" placeholder="잘한 것과 반성할 것..."></textarea></div>
-      <div class="fr fr-full"><label>원칙 준수 여부</label><textarea id="r-rule" rows="2" placeholder="손절가 설정 여부 · 뇌동매매 여부 · 매매시간 준수..."></textarea></div>
+      <div class="fr fr-full"><label>시황 복기 <span class="hint">· 코스피/코스닥 방향, 섹터 동향</span></label><div id="r-market" class="ce-cell" contenteditable="true" placeholder="오늘 시장 전체 흐름..." style="min-height:72px;"></div></div>
+      <div class="fr"><label>내일 전략</label><div id="r-tomorrow" class="ce-cell" contenteditable="true" placeholder="내일 주목할 것 · 매매 계획..." style="min-height:48px;"></div></div>
+      <div class="fr"><label>보유종목 변화</label><div id="r-holdings" class="ce-cell" contenteditable="true" placeholder="보유 종목별 오늘 흐름과 대응..." style="min-height:48px;"></div></div>
+      <div class="fr"><label>관심종목 업데이트</label><div id="r-watchlist" class="ce-cell" contenteditable="true" placeholder="관심 종목 변화..." style="min-height:48px;"></div></div>
+      <div class="fr"><label>매매 내용 <span class="hint">· 미매매 시 이유</span></label><div id="r-trade" class="ce-cell" contenteditable="true" placeholder="종목 · 진입근거 · 결과 또는 미매매 이유..." style="min-height:48px;"></div></div>
+      <div class="fr"><label>반성 / 잘한 점</label><div id="r-reflect" class="ce-cell" contenteditable="true" placeholder="잘한 것과 반성할 것..." style="min-height:48px;"></div></div>
+      <div class="fr fr-full"><label>원칙 준수 여부</label><div id="r-rule" class="ce-cell" contenteditable="true" placeholder="손절가 설정 여부 · 뇌동매매 여부 · 매매시간 준수..." style="min-height:48px;"></div></div>
     </div>
     <button class="save-btn" onclick="saveReview()">복기 저장 → 테이블에 추가</button>
   </div>
@@ -410,7 +430,9 @@ function renderTable(){
       </td>
       <td data-col="주차" id="week-${ri}" style="width:${cw['주차']||COL_DEF['주차']}px;height:${rh}px;vertical-align:middle;border:2px solid var(--border2);padding:8px 10px;font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);">${row.week||getWeekLabel(row.date)}</td>
       ${data.cols.map(c=>`<td data-col="${c}" style="width:${cw[c]||COL_DEF[c]||180}px;height:${rh}px;border:2px solid var(--border2);">
-        <textarea onblur="updateCell(${ri},'${c}',this.value)" placeholder="${c}...">${(row.cells&&row.cells[c])||''}</textarea>
+        <div class="ce-cell" contenteditable="true"
+          onblur="updateCellCE_sr(this,${ri},'${c}')"
+          placeholder="${c}...">${(row.cells&&row.cells[c])||''}</div>
       </td>`).join('')}
       <td style="width:52px;height:${rh}px;text-align:center;vertical-align:middle;border:2px solid var(--border2);padding:4px;">
         <button class="del-btn" onclick="deleteRow(${ri})">삭제</button>
@@ -598,6 +620,142 @@ function startRowResize(e, tableId, rowDataIdx) {
   document.addEventListener('mousemove',mm);
   document.addEventListener('mouseup',mu);
 }
+
+</script>
+<script>
+/* ============================================================
+   CONTENTEDITABLE RICH TEXT ENGINE
+   - 텍스트 선택 후 미니 툴바: 볼드, 글자색, 형광펜
+   - 저장: innerHTML (기존 plain text도 그대로 읽힘)
+   - 툴바는 선택 영역 위에 자동 위치
+   ============================================================ */
+
+(function(){
+  const TOOLBAR_ID = 'ce-toolbar';
+  const COLORS = ['#fbbf24','#fb7185','#34d399','#60a5fa','#a78bfa','#f97316','#ffffff','#000000'];
+  const HIGHLIGHTS = ['#fbbf2440','#fb718540','#34d39940','#60a5fa40','#a78bfa40','rgba(251,191,36,0.35)','rgba(251,113,133,0.35)','rgba(52,211,153,0.35)'];
+
+  function getOrCreateToolbar(){
+    let tb = document.getElementById(TOOLBAR_ID);
+    if(tb) return tb;
+    tb = document.createElement('div');
+    tb.id = TOOLBAR_ID;
+    tb.style.cssText = `
+      position:fixed;z-index:9999;
+      background:#1c1c1f;border:1px solid rgba(255,255,255,0.25);
+      border-radius:8px;padding:6px 8px;
+      display:none;flex-wrap:wrap;gap:4px;align-items:center;
+      box-shadow:0 4px 20px rgba(0,0,0,0.5);
+      max-width:320px;
+    `;
+
+    // 볼드
+    const bold = document.createElement('button');
+    bold.textContent = 'B';
+    bold.style.cssText = 'font-weight:700;font-size:13px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:#f0f0f0;border-radius:4px;padding:3px 8px;cursor:pointer;font-family:DM Mono,monospace;';
+    bold.title = '볼드';
+    bold.onmousedown = e => { e.preventDefault(); document.execCommand('bold'); };
+    tb.appendChild(bold);
+
+    // 구분선
+    const sep1 = document.createElement('div');
+    sep1.style.cssText = 'width:1px;height:18px;background:rgba(255,255,255,0.2);';
+    tb.appendChild(sep1);
+
+    // 글자색 라벨
+    const lbl1 = document.createElement('span');
+    lbl1.textContent = 'A';
+    lbl1.style.cssText = 'font-size:11px;color:#999;font-family:DM Mono,monospace;';
+    tb.appendChild(lbl1);
+
+    // 글자색 팔레트
+    COLORS.forEach(c => {
+      const dot = document.createElement('button');
+      dot.style.cssText = `width:16px;height:16px;border-radius:50%;background:${c};border:1px solid rgba(255,255,255,0.3);cursor:pointer;padding:0;flex-shrink:0;`;
+      dot.title = c;
+      dot.onmousedown = e => { e.preventDefault(); document.execCommand('foreColor', false, c); };
+      tb.appendChild(dot);
+    });
+
+    // 구분선
+    const sep2 = document.createElement('div');
+    sep2.style.cssText = 'width:1px;height:18px;background:rgba(255,255,255,0.2);';
+    tb.appendChild(sep2);
+
+    // 형광펜 라벨
+    const lbl2 = document.createElement('span');
+    lbl2.style.cssText = 'font-size:13px;color:#999;';
+    lbl2.textContent = '🖍';
+    tb.appendChild(lbl2);
+
+    // 형광펜 팔레트
+    HIGHLIGHTS.forEach(c => {
+      const dot = document.createElement('button');
+      dot.style.cssText = `width:16px;height:16px;border-radius:3px;background:${c};border:1px solid rgba(255,255,255,0.3);cursor:pointer;padding:0;flex-shrink:0;`;
+      dot.title = '형광펜';
+      dot.onmousedown = e => {
+        e.preventDefault();
+        document.execCommand('hiliteColor', false, c);
+      };
+      tb.appendChild(dot);
+    });
+
+    // 구분선
+    const sep3 = document.createElement('div');
+    sep3.style.cssText = 'width:1px;height:18px;background:rgba(255,255,255,0.2);';
+    tb.appendChild(sep3);
+
+    // 서식 제거
+    const clr = document.createElement('button');
+    clr.textContent = '✕';
+    clr.title = '서식 제거';
+    clr.style.cssText = 'font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:#999;border-radius:4px;padding:3px 7px;cursor:pointer;';
+    clr.onmousedown = e => { e.preventDefault(); document.execCommand('removeFormat'); };
+    tb.appendChild(clr);
+
+    document.body.appendChild(tb);
+    tb.style.display = 'flex';
+    tb.style.display = 'none';
+    return tb;
+  }
+
+  function showToolbar(){
+    const sel = window.getSelection();
+    if(!sel || sel.isCollapsed || !sel.toString().trim()) { hideToolbar(); return; }
+    // contenteditable 안에서만
+    let node = sel.anchorNode;
+    while(node && node.nodeType !== 1) node = node.parentNode;
+    if(!node || !node.closest('[contenteditable="true"]')) { hideToolbar(); return; }
+
+    const tb = getOrCreateToolbar();
+    const range = sel.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    tb.style.display = 'flex';
+    const tbW = tb.offsetWidth || 300;
+    let left = rect.left + (rect.width/2) - (tbW/2);
+    let top = rect.top - tb.offsetHeight - 8 + window.scrollY;
+    if(left < 4) left = 4;
+    if(left + tbW > window.innerWidth - 4) left = window.innerWidth - tbW - 4;
+    if(top < window.scrollY + 4) top = rect.bottom + 8 + window.scrollY;
+    tb.style.left = left + 'px';
+    tb.style.top = top + 'px';
+  }
+
+  function hideToolbar(){
+    const tb = document.getElementById(TOOLBAR_ID);
+    if(tb) tb.style.display = 'none';
+  }
+
+  document.addEventListener('mouseup', () => setTimeout(showToolbar, 10));
+  document.addEventListener('keyup', () => setTimeout(showToolbar, 10));
+  document.addEventListener('mousedown', e => {
+    const tb = document.getElementById(TOOLBAR_ID);
+    if(tb && !tb.contains(e.target)) hideToolbar();
+  });
+  document.addEventListener('scroll', hideToolbar, true);
+
+  window.CE_ENGINE_LOADED = true;
+})();
 
 </script>
 </body>

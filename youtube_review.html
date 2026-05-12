@@ -130,6 +130,26 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 .drag-handle{cursor:grab;color:var(--text3);font-size:14px;user-select:none;display:block;text-align:center;padding:6px 3px;}
 tr:hover .ex-table td{background:rgba(255,255,255,0.015);}
 
+/* contenteditable 셀 공통 스타일 */
+.ce-cell{
+  width:100%;height:100%;
+  min-height:60px;
+  background:transparent;
+  color:var(--text);
+  font-size:14px;
+  padding:8px 10px;
+  font-family:'Noto Sans KR',sans-serif;
+  line-height:1.6;
+  box-sizing:border-box;
+  outline:none;
+  overflow-y:auto;
+  word-break:break-word;
+  white-space:pre-wrap;
+}
+.ce-cell:focus{background:rgba(251,191,36,0.04);}
+.ce-cell b, .ce-cell strong{color:inherit;}
+
+.ce-cell:empty:before{content:attr(placeholder);color:var(--text3);pointer-events:none;}
 </style>
 </head>
 <body>
@@ -205,6 +225,12 @@ function deleteRow(idx){
   if(!confirm('삭제?'))return;const data=getData();data.rows.splice(idx,1);saveData(data);render();
 }
 
+function updateCellCE_yt(el, idx, col){
+  const data=getData();
+  if(!data.rows[idx])return;
+  data.rows[idx][col]=el.innerHTML;
+  saveData(data);
+}
 function updateCell(idx,col,val){
   const data=getData();if(!data.rows[idx])return;data.rows[idx][col]=val;saveData(data);
 }
@@ -268,7 +294,9 @@ function render(){
                 <input type="date" value="${row['날짜']||''}" onchange="updateCell(${idx},'날짜',this.value)">
               </td>
               ${cols.filter(c=>c!=='날짜').map(c=>`<td data-col="${c}" style="width:${cw[c]||DEFAULT_W}px;height:${rh}px;border:2px solid var(--border2);">
-                <textarea onblur="updateCell(${idx},'${c}',this.value)" placeholder="${c} 핵심 내용...">${(row[c]||'').replace(/</g,'&lt;')}</textarea>
+                <div class="ce-cell" contenteditable="true"
+                  onblur="updateCellCE_yt(this,${idx},'${c}')"
+                  placeholder="${c} 핵심 내용...">${row[c]||''}</div>
               </td>`).join('')}
               <td style="width:52px;height:${rh}px;text-align:center;vertical-align:middle;border:2px solid var(--border2);padding:4px;">
                 <button class="del-btn" onclick="deleteRow(${idx})">삭제</button>
@@ -439,6 +467,142 @@ function startRowResize(e, tableId, rowDataIdx) {
   document.addEventListener('mousemove',mm);
   document.addEventListener('mouseup',mu);
 }
+
+</script>
+<script>
+/* ============================================================
+   CONTENTEDITABLE RICH TEXT ENGINE
+   - 텍스트 선택 후 미니 툴바: 볼드, 글자색, 형광펜
+   - 저장: innerHTML (기존 plain text도 그대로 읽힘)
+   - 툴바는 선택 영역 위에 자동 위치
+   ============================================================ */
+
+(function(){
+  const TOOLBAR_ID = 'ce-toolbar';
+  const COLORS = ['#fbbf24','#fb7185','#34d399','#60a5fa','#a78bfa','#f97316','#ffffff','#000000'];
+  const HIGHLIGHTS = ['#fbbf2440','#fb718540','#34d39940','#60a5fa40','#a78bfa40','rgba(251,191,36,0.35)','rgba(251,113,133,0.35)','rgba(52,211,153,0.35)'];
+
+  function getOrCreateToolbar(){
+    let tb = document.getElementById(TOOLBAR_ID);
+    if(tb) return tb;
+    tb = document.createElement('div');
+    tb.id = TOOLBAR_ID;
+    tb.style.cssText = `
+      position:fixed;z-index:9999;
+      background:#1c1c1f;border:1px solid rgba(255,255,255,0.25);
+      border-radius:8px;padding:6px 8px;
+      display:none;flex-wrap:wrap;gap:4px;align-items:center;
+      box-shadow:0 4px 20px rgba(0,0,0,0.5);
+      max-width:320px;
+    `;
+
+    // 볼드
+    const bold = document.createElement('button');
+    bold.textContent = 'B';
+    bold.style.cssText = 'font-weight:700;font-size:13px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:#f0f0f0;border-radius:4px;padding:3px 8px;cursor:pointer;font-family:DM Mono,monospace;';
+    bold.title = '볼드';
+    bold.onmousedown = e => { e.preventDefault(); document.execCommand('bold'); };
+    tb.appendChild(bold);
+
+    // 구분선
+    const sep1 = document.createElement('div');
+    sep1.style.cssText = 'width:1px;height:18px;background:rgba(255,255,255,0.2);';
+    tb.appendChild(sep1);
+
+    // 글자색 라벨
+    const lbl1 = document.createElement('span');
+    lbl1.textContent = 'A';
+    lbl1.style.cssText = 'font-size:11px;color:#999;font-family:DM Mono,monospace;';
+    tb.appendChild(lbl1);
+
+    // 글자색 팔레트
+    COLORS.forEach(c => {
+      const dot = document.createElement('button');
+      dot.style.cssText = `width:16px;height:16px;border-radius:50%;background:${c};border:1px solid rgba(255,255,255,0.3);cursor:pointer;padding:0;flex-shrink:0;`;
+      dot.title = c;
+      dot.onmousedown = e => { e.preventDefault(); document.execCommand('foreColor', false, c); };
+      tb.appendChild(dot);
+    });
+
+    // 구분선
+    const sep2 = document.createElement('div');
+    sep2.style.cssText = 'width:1px;height:18px;background:rgba(255,255,255,0.2);';
+    tb.appendChild(sep2);
+
+    // 형광펜 라벨
+    const lbl2 = document.createElement('span');
+    lbl2.style.cssText = 'font-size:13px;color:#999;';
+    lbl2.textContent = '🖍';
+    tb.appendChild(lbl2);
+
+    // 형광펜 팔레트
+    HIGHLIGHTS.forEach(c => {
+      const dot = document.createElement('button');
+      dot.style.cssText = `width:16px;height:16px;border-radius:3px;background:${c};border:1px solid rgba(255,255,255,0.3);cursor:pointer;padding:0;flex-shrink:0;`;
+      dot.title = '형광펜';
+      dot.onmousedown = e => {
+        e.preventDefault();
+        document.execCommand('hiliteColor', false, c);
+      };
+      tb.appendChild(dot);
+    });
+
+    // 구분선
+    const sep3 = document.createElement('div');
+    sep3.style.cssText = 'width:1px;height:18px;background:rgba(255,255,255,0.2);';
+    tb.appendChild(sep3);
+
+    // 서식 제거
+    const clr = document.createElement('button');
+    clr.textContent = '✕';
+    clr.title = '서식 제거';
+    clr.style.cssText = 'font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:#999;border-radius:4px;padding:3px 7px;cursor:pointer;';
+    clr.onmousedown = e => { e.preventDefault(); document.execCommand('removeFormat'); };
+    tb.appendChild(clr);
+
+    document.body.appendChild(tb);
+    tb.style.display = 'flex';
+    tb.style.display = 'none';
+    return tb;
+  }
+
+  function showToolbar(){
+    const sel = window.getSelection();
+    if(!sel || sel.isCollapsed || !sel.toString().trim()) { hideToolbar(); return; }
+    // contenteditable 안에서만
+    let node = sel.anchorNode;
+    while(node && node.nodeType !== 1) node = node.parentNode;
+    if(!node || !node.closest('[contenteditable="true"]')) { hideToolbar(); return; }
+
+    const tb = getOrCreateToolbar();
+    const range = sel.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    tb.style.display = 'flex';
+    const tbW = tb.offsetWidth || 300;
+    let left = rect.left + (rect.width/2) - (tbW/2);
+    let top = rect.top - tb.offsetHeight - 8 + window.scrollY;
+    if(left < 4) left = 4;
+    if(left + tbW > window.innerWidth - 4) left = window.innerWidth - tbW - 4;
+    if(top < window.scrollY + 4) top = rect.bottom + 8 + window.scrollY;
+    tb.style.left = left + 'px';
+    tb.style.top = top + 'px';
+  }
+
+  function hideToolbar(){
+    const tb = document.getElementById(TOOLBAR_ID);
+    if(tb) tb.style.display = 'none';
+  }
+
+  document.addEventListener('mouseup', () => setTimeout(showToolbar, 10));
+  document.addEventListener('keyup', () => setTimeout(showToolbar, 10));
+  document.addEventListener('mousedown', e => {
+    const tb = document.getElementById(TOOLBAR_ID);
+    if(tb && !tb.contains(e.target)) hideToolbar();
+  });
+  document.addEventListener('scroll', hideToolbar, true);
+
+  window.CE_ENGINE_LOADED = true;
+})();
 
 </script>
 </body>
