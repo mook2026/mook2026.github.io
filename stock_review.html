@@ -316,6 +316,7 @@ function initDate(){document.getElementById('review-date').value=currentDate;loa
 function changeDate(dir){const d=new Date(currentDate);d.setDate(d.getDate()+dir);currentDate=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());document.getElementById('review-date').value=currentDate;loadForm(currentDate);}
 document.getElementById('review-date').addEventListener('change',function(){currentDate=this.value;loadForm(currentDate);});
 
+/* [수정 v8] loadForm: CE div는 .value 없음 → .innerHTML 사용, row.cells 안전하게 */
 function loadForm(date){
   const data=getData();
   const row=data.rows.find(r=>r.date===date);
@@ -323,16 +324,22 @@ function loadForm(date){
   const cols=['시황','내일전략','보유종목','관심종목','매매내용','반성','원칙준수'];
   fields.forEach((f,i)=>{
     const el=document.getElementById('r-'+f);
-    if(el)el.value=row?.(row.cells[cols[i]])||'';
+    if(!el)return;
+    const val=(row&&row.cells&&row.cells[cols[i]])||'';
+    el.innerHTML=val;
   });
 }
 
+/* [수정 v9] saveReview: CE div .value → .innerHTML */
 function saveReview(){
   const data=getData();
   const fields=['market','tomorrow','holdings','watchlist','trade','reflect','rule'];
   const cols=['시황','내일전략','보유종목','관심종목','매매내용','반성','원칙준수'];
   const cells={};
-  fields.forEach((f,i)=>{cells[cols[i]]=document.getElementById('r-'+f).value;});
+  fields.forEach((f,i)=>{
+    const el=document.getElementById('r-'+f);
+    cells[cols[i]]=el?el.innerHTML:'';
+  });
   const idx=data.rows.findIndex(r=>r.date===currentDate);
   const row={date:currentDate,week:getWeekLabel(currentDate),cells};
   if(idx>=0)data.rows[idx]=row;
