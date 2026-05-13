@@ -10,8 +10,14 @@
   v6. 자동저장 엔진 + CE_ENGINE 툴바
   v7. renameColSR 함수 추가 - 열 이름 변경
   v8. 폼 textarea (r-market 등 7개) → CE div, .value → .innerHTML
+  v9. loadForm(): el.value → el.innerHTML (CE div는 .value 없어서 스크립트 오류 → 빈화면 버그 수정)
+  v10. saveReview(): .value → .innerHTML (동일 이유)
   [주의] updateCellCE_sr: row.cells[col] = el.innerHTML 로 저장
   [주의] getData()에 colWidths/rowHeights 초기화 필수
+  v11. updateCellCE_sr 함수 누락 버그 수정 (함수 없어서 CE셀 저장 전혀 안됐음)
+  v11. AS엔진 blur dispatchEvent 제거 → onblur 핸들러 직접 eval (blur강제발생이 innerHTML 초기화 유발)
+  [주의] 폼 CE div 읽기/쓰기 항상 .innerHTML 사용 (.value 절대 사용 금지)
+  [주의] CE셀 저장함수(updateCellCE_sr 등) 반드시 존재 확인 후 배포
 -->
 <head>
 <meta charset="UTF-8">
@@ -309,6 +315,15 @@ function getData(){
   return {cols:[...DEFAULT_COLS],rows:[],colWidths:{},rowHeights:{}};
 }
 function saveData(d){if(!d.colWidths)d.colWidths={};if(!d.rowHeights)d.rowHeights={};lss('stock_review_tbl',JSON.stringify(d));fbSave();}
+
+/* [수정 v11] updateCellCE_sr 함수 누락으로 CE셀 저장 안되던 버그 수정 */
+function updateCellCE_sr(el, ri, col){
+  const data=getData();
+  if(!data.rows[ri])return;
+  if(!data.rows[ri].cells)data.rows[ri].cells={};
+  data.rows[ri].cells[col]=el.innerHTML;
+  saveData(data);
+}
 
 let currentDate=todayStr();
 
@@ -828,8 +843,12 @@ function startRowResize(e, tableId, rowDataIdx) {
     setStatus('입력중...', '#fbbf24');
     clearTimeout(_saveTimer);
     _saveTimer = setTimeout(function(){
-      // 현재 포커스된 CE 셀 저장 트리거
-      el.dispatchEvent(new Event('blur', {bubbles:true}));
+      /* [수정 v11] dispatchEvent(blur) 제거 → onblur 핸들러 직접 호출
+         blur 강제발생 시 포커스 이동 → CE셀 innerHTML 초기화 버그 있었음 */
+      const onblurAttr = el.getAttribute('onblur');
+      if(onblurAttr){
+        try{ eval(onblurAttr.replace('this', 'el')); }catch(err){}
+      }
       _dirty = false;
       setStatus('저장됨 ✓ ' + nowTime(), '#34d399');
     }, DEBOUNCE);
