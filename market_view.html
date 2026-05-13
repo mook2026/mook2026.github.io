@@ -1,5 +1,13 @@
 <!DOCTYPE html>
 <html lang="ko">
+<!--
+  [수정 이력]
+  v1. textarea → contenteditable (ce-cell) 전환
+  v2. updateCellCE_mv: data.rows[idx][col] = el.innerHTML
+  v3. localStorage 먼저 렌더 후 Firebase 재렌더
+  v4. 자동저장 엔진 + CE_ENGINE 툴바
+  v5. 행 높이 드래그 / 열 너비 드래그 / table width:max-content
+-->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -252,7 +260,9 @@ function importExcel(input,mode){
 }
 
 const d=new Date();
-fbSync(()=>{render();});
+/* [수정] localStorage 먼저 렌더 → Firebase 재렌더 */
+render();
+fbSync(()=>{ render(); });
 </script>
 
 <script>
@@ -412,6 +422,90 @@ document.addEventListener('keydown',function(e){
   document.addEventListener('scroll', hideToolbar, true);
 
   window.CE_ENGINE_LOADED = true;
+})();
+
+</script>
+<script>
+/* ============================================================
+   AUTO-SAVE ENGINE
+   - contenteditable 셀 입력 후 800ms 디바운스 자동저장
+   - 상단 저장 표시바: "저장됨 ✓ HH:MM:SS"
+   - 페이지 이탈 전 미저장 경고
+   ============================================================ */
+(function(){
+  let _dirty = false;
+  let _saveTimer = null;
+  const DEBOUNCE = 800;
+
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function nowTime(){
+    const d=new Date();
+    return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+  }
+
+  function getBar(){
+    let bar = document.getElementById('as-bar');
+    if(bar) return bar;
+    bar = document.createElement('div');
+    bar.id = 'as-bar';
+    bar.style.cssText = `
+      position:fixed;bottom:0;left:0;right:0;
+      height:28px;background:#141416;
+      border-top:1px solid rgba(255,255,255,0.1);
+      display:flex;align-items:center;justify-content:flex-end;
+      padding:0 16px;z-index:9998;
+      font-family:'DM Mono',monospace;font-size:12px;
+      color:#888;gap:10px;
+    `;
+    bar.innerHTML = '<span id="as-status">대기중...</span>';
+    document.body.appendChild(bar);
+    return bar;
+  }
+
+  function setStatus(msg, color){
+    getBar();
+    const el = document.getElementById('as-status');
+    if(el){ el.textContent = msg; el.style.color = color||'#888'; }
+  }
+
+  // CE 셀 변경 감지 → 디바운스 저장
+  document.addEventListener('input', function(e){
+    const el = e.target;
+    if(!el.classList || !el.classList.contains('ce-cell')) return;
+    _dirty = true;
+    setStatus('입력중...', '#fbbf24');
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(function(){
+      // 현재 포커스된 CE 셀 저장 트리거
+      el.dispatchEvent(new Event('blur', {bubbles:true}));
+      _dirty = false;
+      setStatus('저장됨 ✓ ' + nowTime(), '#34d399');
+    }, DEBOUNCE);
+  });
+
+  // blur 시 즉시 저장 (기존 onblur 보완)
+  document.addEventListener('focusout', function(e){
+    const el = e.target;
+    if(!el.classList || !el.classList.contains('ce-cell')) return;
+    clearTimeout(_saveTimer);
+    // onblur 이미 있으면 중복 실행 방지
+    setTimeout(function(){
+      _dirty = false;
+      setStatus('저장됨 ✓ ' + nowTime(), '#34d399');
+    }, 100);
+  });
+
+  // 페이지 이탈 경고
+  window.addEventListener('beforeunload', function(e){
+    if(_dirty){
+      e.preventDefault();
+      e.returnValue = '저장되지 않은 내용이 있어요.';
+    }
+  });
+
+  window.AS_ENGINE_LOADED = true;
+  // 초기 상태
+  setTimeout(()=>setStatus('준비됨', '#888'), 500);
 })();
 
 </script>
