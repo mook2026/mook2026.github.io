@@ -118,6 +118,22 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 .ce-cell b, .ce-cell strong{color:inherit;}
 
 .ce-cell:empty:before{content:attr(placeholder);color:var(--text3);pointer-events:none;}
+/* 상단 고정 스크롤바 */
+.top-scroll-bar{
+  overflow-x:auto;
+  overflow-y:hidden;
+  height:12px;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-bottom:none;
+  border-radius:var(--r-sm) var(--r-sm) 0 0;
+  cursor:pointer;
+}
+.top-scroll-bar::-webkit-scrollbar{height:8px;}
+.top-scroll-bar::-webkit-scrollbar-track{background:var(--bg3);}
+.top-scroll-bar::-webkit-scrollbar-thumb{background:rgba(251,191,36,0.4);border-radius:4px;}
+.top-scroll-bar::-webkit-scrollbar-thumb:hover{background:rgba(251,191,36,0.7);}
+
 </style>
 </head>
 <body>
@@ -304,6 +320,7 @@ function renderList(){
       <button class="del-btn" onclick="deleteListRow(${ri})">삭제</button>
     </td>
   </tr>`).join('');
+  setTimeout(initAllTopScrolls, 50);
 }
 
 // 지표 체크
@@ -693,6 +710,71 @@ document.addEventListener('keydown',function(e){
   // 초기 상태
   setTimeout(()=>setStatus('준비됨', '#888'), 500);
 })();
+
+</script>
+<script>
+/* ============================================================
+   TOP SCROLL ENGINE v1
+   테이블 wrap 위에 상단 고정 스크롤바 추가
+   아래 스크롤바와 양방향 동기화
+   ============================================================ */
+function initTopScroll(wrapEl) {
+  if(!wrapEl) return;
+  if(wrapEl.dataset.topScrollInit) return; // 중복 방지
+  wrapEl.dataset.topScrollInit = '1';
+
+  // 상단 스크롤바 컨테이너
+  const topBar = document.createElement('div');
+  topBar.className = 'top-scroll-bar';
+  topBar.style.cssText = 'overflow-x:auto;overflow-y:hidden;height:12px;';
+
+  // 내부 더미 (테이블 너비 동기화)
+  const dummy = document.createElement('div');
+  dummy.className = 'top-scroll-dummy';
+  dummy.style.cssText = 'height:1px;';
+  topBar.appendChild(dummy);
+
+  // wrap 앞에 삽입
+  wrapEl.parentNode.insertBefore(topBar, wrapEl);
+
+  // 너비 동기화 함수
+  function syncWidth() {
+    const inner = wrapEl.querySelector('table') || wrapEl.firstElementChild;
+    if(inner) dummy.style.width = inner.scrollWidth + 'px';
+  }
+
+  // 스크롤 동기화 (무한루프 방지)
+  let syncing = false;
+  topBar.addEventListener('scroll', () => {
+    if(syncing) return; syncing = true;
+    wrapEl.scrollLeft = topBar.scrollLeft;
+    syncing = false;
+  });
+  wrapEl.addEventListener('scroll', () => {
+    if(syncing) return; syncing = true;
+    topBar.scrollLeft = wrapEl.scrollLeft;
+    syncing = false;
+  });
+
+  // 초기 + 렌더 후 너비 맞추기
+  syncWidth();
+  const obs = new ResizeObserver(syncWidth);
+  obs.observe(wrapEl);
+  setTimeout(syncWidth, 300);
+}
+
+// 페이지 내 모든 테이블 wrap에 자동 적용
+function initAllTopScrolls() {
+  document.querySelectorAll(
+    '#tbl-outer, #tbl-outer-s, .tbl-wrap, .tbl-outer, .ex-table-wrap, [style*="overflow-x:auto"]'
+  ).forEach(el => {
+    // 테이블 자식이 있는 것만
+    if(el.querySelector('table')) initTopScroll(el);
+  });
+}
+
+window.initAllTopScrolls = initAllTopScrolls;
+window.initTopScroll = initTopScroll;
 
 </script>
 </body>
