@@ -1,5 +1,10 @@
 <!DOCTYPE html>
 <html lang="ko">
+<!--
+  [수정 이력]
+  v1. localStorage 먼저 렌더(load) 후 Firebase 재렌더 - 페이지 진입 시 즉시 데이터 표시
+  [주의] fbSync 전 load() 반드시 유지
+-->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -284,6 +289,8 @@ const days=['일','월','화','수','목','금','토'];
 document.getElementById('today-str').textContent=
   d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')+' '+days[d.getDay()]+'요일';
 
+/* [수정] localStorage 먼저 렌더 후 Firebase 재렌더 */
+load();
 fbSync(()=>{ load(); });
 </script>
 </body>

@@ -1,5 +1,10 @@
 <!DOCTYPE html>
 <html lang="ko">
+<!--
+  [수정 이력]
+  v1. localStorage 먼저 렌더(render) 후 Firebase 재렌더 - 페이지 진입 시 즉시 데이터 표시
+  [주의] fbSync 전 render() 반드시 유지
+-->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -190,6 +195,8 @@ function exportExcel(){
 
 const d=new Date();
 document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+DAYS[d.getDay()];
+/* [수정] localStorage 먼저 렌더 후 Firebase 재렌더 */
+render();
 fbSync(()=>{ render(); });
 </script>
 <script>

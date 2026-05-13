@@ -1,5 +1,10 @@
 <!DOCTYPE html>
 <html lang="ko">
+<!--
+  [수정 이력]
+  v1. localStorage 먼저 렌더(initState;renderAll) 후 Firebase 재렌더 - 페이지 진입 시 즉시 데이터 표시
+  [주의] fbSync 전 initState();renderAll() 반드시 유지
+-->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -744,6 +749,8 @@ function showTab(t){
 
 const nd=new Date();
 document.getElementById('nav-date').textContent=nd.getFullYear()+'.'+pad(nd.getMonth()+1)+'.'+pad(nd.getDate())+' '+DAYS[nd.getDay()];
+/* [수정] localStorage 먼저 렌더 후 Firebase 재렌더 */
+initState();renderAll();
 fbSync(()=>{
   // 기존 체크리스트 데이터 마이그레이션 (구버전 호환)
   const hist=JSON.parse(localStorage.getItem('smart_history')||'[]');

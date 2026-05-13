@@ -1,5 +1,12 @@
 <!DOCTYPE html>
 <html lang="ko">
+<!--
+  [수정 이력]
+  v1. 캔들차트 전환 (chartjs-chart-financial), OHLC 데이터 fetchHistory에 추가
+  v2. 상단 카드 캐시값 표시 제거 → 항상 실시간 fetch 후 표시 (로딩중... 표시)
+  v3. localStorage 먼저 렌더(loadFromCache) 후 Firebase 재렌더
+  [주의] fbSync 전 loadFromCache() 반드시 유지
+-->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -353,6 +360,8 @@ function loadFromCache(){
   setStatus('실시간 데이터 불러오는 중...');
 }
 
+/* [수정] localStorage 먼저 렌더 후 Firebase 재렌더 */
+loadFromCache();
 fbSync(()=>{loadFromCache();fetchAll();});
 </script>
 </body>
