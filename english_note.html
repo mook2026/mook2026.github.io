@@ -10,7 +10,6 @@
   v6. localStorage 먼저 렌더 후 Firebase 재렌더
   v7. 자동저장 엔진 + CE_ENGINE 툴바
   [주의] body 저장값은 innerHTML (HTML 포함) - plain text 아님
-  v8. AS엔진 제거, SAVE ENGINE v2, fbSync 편집중방지
 -->
 <head>
 <meta charset="UTF-8">
@@ -351,7 +350,10 @@ document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMon
 
 /* [수정] localStorage 먼저 렌더 */
 renderCards();
-fbSync(()=>{renderTagFilter();renderCards();});
+fbSync(()=>{
+  if(window._editing)return;
+  renderTagFilter();renderCards();
+});
 </script>
 <script>
 /* ============================================================
@@ -493,10 +495,9 @@ fbSync(()=>{renderTagFilter();renderCards();});
 <script>
 /* ============================================================
    SAVE ENGINE v2 - 수동저장만 / 자동저장 없음
-   - 💾 버튼: 화면의 모든 CE셀 innerHTML 즉시 수집 후 saveData()
-   - localStorage 저장 완료 확인 후 Firebase
-   - 실제 성공/실패 확인 후에만 상태 표시
-   - fbSync: 페이지 로드 1회만, 편집중 재렌더 없음
+   - 💾 버튼: 모든 CE셀 innerHTML 수집 → localStorage → Firebase
+   - 실제 Firebase 완료 후에만 ✅ 저장됨 표시
+   - 가짜 저장됨 표시 없음
    ============================================================ */
 (function(){
   function pad(n){return String(n).padStart(2,'0');}
@@ -507,40 +508,33 @@ fbSync(()=>{renderTagFilter();renderCards();});
     if(bar)return bar;
     bar=document.createElement('div');
     bar.id='save-status-bar';
-    bar.style.cssText='position:fixed;bottom:0;left:0;right:0;height:30px;background:#141416;border-top:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:9998;font-family:'DM Mono',monospace;font-size:12px;color:#888;';
-    bar.innerHTML='<span id="save-status-msg">준비됨</span><button onclick="window.manualSave&&window.manualSave()" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:4px;color:#fbbf24;font-size:12px;padding:3px 10px;cursor:pointer;font-family:'DM Mono',monospace;">💾 저장</button>';
+    bar.style.cssText='position:fixed;bottom:0;left:0;right:0;height:30px;background:#141416;border-top:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:9998;font-family:\'DM Mono\',monospace;font-size:12px;color:#888;';
+    bar.innerHTML='<span id="save-status-msg">준비됨</span>'
+      +'<button onclick="window.manualSave&&window.manualSave()" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:4px;color:#fbbf24;font-size:12px;padding:3px 10px;cursor:pointer;font-family:\'DM Mono\',monospace;">💾 저장</button>';
     document.body.appendChild(bar);
     document.body.style.paddingBottom='38px';
     return bar;
   }
-
   function setMsg(msg,color){
     getBar();
     const el=document.getElementById('save-status-msg');
     if(el){el.textContent=msg;el.style.color=color||'#888';}
   }
-
+  /* CE셀 innerHTML 즉시 수집 - blur 없이 */
   function flushAllCells(){
     document.querySelectorAll('.ce-cell[contenteditable="true"]').forEach(function(el){
-      const onblurAttr=el.getAttribute('onblur');
-      if(!onblurAttr)return;
-      try{
-        const fn=new Function('el',onblurAttr.replace(/this/g,'el'));
-        fn(el);
-      }catch(e){}
+      const attr=el.getAttribute('onblur');
+      if(!attr)return;
+      try{ new Function('el',attr.replace(/this/g,'el'))(el); }catch(e){}
     });
   }
-
   window.manualSave=async function(){
     setMsg('저장 중...','#fbbf24');
     try{
       flushAllCells();
       const d={};
-      for(let i=0;i<localStorage.length;i++){
-        const k=localStorage.key(i);
-        if(k)d[k]=localStorage.getItem(k);
-      }
-      if(!Object.keys(d).length){setMsg('저장할 데이터가 없어요','#fb7185');return;}
+      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}
+      if(!Object.keys(d).length){setMsg('저장할 데이터 없음','#fb7185');return;}
       if(typeof db!=='undefined'&&typeof UID!=='undefined'){
         await db.collection('data').doc(UID).set(d,{merge:true});
         setMsg('✅ 저장됨 '+nowTime(),'#34d399');
@@ -552,21 +546,16 @@ fbSync(()=>{renderTagFilter();renderCards();});
       console.error('저장 실패:',e);
     }
   };
-
   window.fbSaveWithStatus=window.manualSave;
-
-  /* CE셀 포커스/블러 시 _editing 플래그 관리 */
+  /* CE셀 포커스 추적 - fbSync 재렌더 방지용 */
   document.addEventListener('focusin',function(e){
     if(e.target.classList&&e.target.classList.contains('ce-cell'))window._editing=true;
   });
   document.addEventListener('focusout',function(e){
     if(e.target.classList&&e.target.classList.contains('ce-cell')){
-      setTimeout(function(){
-        if(!document.querySelector('.ce-cell:focus'))window._editing=false;
-      },100);
+      setTimeout(function(){if(!document.querySelector('.ce-cell:focus'))window._editing=false;},150);
     }
   });
-
   window.SAVE_ENGINE_LOADED=true;
   setTimeout(function(){getBar();setMsg('준비됨','#888');},300);
 })();
@@ -574,21 +563,17 @@ fbSync(()=>{renderTagFilter();renderCards();});
 <script>
 /* ============================================================
    TOP SCROLL ENGINE v3
-   - 모든 테이블 wrap 자동 감지 (셀렉터 확대)
    - position:fixed, nav+toolbar 높이 동적계산
+   - 셀렉터 확대: .tbl-outer, .tbl-wrap, id*=tbl, div[overflow-x:auto]
    ============================================================ */
 (function(){
-  let activeWrap=null;
-  let syncing=false;
-
+  let activeWrap=null,syncing=false;
   function getNavBottom(){
-    const nav=document.querySelector('.nav');
-    const toolbar=document.querySelector('.toolbar');
+    const nav=document.querySelector('.nav'),tb=document.querySelector('.toolbar');
     let top=nav?nav.getBoundingClientRect().bottom:56;
-    if(toolbar){const tr=toolbar.getBoundingClientRect();if(tr.top<=top+2)top=tr.bottom;}
+    if(tb){const r=tb.getBoundingClientRect();if(r.top<=top+2)top=r.bottom;}
     return Math.round(top);
   }
-
   function getOrCreateBar(){
     let bar=document.getElementById('top-scroll-fixed');
     if(bar)return bar;
@@ -596,57 +581,53 @@ fbSync(()=>{renderTagFilter();renderCards();});
     bar.id='top-scroll-fixed';
     bar.style.cssText='position:fixed;left:0;right:0;height:14px;overflow-x:auto;overflow-y:hidden;z-index:998;background:#1c1c1f;border-bottom:2px solid rgba(251,191,36,0.3);display:none;cursor:pointer;';
     const dummy=document.createElement('div');
-    dummy.id='top-scroll-dummy';
-    dummy.style.height='1px';
-    bar.appendChild(dummy);
-    document.body.appendChild(bar);
+    dummy.id='top-scroll-dummy';dummy.style.height='1px';
+    bar.appendChild(dummy);document.body.appendChild(bar);
     bar.addEventListener('scroll',function(){
       if(syncing||!activeWrap)return;
       syncing=true;activeWrap.scrollLeft=bar.scrollLeft;syncing=false;
     });
     return bar;
   }
-
   function syncBar(wrap){
-    const bar=getOrCreateBar();
-    const dummy=document.getElementById('top-scroll-dummy');
-    const table=wrap.querySelector('table');
-    if(!table){bar.style.display='none';return;}
+    const bar=getOrCreateBar(),dummy=document.getElementById('top-scroll-dummy');
+    const tbl=wrap.querySelector('table');
+    if(!tbl){bar.style.display='none';return;}
     activeWrap=wrap;
-    dummy.style.width=table.scrollWidth+'px';
+    dummy.style.width=tbl.scrollWidth+'px';
     bar.scrollLeft=wrap.scrollLeft;
     bar.style.top=getNavBottom()+'px';
-    bar.style.display=table.scrollWidth>wrap.clientWidth?'block':'none';
+    bar.style.display=tbl.scrollWidth>wrap.clientWidth?'block':'none';
   }
-
-  window.initTopScrollFixed=function(wrapEl){
-    if(!wrapEl||wrapEl.dataset.tsFixed)return;
-    wrapEl.dataset.tsFixed='1';
-    wrapEl.addEventListener('scroll',function(){
+  window.initTopScrollFixed=function(el){
+    if(!el||el.dataset.tsFixed)return;
+    el.dataset.tsFixed='1';
+    el.addEventListener('scroll',function(){
       if(syncing)return;syncing=true;
       const bar=document.getElementById('top-scroll-fixed');
-      if(bar)bar.scrollLeft=wrapEl.scrollLeft;
+      if(bar)bar.scrollLeft=el.scrollLeft;
       syncing=false;
     });
-    wrapEl.addEventListener('mouseenter',function(){syncBar(wrapEl);});
-    wrapEl.addEventListener('focusin',function(){syncBar(wrapEl);});
-    const obs=new ResizeObserver(function(){if(activeWrap===wrapEl)syncBar(wrapEl);});
-    const table=wrapEl.querySelector('table');
-    if(table)obs.observe(table);
-    syncBar(wrapEl);
+    el.addEventListener('mouseenter',function(){syncBar(el);});
+    el.addEventListener('focusin',function(){syncBar(el);});
+    const obs=new ResizeObserver(function(){if(activeWrap===el)syncBar(el);});
+    const tbl=el.querySelector('table');if(tbl)obs.observe(tbl);
+    syncBar(el);
   };
-
   window.initAllTopScrolls=function(){
-    document.querySelectorAll('.tbl-outer,.tbl-wrap,.ex-table-wrap,[id*="tbl-outer"],[id*="tbl-wrap"],[id*="tbl-outer-s"]').forEach(function(el){
+    /* 클래스 기반 */
+    document.querySelectorAll('.tbl-outer,.tbl-wrap,.ex-table-wrap').forEach(function(el){
       if(el.querySelector('table'))window.initTopScrollFixed(el);
     });
-    document.querySelectorAll('div[style]').forEach(function(el){
-      if(el.style.overflowX==='auto'&&el.querySelector('table'))window.initTopScrollFixed(el);
+    /* id 포함 */
+    document.querySelectorAll('[id*="tbl-outer"],[id*="tbl-wrap"],[id*="tbl-outer-s"]').forEach(function(el){
+      if(el.querySelector('table'))window.initTopScrollFixed(el);
     });
-    const first=document.querySelector('.tbl-outer,.tbl-wrap,.ex-table-wrap');
-    if(first&&first.querySelector('table'))syncBar(first);
+    /* inline style overflow-x:auto */
+    document.querySelectorAll('div').forEach(function(el){
+      if(el.style&&el.style.overflowX==='auto'&&el.querySelector('table'))window.initTopScrollFixed(el);
+    });
   };
-
   window.TOP_SCROLL_V3_LOADED=true;
 })();
 </script>
