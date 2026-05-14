@@ -11,6 +11,8 @@
   [주의] updateCellCE_tm: sec.rows[ri][col] = el.innerHTML
   [주의] saveData() 후 render 안 하면 화면 갱신 안 됨
   v+. saveData()에 실제 저장됨 표시 추가 - 가짜 저장됨 버그 수정
+  v+. 상단 스크롤바 sticky 고정(top:0) + nav에 💾 저장 버튼 직접 삽입
+  v+. TOP SCROLL ENGINE v2 - position:fixed, nav+toolbar 높이 동적계산, overflow 부모 영향 없음
 -->
 <head>
 <meta charset="UTF-8">
@@ -119,21 +121,7 @@ tr:hover .free-table td{background:rgba(255,255,255,0.01);}
 .ce-cell b, .ce-cell strong{color:inherit;}
 
 .ce-cell:empty:before{content:attr(placeholder);color:var(--text3);pointer-events:none;}
-/* 상단 고정 스크롤바 */
-.top-scroll-bar{
-  overflow-x:auto;
-  overflow-y:hidden;
-  height:12px;
-  background:var(--bg2);
-  border:1px solid var(--border);
-  border-bottom:none;
-  border-radius:var(--r-sm) var(--r-sm) 0 0;
-  cursor:pointer;
-}
-.top-scroll-bar::-webkit-scrollbar{height:8px;}
-.top-scroll-bar::-webkit-scrollbar-track{background:var(--bg3);}
-.top-scroll-bar::-webkit-scrollbar-thumb{background:rgba(251,191,36,0.4);border-radius:4px;}
-.top-scroll-bar::-webkit-scrollbar-thumb:hover{background:rgba(251,191,36,0.7);}
+
 
 </style>
 </head>
@@ -141,6 +129,7 @@ tr:hover .free-table td{background:rgba(255,255,255,0.01);}
 <div class="nav">
   <div class="nav-left"><a class="nav-back" href="home.html">←</a><div class="nav-logo">매수/매도 매뉴얼</div></div>
   <div class="nav-date" id="nav-date"></div>
+  <button id="save-btn-manual" onclick="window.manualSave&&window.manualSave()" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:6px;color:#fbbf24;font-size:13px;padding:6px 14px;cursor:pointer;font-family:'DM Mono',monospace;white-space:nowrap;">💾 저장</button>
 </div>
 <div class="toolbar">
   <button class="btn primary" onclick="addSection()">+ 조건식 섹션 추가</button>
@@ -777,68 +766,84 @@ document.addEventListener('keydown',function(e){
 </script>
 <script>
 /* ============================================================
-   TOP SCROLL ENGINE v1
-   테이블 wrap 위에 상단 고정 스크롤바 추가
-   아래 스크롤바와 양방향 동기화
+   TOP SCROLL ENGINE v2
+   - position:fixed, top은 JS로 nav+toolbar 높이 동적 계산
+   - overflow 부모 영향 없음 - 항상 화면 상단 고정
    ============================================================ */
-function initTopScroll(wrapEl) {
-  if(!wrapEl) return;
-  if(wrapEl.dataset.topScrollInit) return; // 중복 방지
-  wrapEl.dataset.topScrollInit = '1';
+(function(){
+  let activeWrap = null;
+  let syncing = false;
 
-  // 상단 스크롤바 컨테이너
-  const topBar = document.createElement('div');
-  topBar.className = 'top-scroll-bar';
-  topBar.style.cssText = 'overflow-x:auto;overflow-y:hidden;height:12px;';
-
-  // 내부 더미 (테이블 너비 동기화)
-  const dummy = document.createElement('div');
-  dummy.className = 'top-scroll-dummy';
-  dummy.style.cssText = 'height:1px;';
-  topBar.appendChild(dummy);
-
-  // wrap 앞에 삽입
-  wrapEl.parentNode.insertBefore(topBar, wrapEl);
-
-  // 너비 동기화 함수
-  function syncWidth() {
-    const inner = wrapEl.querySelector('table') || wrapEl.firstElementChild;
-    if(inner) dummy.style.width = inner.scrollWidth + 'px';
+  function getNavBottom(){
+    const nav = document.querySelector('.nav');
+    const toolbar = document.querySelector('.toolbar');
+    let top = nav ? nav.getBoundingClientRect().bottom : 56;
+    if(toolbar){
+      const tr = toolbar.getBoundingClientRect();
+      if(tr.top <= top + 2) top = tr.bottom;
+    }
+    return Math.round(top);
   }
 
-  // 스크롤 동기화 (무한루프 방지)
-  let syncing = false;
-  topBar.addEventListener('scroll', () => {
-    if(syncing) return; syncing = true;
-    wrapEl.scrollLeft = topBar.scrollLeft;
-    syncing = false;
-  });
-  wrapEl.addEventListener('scroll', () => {
-    if(syncing) return; syncing = true;
-    topBar.scrollLeft = wrapEl.scrollLeft;
-    syncing = false;
-  });
+  function getOrCreateBar(){
+    let bar = document.getElementById('top-scroll-fixed');
+    if(bar) return bar;
+    bar = document.createElement('div');
+    bar.id = 'top-scroll-fixed';
+    bar.style.cssText = 'position:fixed;left:0;right:0;height:14px;overflow-x:auto;overflow-y:hidden;z-index:998;background:#1c1c1f;border-bottom:2px solid rgba(251,191,36,0.3);display:none;cursor:pointer;';
+    const dummy = document.createElement('div');
+    dummy.id = 'top-scroll-dummy';
+    dummy.style.height = '1px';
+    bar.appendChild(dummy);
+    document.body.appendChild(bar);
+    bar.addEventListener('scroll', function(){
+      if(syncing||!activeWrap) return;
+      syncing=true; activeWrap.scrollLeft=bar.scrollLeft; syncing=false;
+    });
+    return bar;
+  }
 
-  // 초기 + 렌더 후 너비 맞추기
-  syncWidth();
-  const obs = new ResizeObserver(syncWidth);
-  obs.observe(wrapEl);
-  setTimeout(syncWidth, 300);
-}
+  function syncBar(wrap){
+    const bar = getOrCreateBar();
+    const dummy = document.getElementById('top-scroll-dummy');
+    const table = wrap.querySelector('table');
+    if(!table){bar.style.display='none';return;}
+    activeWrap = wrap;
+    dummy.style.width = table.scrollWidth+'px';
+    bar.scrollLeft = wrap.scrollLeft;
+    const top = getNavBottom();
+    bar.style.top = top+'px';
+    bar.style.display = table.scrollWidth > wrap.clientWidth ? 'block' : 'none';
+  }
 
-// 페이지 내 모든 테이블 wrap에 자동 적용
-function initAllTopScrolls() {
-  document.querySelectorAll(
-    '#tbl-outer, #tbl-outer-s, .tbl-wrap, .tbl-outer, .ex-table-wrap, [style*="overflow-x:auto"], [style*="overflow-x: auto"]'
-  ).forEach(el => {
-    // 테이블 자식이 있는 것만
-    if(el.querySelector('table')) initTopScroll(el);
-  });
-}
+  window.initTopScrollFixed = function(wrapEl){
+    if(!wrapEl||wrapEl.dataset.tsFixed) return;
+    wrapEl.dataset.tsFixed='1';
+    wrapEl.addEventListener('scroll', function(){
+      if(syncing) return; syncing=true;
+      const bar=document.getElementById('top-scroll-fixed');
+      if(bar) bar.scrollLeft=wrapEl.scrollLeft;
+      syncing=false;
+    });
+    wrapEl.addEventListener('mouseenter', function(){syncBar(wrapEl);});
+    wrapEl.addEventListener('focusin', function(){syncBar(wrapEl);});
+    const obs=new ResizeObserver(function(){if(activeWrap===wrapEl)syncBar(wrapEl);});
+    const table=wrapEl.querySelector('table');
+    if(table) obs.observe(table);
+    syncBar(wrapEl);
+  };
 
-window.initAllTopScrolls = initAllTopScrolls;
-window.initTopScroll = initTopScroll;
+  window.initAllTopScrolls = function(){
+    const sel='#tbl-outer, #tbl-outer-s, .tbl-wrap, .tbl-outer, [style*="overflow-x:auto"]';
+    document.querySelectorAll(sel).forEach(function(el){
+      if(el.querySelector('table')) window.initTopScrollFixed(el);
+    });
+    const first=document.querySelector(sel);
+    if(first&&first.querySelector('table')) syncBar(first);
+  };
 
+  window.TOP_SCROLL_V2_LOADED=true;
+})();
 </script>
 <script>
 /* ============================================================
