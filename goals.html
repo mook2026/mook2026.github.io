@@ -197,5 +197,165 @@ const d=new Date();
 const days=['일','월','화','수','목','금','토'];
 document.getElementById('today-str').textContent=d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')+' '+days[d.getDay()]+'요일';
 </script>
+<script>
+/* ============================================================
+   SAVE ENGINE v2 - 수동저장만 / 자동저장 없음
+   - 💾 버튼: 화면의 모든 CE셀 innerHTML 즉시 수집 후 saveData()
+   - localStorage 저장 완료 확인 후 Firebase
+   - 실제 성공/실패 확인 후에만 상태 표시
+   - fbSync: 페이지 로드 1회만, 편집중 재렌더 없음
+   ============================================================ */
+(function(){
+  function pad(n){return String(n).padStart(2,'0');}
+  function nowTime(){const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes());}
+
+  function getBar(){
+    let bar=document.getElementById('save-status-bar');
+    if(bar)return bar;
+    bar=document.createElement('div');
+    bar.id='save-status-bar';
+    bar.style.cssText='position:fixed;bottom:0;left:0;right:0;height:30px;background:#141416;border-top:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:9998;font-family:'DM Mono',monospace;font-size:12px;color:#888;';
+    bar.innerHTML='<span id="save-status-msg">준비됨</span><button onclick="window.manualSave&&window.manualSave()" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:4px;color:#fbbf24;font-size:12px;padding:3px 10px;cursor:pointer;font-family:'DM Mono',monospace;">💾 저장</button>';
+    document.body.appendChild(bar);
+    document.body.style.paddingBottom='38px';
+    return bar;
+  }
+
+  function setMsg(msg,color){
+    getBar();
+    const el=document.getElementById('save-status-msg');
+    if(el){el.textContent=msg;el.style.color=color||'#888';}
+  }
+
+  function flushAllCells(){
+    document.querySelectorAll('.ce-cell[contenteditable="true"]').forEach(function(el){
+      const onblurAttr=el.getAttribute('onblur');
+      if(!onblurAttr)return;
+      try{
+        const fn=new Function('el',onblurAttr.replace(/\bthis\b/g,'el'));
+        fn(el);
+      }catch(e){}
+    });
+  }
+
+  window.manualSave=async function(){
+    setMsg('저장 중...','#fbbf24');
+    try{
+      flushAllCells();
+      const d={};
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k)d[k]=localStorage.getItem(k);
+      }
+      if(!Object.keys(d).length){setMsg('저장할 데이터가 없어요','#fb7185');return;}
+      if(typeof db!=='undefined'&&typeof UID!=='undefined'){
+        await db.collection('data').doc(UID).set(d,{merge:true});
+        setMsg('✅ 저장됨 '+nowTime(),'#34d399');
+      }else{
+        setMsg('✅ 로컬 저장됨 '+nowTime(),'#fbbf24');
+      }
+    }catch(e){
+      setMsg('❌ 저장 실패: '+e.message,'#fb7185');
+      console.error('저장 실패:',e);
+    }
+  };
+
+  window.fbSaveWithStatus=window.manualSave;
+
+  /* CE셀 포커스/블러 시 _editing 플래그 관리 */
+  document.addEventListener('focusin',function(e){
+    if(e.target.classList&&e.target.classList.contains('ce-cell'))window._editing=true;
+  });
+  document.addEventListener('focusout',function(e){
+    if(e.target.classList&&e.target.classList.contains('ce-cell')){
+      setTimeout(function(){
+        if(!document.querySelector('.ce-cell:focus'))window._editing=false;
+      },100);
+    }
+  });
+
+  window.SAVE_ENGINE_LOADED=true;
+  setTimeout(function(){getBar();setMsg('준비됨','#888');},300);
+})();
+</script>
+<script>
+/* ============================================================
+   TOP SCROLL ENGINE v3
+   - 모든 테이블 wrap 자동 감지 (셀렉터 확대)
+   - position:fixed, nav+toolbar 높이 동적계산
+   ============================================================ */
+(function(){
+  let activeWrap=null;
+  let syncing=false;
+
+  function getNavBottom(){
+    const nav=document.querySelector('.nav');
+    const toolbar=document.querySelector('.toolbar');
+    let top=nav?nav.getBoundingClientRect().bottom:56;
+    if(toolbar){const tr=toolbar.getBoundingClientRect();if(tr.top<=top+2)top=tr.bottom;}
+    return Math.round(top);
+  }
+
+  function getOrCreateBar(){
+    let bar=document.getElementById('top-scroll-fixed');
+    if(bar)return bar;
+    bar=document.createElement('div');
+    bar.id='top-scroll-fixed';
+    bar.style.cssText='position:fixed;left:0;right:0;height:14px;overflow-x:auto;overflow-y:hidden;z-index:998;background:#1c1c1f;border-bottom:2px solid rgba(251,191,36,0.3);display:none;cursor:pointer;';
+    const dummy=document.createElement('div');
+    dummy.id='top-scroll-dummy';
+    dummy.style.height='1px';
+    bar.appendChild(dummy);
+    document.body.appendChild(bar);
+    bar.addEventListener('scroll',function(){
+      if(syncing||!activeWrap)return;
+      syncing=true;activeWrap.scrollLeft=bar.scrollLeft;syncing=false;
+    });
+    return bar;
+  }
+
+  function syncBar(wrap){
+    const bar=getOrCreateBar();
+    const dummy=document.getElementById('top-scroll-dummy');
+    const table=wrap.querySelector('table');
+    if(!table){bar.style.display='none';return;}
+    activeWrap=wrap;
+    dummy.style.width=table.scrollWidth+'px';
+    bar.scrollLeft=wrap.scrollLeft;
+    bar.style.top=getNavBottom()+'px';
+    bar.style.display=table.scrollWidth>wrap.clientWidth?'block':'none';
+  }
+
+  window.initTopScrollFixed=function(wrapEl){
+    if(!wrapEl||wrapEl.dataset.tsFixed)return;
+    wrapEl.dataset.tsFixed='1';
+    wrapEl.addEventListener('scroll',function(){
+      if(syncing)return;syncing=true;
+      const bar=document.getElementById('top-scroll-fixed');
+      if(bar)bar.scrollLeft=wrapEl.scrollLeft;
+      syncing=false;
+    });
+    wrapEl.addEventListener('mouseenter',function(){syncBar(wrapEl);});
+    wrapEl.addEventListener('focusin',function(){syncBar(wrapEl);});
+    const obs=new ResizeObserver(function(){if(activeWrap===wrapEl)syncBar(wrapEl);});
+    const table=wrapEl.querySelector('table');
+    if(table)obs.observe(table);
+    syncBar(wrapEl);
+  };
+
+  window.initAllTopScrolls=function(){
+    document.querySelectorAll('.tbl-outer,.tbl-wrap,.ex-table-wrap,[id*="tbl-outer"],[id*="tbl-wrap"],[id*="tbl-outer-s"]').forEach(function(el){
+      if(el.querySelector('table'))window.initTopScrollFixed(el);
+    });
+    document.querySelectorAll('div[style]').forEach(function(el){
+      if(el.style.overflowX==='auto'&&el.querySelector('table'))window.initTopScrollFixed(el);
+    });
+    const first=document.querySelector('.tbl-outer,.tbl-wrap,.ex-table-wrap');
+    if(first&&first.querySelector('table'))syncBar(first);
+  };
+
+  window.TOP_SCROLL_V3_LOADED=true;
+})();
+</script>
 </body>
 </html>
