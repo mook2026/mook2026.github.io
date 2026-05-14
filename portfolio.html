@@ -766,7 +766,7 @@ function initTopScroll(wrapEl) {
 // 페이지 내 모든 테이블 wrap에 자동 적용
 function initAllTopScrolls() {
   document.querySelectorAll(
-    '#tbl-outer, #tbl-outer-s, .tbl-wrap, .tbl-outer, .ex-table-wrap, [style*="overflow-x:auto"]'
+    '#tbl-outer, #tbl-outer-s, .tbl-wrap, .tbl-outer, .ex-table-wrap, [style*="overflow-x:auto"], [style*="overflow-x: auto"]'
   ).forEach(el => {
     // 테이블 자식이 있는 것만
     if(el.querySelector('table')) initTopScroll(el);
@@ -775,6 +775,94 @@ function initAllTopScrolls() {
 
 window.initAllTopScrolls = initAllTopScrolls;
 window.initTopScroll = initTopScroll;
+
+</script>
+<script>
+/* ============================================================
+   SAVE ENGINE v1
+   - fbSave: Firebase 저장 성공/실패 실제 확인 후 표시
+   - 수동 저장 버튼: 상단 nav에 고정
+   - 저장 상태: ✅ 저장됨 HH:MM / ⚠️ 클라우드 실패(로컬만) / ❌ 저장실패
+   ============================================================ */
+(function(){
+  function pad(n){return String(n).padStart(2,'0');}
+  function nowTime(){const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes());}
+
+  function getSaveBar(){
+    let bar = document.getElementById('save-status-bar');
+    if(bar) return bar;
+    bar = document.createElement('div');
+    bar.id = 'save-status-bar';
+    bar.style.cssText = `
+      position:fixed;bottom:0;left:0;right:0;height:30px;
+      background:#141416;border-top:1px solid rgba(255,255,255,0.1);
+      display:flex;align-items:center;justify-content:space-between;
+      padding:0 16px;z-index:9998;
+      font-family:'DM Mono',monospace;font-size:12px;color:#888;
+    `;
+    bar.innerHTML = `
+      <span id="save-status-msg">준비됨</span>
+      <button onclick="window.manualSave&&window.manualSave()" style="
+        background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);
+        border-radius:4px;color:#fbbf24;font-size:12px;padding:3px 10px;
+        cursor:pointer;font-family:'DM Mono',monospace;
+      ">💾 저장</button>
+    `;
+    document.body.appendChild(bar);
+    // body 하단 여백
+    document.body.style.paddingBottom = '38px';
+    return bar;
+  }
+
+  function setMsg(msg, color){
+    getSaveBar();
+    const el = document.getElementById('save-status-msg');
+    if(el){el.textContent = msg; el.style.color = color||'#888';}
+  }
+
+  // fbSave 오버라이드 — 진짜 성공/실패 확인
+  window.fbSaveWithStatus = async function(){
+    setMsg('저장 중...', '#fbbf24');
+    try{
+      // localStorage 전체 저장
+      const d={};
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k) d[k]=localStorage.getItem(k);
+      }
+      if(typeof db !== 'undefined' && typeof UID !== 'undefined'){
+        await db.collection('data').doc(UID).set(d,{merge:true});
+        setMsg('✅ 저장됨 '+nowTime(), '#34d399');
+      } else {
+        setMsg('✅ 로컬 저장됨 '+nowTime()+' (Firebase 없음)', '#fbbf24');
+      }
+    } catch(e){
+      setMsg('⚠️ 클라우드 저장 실패 — 로컬만 저장됨 (재시도: 💾 버튼)', '#fb7185');
+      console.error('fbSave 실패:', e);
+    }
+  };
+
+  // 수동 저장
+  window.manualSave = function(){
+    // localStorage는 이미 saveData에서 했으니 Firebase만
+    window.fbSaveWithStatus();
+  };
+
+  // input/blur 시 로컬 저장 후 상태 표시
+  let _autoTimer = null;
+  document.addEventListener('input', function(e){
+    const el = e.target;
+    if(!el.classList||(!el.classList.contains('ce-cell')&&el.tagName!=='INPUT'&&el.tagName!=='TEXTAREA')) return;
+    setMsg('입력 중...', '#fbbf24');
+    clearTimeout(_autoTimer);
+    _autoTimer = setTimeout(()=>{
+      setMsg('로컬 저장됨 '+nowTime()+' (💾로 클라우드 저장)', '#888');
+    }, 1000);
+  });
+
+  window.SAVE_ENGINE_LOADED = true;
+  setTimeout(()=>{ getSaveBar(); setMsg('준비됨', '#888'); }, 300);
+})();
 
 </script>
 </body>

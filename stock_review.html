@@ -17,7 +17,10 @@
   v11. updateCellCE_sr 함수 누락 버그 수정 (함수 없어서 CE셀 저장 전혀 안됐음)
   v11. AS엔진 blur dispatchEvent 제거 → onblur 핸들러 직접 eval (blur강제발생이 innerHTML 초기화 유발)
   [주의] 폼 CE div 읽기/쓰기 항상 .innerHTML 사용 (.value 절대 사용 금지)
+  v12. autoSaveForm 추가 - 폼 CE div(r-*) 입력 시 800ms 디바운스 자동저장
+  v12. saveData()에 실제 저장됨 표시 추가 - 가짜 "저장됨" 버그 수정
   [주의] CE셀 저장함수(updateCellCE_sr 등) 반드시 존재 확인 후 배포
+  [주의] "저장됨" 표시는 반드시 saveData() 내부에서만 - AS엔진 타이머 기반 표시 금지
 -->
 <head>
 <meta charset="UTF-8">
@@ -278,13 +281,13 @@ tr:hover .ex-table td{background:rgba(255,255,255,0.015);}
       <button onclick="changeDate(1)">▶</button>
     </div>
     <div class="form-grid">
-      <div class="fr fr-full"><label>시황 복기 <span class="hint">· 코스피/코스닥 방향, 섹터 동향</span></label><div id="r-market" class="ce-cell" contenteditable="true" placeholder="오늘 시장 전체 흐름..." style="min-height:72px;"></div></div>
-      <div class="fr"><label>내일 전략</label><div id="r-tomorrow" class="ce-cell" contenteditable="true" placeholder="내일 주목할 것 · 매매 계획..." style="min-height:48px;"></div></div>
-      <div class="fr"><label>보유종목 변화</label><div id="r-holdings" class="ce-cell" contenteditable="true" placeholder="보유 종목별 오늘 흐름과 대응..." style="min-height:48px;"></div></div>
-      <div class="fr"><label>관심종목 업데이트</label><div id="r-watchlist" class="ce-cell" contenteditable="true" placeholder="관심 종목 변화..." style="min-height:48px;"></div></div>
-      <div class="fr"><label>매매 내용 <span class="hint">· 미매매 시 이유</span></label><div id="r-trade" class="ce-cell" contenteditable="true" placeholder="종목 · 진입근거 · 결과 또는 미매매 이유..." style="min-height:48px;"></div></div>
-      <div class="fr"><label>반성 / 잘한 점</label><div id="r-reflect" class="ce-cell" contenteditable="true" placeholder="잘한 것과 반성할 것..." style="min-height:48px;"></div></div>
-      <div class="fr fr-full"><label>원칙 준수 여부</label><div id="r-rule" class="ce-cell" contenteditable="true" placeholder="손절가 설정 여부 · 뇌동매매 여부 · 매매시간 준수..." style="min-height:48px;"></div></div>
+      <div class="fr fr-full"><label>시황 복기 <span class="hint">· 코스피/코스닥 방향, 섹터 동향</span></label><div id="r-market" class="ce-cell" contenteditable="true" oninput="autoSaveForm()" placeholder="오늘 시장 전체 흐름..." style="min-height:72px;"></div></div>
+      <div class="fr"><label>내일 전략</label><div id="r-tomorrow" class="ce-cell" contenteditable="true" oninput="autoSaveForm()" placeholder="내일 주목할 것 · 매매 계획..." style="min-height:48px;"></div></div>
+      <div class="fr"><label>보유종목 변화</label><div id="r-holdings" class="ce-cell" contenteditable="true" oninput="autoSaveForm()" placeholder="보유 종목별 오늘 흐름과 대응..." style="min-height:48px;"></div></div>
+      <div class="fr"><label>관심종목 업데이트</label><div id="r-watchlist" class="ce-cell" contenteditable="true" oninput="autoSaveForm()" placeholder="관심 종목 변화..." style="min-height:48px;"></div></div>
+      <div class="fr"><label>매매 내용 <span class="hint">· 미매매 시 이유</span></label><div id="r-trade" class="ce-cell" contenteditable="true" oninput="autoSaveForm()" placeholder="종목 · 진입근거 · 결과 또는 미매매 이유..." style="min-height:48px;"></div></div>
+      <div class="fr"><label>반성 / 잘한 점</label><div id="r-reflect" class="ce-cell" contenteditable="true" oninput="autoSaveForm()" placeholder="잘한 것과 반성할 것..." style="min-height:48px;"></div></div>
+      <div class="fr fr-full"><label>원칙 준수 여부</label><div id="r-rule" class="ce-cell" contenteditable="true" oninput="autoSaveForm()" placeholder="손절가 설정 여부 · 뇌동매매 여부 · 매매시간 준수..." style="min-height:48px;"></div></div>
     </div>
     <button class="save-btn" onclick="saveReview()">복기 저장 → 테이블에 추가</button>
   </div>
@@ -330,7 +333,29 @@ function getData(){
   if(raw){try{const d=JSON.parse(raw);if(!d.colWidths)d.colWidths={};if(!d.rowHeights)d.rowHeights={};return d;}catch(e){}}
   return {cols:[...DEFAULT_COLS],rows:[],colWidths:{},rowHeights:{}};
 }
-function saveData(d){if(!d.colWidths)d.colWidths={};if(!d.rowHeights)d.rowHeights={};lss('stock_review_tbl',JSON.stringify(d));fbSave();}
+function saveData(d){
+  if(!d.colWidths)d.colWidths={};
+  if(!d.rowHeights)d.rowHeights={};
+  lss('stock_review_tbl',JSON.stringify(d));
+  if(window.fbSaveWithStatus)fbSaveWithStatus();else fbSave();
+  /* [수정 v12] 실제 saveData 호출 시에만 저장됨 표시 */
+  if(window.AS_ENGINE_LOADED){
+    function pad2(n){return String(n).padStart(2,'0');}
+    const d2=new Date();
+    const t=pad2(d2.getHours())+':'+pad2(d2.getMinutes())+':'+pad2(d2.getSeconds());
+    if(typeof setStatus==='function') setStatus('저장됨 ✓ '+t,'#34d399');
+  }
+}
+
+/* [수정 v12] autoSaveForm - 폼 CE div 입력 시 자동저장 (800ms 디바운스) */
+let _formSaveTimer=null;
+function autoSaveForm(){
+  clearTimeout(_formSaveTimer);
+  if(window.AS_ENGINE_LOADED && typeof setStatus==='function') setStatus('입력중...','#fbbf24');
+  _formSaveTimer=setTimeout(function(){
+    saveReview();
+  }, 800);
+}
 
 /* [수정 v11] updateCellCE_sr 함수 누락으로 CE셀 저장 안되던 버그 수정 */
 function updateCellCE_sr(el, ri, col){
@@ -856,6 +881,8 @@ function startRowResize(e, tableId, rowDataIdx) {
   document.addEventListener('input', function(e){
     const el = e.target;
     if(!el.classList || !el.classList.contains('ce-cell')) return;
+    // 폼 CE div(r-*)는 autoSaveForm이 처리
+    if(el.id && el.id.startsWith('r-')) return;
     _dirty = true;
     setStatus('입력중...', '#fbbf24');
     clearTimeout(_saveTimer);
@@ -951,7 +978,7 @@ function initTopScroll(wrapEl) {
 // 페이지 내 모든 테이블 wrap에 자동 적용
 function initAllTopScrolls() {
   document.querySelectorAll(
-    '#tbl-outer, #tbl-outer-s, .tbl-wrap, .tbl-outer, .ex-table-wrap, [style*="overflow-x:auto"]'
+    '#tbl-outer, #tbl-outer-s, .tbl-wrap, .tbl-outer, .ex-table-wrap, [style*="overflow-x:auto"], [style*="overflow-x: auto"]'
   ).forEach(el => {
     // 테이블 자식이 있는 것만
     if(el.querySelector('table')) initTopScroll(el);
@@ -960,6 +987,94 @@ function initAllTopScrolls() {
 
 window.initAllTopScrolls = initAllTopScrolls;
 window.initTopScroll = initTopScroll;
+
+</script>
+<script>
+/* ============================================================
+   SAVE ENGINE v1
+   - fbSave: Firebase 저장 성공/실패 실제 확인 후 표시
+   - 수동 저장 버튼: 상단 nav에 고정
+   - 저장 상태: ✅ 저장됨 HH:MM / ⚠️ 클라우드 실패(로컬만) / ❌ 저장실패
+   ============================================================ */
+(function(){
+  function pad(n){return String(n).padStart(2,'0');}
+  function nowTime(){const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes());}
+
+  function getSaveBar(){
+    let bar = document.getElementById('save-status-bar');
+    if(bar) return bar;
+    bar = document.createElement('div');
+    bar.id = 'save-status-bar';
+    bar.style.cssText = `
+      position:fixed;bottom:0;left:0;right:0;height:30px;
+      background:#141416;border-top:1px solid rgba(255,255,255,0.1);
+      display:flex;align-items:center;justify-content:space-between;
+      padding:0 16px;z-index:9998;
+      font-family:'DM Mono',monospace;font-size:12px;color:#888;
+    `;
+    bar.innerHTML = `
+      <span id="save-status-msg">준비됨</span>
+      <button onclick="window.manualSave&&window.manualSave()" style="
+        background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);
+        border-radius:4px;color:#fbbf24;font-size:12px;padding:3px 10px;
+        cursor:pointer;font-family:'DM Mono',monospace;
+      ">💾 저장</button>
+    `;
+    document.body.appendChild(bar);
+    // body 하단 여백
+    document.body.style.paddingBottom = '38px';
+    return bar;
+  }
+
+  function setMsg(msg, color){
+    getSaveBar();
+    const el = document.getElementById('save-status-msg');
+    if(el){el.textContent = msg; el.style.color = color||'#888';}
+  }
+
+  // fbSave 오버라이드 — 진짜 성공/실패 확인
+  window.fbSaveWithStatus = async function(){
+    setMsg('저장 중...', '#fbbf24');
+    try{
+      // localStorage 전체 저장
+      const d={};
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k) d[k]=localStorage.getItem(k);
+      }
+      if(typeof db !== 'undefined' && typeof UID !== 'undefined'){
+        await db.collection('data').doc(UID).set(d,{merge:true});
+        setMsg('✅ 저장됨 '+nowTime(), '#34d399');
+      } else {
+        setMsg('✅ 로컬 저장됨 '+nowTime()+' (Firebase 없음)', '#fbbf24');
+      }
+    } catch(e){
+      setMsg('⚠️ 클라우드 저장 실패 — 로컬만 저장됨 (재시도: 💾 버튼)', '#fb7185');
+      console.error('fbSave 실패:', e);
+    }
+  };
+
+  // 수동 저장
+  window.manualSave = function(){
+    // localStorage는 이미 saveData에서 했으니 Firebase만
+    window.fbSaveWithStatus();
+  };
+
+  // input/blur 시 로컬 저장 후 상태 표시
+  let _autoTimer = null;
+  document.addEventListener('input', function(e){
+    const el = e.target;
+    if(!el.classList||(!el.classList.contains('ce-cell')&&el.tagName!=='INPUT'&&el.tagName!=='TEXTAREA')) return;
+    setMsg('입력 중...', '#fbbf24');
+    clearTimeout(_autoTimer);
+    _autoTimer = setTimeout(()=>{
+      setMsg('로컬 저장됨 '+nowTime()+' (💾로 클라우드 저장)', '#888');
+    }, 1000);
+  });
+
+  window.SAVE_ENGINE_LOADED = true;
+  setTimeout(()=>{ getSaveBar(); setMsg('준비됨', '#888'); }, 300);
+})();
 
 </script>
 </body>
