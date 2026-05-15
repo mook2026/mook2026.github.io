@@ -487,7 +487,7 @@ function renderAll(){
   `).join('');
 
   data.sections.forEach(sec=>renderSection(sec));
-  setTimeout(initAllTopScrolls, 50);
+  setTimeout(function(){if(window.initAllTopScrolls)window.initAllTopScrolls();}, 50);
 }
 
 function exportAll(){
@@ -540,7 +540,7 @@ fbSync(()=>{
   var d=getData();
   if(!d.sections.length)initDefault();
   renderAll();
-  setTimeout(initAllTopScrolls,100);
+  setTimeout(function(){if(window.initAllTopScrolls)window.initAllTopScrolls();},100);
 });
 
 // 키보드 네비게이션
