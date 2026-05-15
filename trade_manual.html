@@ -163,10 +163,7 @@ function getData(){
   if(raw){try{return JSON.parse(raw);}catch(e){}}
   return {sections:[]};
 }
-function saveData(d){lss(STORAGE_KEY,JSON.stringify(d));if(window.fbSaveWithStatus)fbSaveWithStatus();else fbSave();
-  /* [수정] 실제 saveData 호출 시에만 저장됨 표시 */
-  
-}
+function saveData(d){lss(STORAGE_KEY,JSON.stringify(d));/* localStorage만 저장 - Firebase는 💾버튼으로만 */}
 
 function newSectionId(){return 'sec_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);}
 
@@ -725,17 +722,13 @@ document.addEventListener('keydown',function(e){
     if(el){el.textContent=msg;el.style.color=color||'#888';}
   }
   /* CE셀 innerHTML 즉시 수집 - blur 없이 */
-  function flushAllCells(){
-    document.querySelectorAll('.ce-cell[contenteditable="true"]').forEach(function(el){
-      const attr=el.getAttribute('onblur');
-      if(!attr)return;
-      try{ new Function('el',attr.replace(/this/g,'el'))(el); }catch(e){}
-    });
-  }
   window.manualSave=async function(){
     setMsg('저장 중...','#fbbf24');
     try{
-      flushAllCells();
+      /* 현재 포커스된 CE셀만 blur - saveData 루프 없이 */
+      const active=document.activeElement;
+      if(active&&active.classList&&active.classList.contains('ce-cell'))active.blur();
+      /* localStorage → Firebase */
       const d={};
       for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}
       if(!Object.keys(d).length){setMsg('저장할 데이터 없음','#fb7185');return;}
@@ -750,7 +743,7 @@ document.addEventListener('keydown',function(e){
       console.error('저장 실패:',e);
     }
   };
-  window.fbSaveWithStatus=window.manualSave;
+    window.fbSaveWithStatus=window.manualSave;
   /* CE셀 포커스 추적 - fbSync 재렌더 방지용 */
   document.addEventListener('focusin',function(e){
     if(e.target.classList&&e.target.classList.contains('ce-cell'))window._editing=true;
