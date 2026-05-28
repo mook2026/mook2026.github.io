@@ -282,18 +282,11 @@ fbSync(()=>{
     const el=document.getElementById('save-status-msg');
     if(el){el.textContent=msg;el.style.color=color||'#888';}
   }
-  /* CE셀 innerHTML 즉시 수집 - blur 없이 */
-  function flushAllCells(){
-    document.querySelectorAll('.ce-cell[contenteditable="true"]').forEach(function(el){
-      const attr=el.getAttribute('onblur');
-      if(!attr)return;
-      try{ new Function('el',attr.replace(/\bthis\b/g,'el'))(el); }catch(e){}
-    });
-  }
   window.manualSave=async function(){
     setMsg('저장 중...','#fbbf24');
     try{
-      flushAllCells();
+      const active=document.activeElement;
+      if(active&&active.classList&&active.classList.contains('ce-cell'))active.blur();
       const d={};
       for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}
       if(!Object.keys(d).length){setMsg('저장할 데이터 없음','#fb7185');return;}

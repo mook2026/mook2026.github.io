@@ -192,7 +192,7 @@ tr:hover .ex-table td{background:rgba(255,255,255,0.015);}
 
 /* contenteditable 셀 공통 스타일 */
 .ce-cell{
-  width:100%;height:100%;
+  width:100%;min-height:28px;
   min-height:60px;
   background:transparent;
   color:var(--text);
@@ -507,7 +507,7 @@ function renderTable(){
       <td colspan="${data.cols.length+3}" onmousedown="startRowResize(event,'review-table',${ri})"></td>
     </tr>`;
   }).join('');
-  setTimeout(initAllTopScrolls, 50);
+  setTimeout(function(){if(window.initAllTopScrolls)window.initAllTopScrolls();},50);
 }
 
 function updateActual(){
@@ -599,7 +599,7 @@ renderTable();
 fbSync(()=>{
   if(window._editing)return;
   renderTable();
-  setTimeout(initAllTopScrolls,100);
+  setTimeout(function(){if(window.initAllTopScrolls)window.initAllTopScrolls();},100);
 });
 </script>
 
@@ -857,18 +857,11 @@ function startRowResize(e, tableId, rowDataIdx) {
     const el=document.getElementById('save-status-msg');
     if(el){el.textContent=msg;el.style.color=color||'#888';}
   }
-  /* CE셀 innerHTML 즉시 수집 - blur 없이 */
-  function flushAllCells(){
-    document.querySelectorAll('.ce-cell[contenteditable="true"]').forEach(function(el){
-      const attr=el.getAttribute('onblur');
-      if(!attr)return;
-      try{ new Function('el',attr.replace(/this/g,'el'))(el); }catch(e){}
-    });
-  }
   window.manualSave=async function(){
     setMsg('저장 중...','#fbbf24');
     try{
-      flushAllCells();
+      const active=document.activeElement;
+      if(active&&active.classList&&active.classList.contains('ce-cell'))active.blur();
       const d={};
       for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}
       if(!Object.keys(d).length){setMsg('저장할 데이터 없음','#fb7185');return;}

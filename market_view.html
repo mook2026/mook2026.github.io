@@ -66,7 +66,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 .hidden{display:none!important;}
 /* contenteditable 셀 공통 스타일 */
 .ce-cell{
-  width:100%;height:100%;
+  width:100%;min-height:28px;
   min-height:60px;
   background:transparent;
   color:var(--text);
@@ -125,7 +125,7 @@ function ls(k){return localStorage.getItem(k);}
 function lss(k,v){localStorage.setItem(k,v);}
 function showConfirm(msg){const el=document.getElementById('confirm-bar');el.textContent=msg;setTimeout(()=>el.textContent='',3000);}
 function getData(){return JSON.parse(ls('market_view_data')||JSON.stringify({cols:[...DEFAULT_COLS],rows:[],colWidths:{}}));}
-function saveData(d){lss('market_view_data',JSON.stringify(d));if(window.fbSaveWithStatus)fbSaveWithStatus();else fbSave();
+function saveData(d){lss('market_view_data',JSON.stringify(d));
   /* [수정] 실제 saveData 호출 시에만 저장됨 표시 */
   
 }
@@ -237,7 +237,7 @@ function render(){
         <button class="del-btn" onclick="deleteRow(${ri})">삭제</button>
       </td>
     </tr>`).join('');
-  setTimeout(initAllTopScrolls, 50);
+  setTimeout(function(){if(window.initAllTopScrolls)window.initAllTopScrolls();},50);
 }
 
 function exportExcel(){
@@ -276,7 +276,7 @@ render();
 fbSync(()=>{
   if(window._editing)return;
   render();
-  setTimeout(initAllTopScrolls,100);
+  setTimeout(function(){if(window.initAllTopScrolls)window.initAllTopScrolls();},100);
 });
 </script>
 
@@ -470,18 +470,11 @@ document.addEventListener('keydown',function(e){
     const el=document.getElementById('save-status-msg');
     if(el){el.textContent=msg;el.style.color=color||'#888';}
   }
-  /* CE셀 innerHTML 즉시 수집 - blur 없이 */
-  function flushAllCells(){
-    document.querySelectorAll('.ce-cell[contenteditable="true"]').forEach(function(el){
-      const attr=el.getAttribute('onblur');
-      if(!attr)return;
-      try{ new Function('el',attr.replace(/this/g,'el'))(el); }catch(e){}
-    });
-  }
   window.manualSave=async function(){
     setMsg('저장 중...','#fbbf24');
     try{
-      flushAllCells();
+      const active=document.activeElement;
+      if(active&&active.classList&&active.classList.contains('ce-cell'))active.blur();
       const d={};
       for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}
       if(!Object.keys(d).length){setMsg('저장할 데이터 없음','#fb7185');return;}
