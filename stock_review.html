@@ -327,13 +327,6 @@ function saveData(d){
   if(!d.colWidths)d.colWidths={};
   if(!d.rowHeights)d.rowHeights={};
   lss('stock_review_tbl',JSON.stringify(d));
-  if(window.fbSaveWithStatus)fbSaveWithStatus();else fbSave();
-  /* [수정 v12] 실제 saveData 호출 시에만 저장됨 표시 */
-  
-    const d2=new Date();
-    const t=pad2(d2.getHours())+':'+pad2(d2.getMinutes())+':'+pad2(d2.getSeconds());
-    if(typeof setStatus==='function') setStatus('저장됨 ✓ '+t,'#34d399');
-  }
 }
 
 /* [수정 v12] autoSaveForm - 폼 CE div 입력 시 자동저장 (800ms 디바운스) */
@@ -938,25 +931,38 @@ function startRowResize(e, tableId, rowDataIdx) {
       if(bar)bar.scrollLeft=el.scrollLeft;
       syncing=false;
     });
+    /* mouseenter + 스크롤 위치 기반으로 활성 테이블 감지 */
     el.addEventListener('mouseenter',function(){syncBar(el);});
     el.addEventListener('focusin',function(){syncBar(el);});
+    el.addEventListener('click',function(){syncBar(el);});
     const obs=new ResizeObserver(function(){if(activeWrap===el)syncBar(el);});
     const tbl=el.querySelector('table');if(tbl)obs.observe(tbl);
     syncBar(el);
   };
   window.initAllTopScrolls=function(){
-    /* 클래스 기반 */
     document.querySelectorAll('.tbl-outer,.tbl-wrap,.ex-table-wrap').forEach(function(el){
       if(el.querySelector('table'))window.initTopScrollFixed(el);
     });
-    /* id 포함 */
     document.querySelectorAll('[id*="tbl-outer"],[id*="tbl-wrap"],[id*="tbl-outer-s"]').forEach(function(el){
       if(el.querySelector('table'))window.initTopScrollFixed(el);
     });
-    /* inline style overflow-x:auto */
     document.querySelectorAll('div').forEach(function(el){
       if(el.style&&el.style.overflowX==='auto'&&el.querySelector('table'))window.initTopScrollFixed(el);
     });
+    /* 페이지 스크롤 시 현재 화면에 보이는 테이블 자동 감지 */
+    window.addEventListener('scroll',function(){
+      const bar=document.getElementById('top-scroll-fixed');
+      if(!bar)return;
+      /* 화면에 보이는 overflow-x:auto div 중 테이블 있는 것 찾기 */
+      let found=null;
+      document.querySelectorAll('.tbl-outer,.tbl-wrap,.ex-table-wrap,div[style]').forEach(function(el){
+        if(!el.querySelector('table'))return;
+        if(el.style&&el.style.overflowX!=='auto'&&!el.classList.contains('tbl-outer')&&!el.classList.contains('tbl-wrap')&&!el.classList.contains('ex-table-wrap'))return;
+        const r=el.getBoundingClientRect();
+        if(r.top<window.innerHeight&&r.bottom>0){found=el;}
+      });
+      if(found)syncBar(found);
+    },true);
   };
   window.TOP_SCROLL_V3_LOADED=true;
 })();
