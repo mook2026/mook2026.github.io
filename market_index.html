@@ -5,12 +5,18 @@
   v1. 캔들차트 전환 (chartjs-chart-financial), OHLC 데이터 fetchHistory에 추가
   v2. 상단 카드 캐시값 표시 제거 → 항상 실시간 fetch 후 표시 (로딩중... 표시)
   v3. localStorage 먼저 렌더(loadFromCache) 후 Firebase 재렌더
-  [주의] fbSync 전 loadFromCache() 반드시 유지
+  v4. AS엔진 제거, SAVE ENGINE v2, fbSync 편집중방지, TOP SCROLL v3
+  v5. 전면 재설계 - 고지로 이동평균선 스테이지 분석(EMA 5/20/40 정배열순서 6단계)
+      종목: 코스피/코스닥/나스닥/나스닥100/필라델피아반도체/S&P500 + 행추가(종목코드 직접입력)
+      열추가(자유 메모), 일/주/월봉별 스테이지+진입일+경과일수 셀, 신호등 색상
+      행 클릭시 차트 패널(일/주/월봉 전환, EMA 5/20/40 오버레이)
+      캐싱 강화(localStorage 6시간 캐시) + 병렬 fetch로 속도 개선
+  [주의] fbSync 전 loadFromCache() 반드시 유지 / 스테이지 계산은 calcStage() 함수 사용
 -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>주요 경제지표</title>
+<title>주요 경제지표 - 스테이지 분석</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1/dist/chartjs-chart-financial.min.js"></script>
@@ -22,11 +28,13 @@
 const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ian-dashboard.firebaseapp.com",projectId:"ian-dashboard",storageBucket:"ian-dashboard.firebasestorage.app",messagingSenderId:"47067460467",appId:"1:47067460467:web:37906ad2ddb74133238b06"};
 if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
 const db=firebase.firestore();const UID='ian';
+window._editing=false;
 async function fbSave(){try{const d={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(d,{merge:true});}catch(e){console.warn('FB:',e);}}
 async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){Object.entries(doc.data()).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB:',e);}if(cb)cb();}
 </script>
 <style>
-:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.2);--border2:rgba(255,255,255,0.3);--text:#f0f0f0;--text2:#ccc;--text3:#999;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;}
+:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.2);--border2:rgba(255,255,255,0.3);--text:#f0f0f0;--text2:#ccc;--text3:#999;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;
+--s1:#22c55e;--s2:#f97316;--s3:#f97316;--s4:#ef4444;--s5:#eab308;--s6:#3b82f6;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;}
 .nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100;}
@@ -40,331 +48,563 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .btn.active{background:var(--stock);color:#0c0c0e;border-color:var(--stock);}
 .status-bar{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);padding:7px 20px;min-height:30px;}
 .wrap{padding:20px;}
-.section-title{font-size:17px;font-weight:600;color:var(--stock);margin-bottom:14px;}
+.section-title{font-size:17px;font-weight:600;color:var(--stock);margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:14px;}
+.legend-item{display:flex;align-items:center;gap:4px;}
+.legend-dot{width:10px;height:10px;border-radius:3px;}
 
-/* 지표 카드 그리드 */
-.index-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;}
-.idx-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;cursor:pointer;transition:border-color .2s;position:relative;overflow:hidden;}
-.idx-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
-.idx-card.selected{border-color:var(--stock);}
-.idx-card.pos-card::before{background:var(--pos);}
-.idx-card.neg-card::before{background:var(--neg);}
-.idx-card.neutral-card::before{background:var(--text3);}
-.idx-card:hover{border-color:var(--border2);}
-.idx-name{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
-.idx-val{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;color:var(--text);margin-bottom:4px;}
-.idx-chg{font-family:'DM Mono',monospace;font-size:13px;}
-.idx-chg.pos{color:var(--pos)}.idx-chg.neg{color:var(--neg)}.idx-chg.neutral{color:var(--text3);}
-.idx-time{font-size:11px;color:var(--text3);margin-top:6px;}
-.spark{width:100%;height:36px;margin-top:8px;}
+/* 스테이지 테이블 */
+.tbl-outer{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r);}
+table.stage-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:14px;}
+table.stage-table th{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);letter-spacing:.04em;padding:10px 14px;border:1px solid var(--border);background:var(--bg2);text-align:center;white-space:nowrap;position:sticky;top:0;z-index:5;}
+table.stage-table td{padding:8px 10px;border:1px solid var(--border);color:var(--text2);text-align:center;vertical-align:middle;}
+.stock-name-cell{font-weight:500;color:var(--text);cursor:pointer;text-align:left!important;min-width:140px;}
+.stock-name-cell:hover{color:var(--stock);}
+.stock-sym-cell{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);min-width:90px;}
+.stage-cell{min-width:110px;border-radius:6px;padding:6px 8px;cursor:default;}
+.stage-num{font-weight:700;font-size:14px;}
+.stage-date{font-family:'DM Mono',monospace;font-size:11px;opacity:0.85;margin-top:2px;}
+.stage-days{font-family:'DM Mono',monospace;font-size:11px;opacity:0.85;}
+.stage-loading{color:var(--text3);font-family:'DM Mono',monospace;font-size:12px;}
+.ce-memo{min-height:32px;outline:none;text-align:left;padding:4px 6px;border-radius:4px;cursor:text;}
+.ce-memo:hover,.ce-memo:focus{background:rgba(255,255,255,0.05);}
+.del-row-btn{cursor:pointer;color:var(--text3);font-size:13px;}
+.del-row-btn:hover{color:var(--neg);}
+.col-del-btn{cursor:pointer;color:var(--text3);font-size:11px;margin-left:4px;}
+.col-del-btn:hover{color:var(--neg);}
 
-/* 그래프 섹션 */
-.chart-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px;}
+/* 차트 패널 */
+.chart-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-top:16px;display:none;}
+.chart-panel.open{display:block;}
 .chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
 .chart-title{font-size:16px;font-weight:600;color:var(--text);}
-.chart-sub{font-size:13px;color:var(--text3);margin-top:2px;}
-.period-btns{display:flex;gap:6px;}
-.period-btn{font-family:'DM Mono',monospace;font-size:12px;padding:5px 12px;border-radius:5px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;}
-.period-btn:hover{border-color:var(--stock);color:var(--stock);}
-.period-btn.active{background:var(--stock);color:#0c0c0e;border-color:var(--stock);}
-.chart-wrap{position:relative;height:240px;}
+.tf-btns{display:flex;gap:6px;}
+.tf-btn{font-family:'DM Mono',monospace;font-size:12px;padding:5px 12px;border-radius:5px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;}
+.tf-btn:hover{border-color:var(--stock);color:var(--stock);}
+.tf-btn.active{background:var(--stock);color:#0c0c0e;border-color:var(--stock);}
+.chart-wrap{position:relative;height:320px;}
 .loading-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg2);font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);}
 .error-msg{text-align:center;color:var(--neg);font-family:'DM Mono',monospace;font-size:13px;padding:20px;}
+.close-panel{cursor:pointer;color:var(--text3);font-size:13px;}
+.close-panel:hover{color:var(--neg);}
 </style>
 </head>
 <body>
 <div class="nav">
-  <div class="nav-left"><a class="nav-back" href="home.html">←</a><div class="nav-logo">주요 경제지표</div></div>
+  <div class="nav-left"><a class="nav-back" href="home.html">←</a><div class="nav-logo">주요 경제지표 · 스테이지</div></div>
   <span id="last-update" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);"></span>
 </div>
 <div class="toolbar">
-  <button class="btn primary" onclick="fetchAll()">↻ 전체 업데이트</button>
-  <div style="display:flex;gap:6px;">
-    <button class="period-btn active" id="pb-1mo" onclick="setPeriod('1mo',this)">1개월</button>
-    <button class="period-btn" id="pb-3mo" onclick="setPeriod('3mo',this)">3개월</button>
-    <button class="period-btn" id="pb-6mo" onclick="setPeriod('6mo',this)">6개월</button>
-    <button class="period-btn" id="pb-1y" onclick="setPeriod('1y',this)">1년</button>
-  </div>
+  <button class="btn primary" onclick="fetchAllStages()">↻ 전체 업데이트</button>
+  <button class="btn" onclick="addStockRow()">+ 종목 추가</button>
+  <button class="btn" onclick="addMemoCol()">+ 열 추가</button>
 </div>
 <div class="status-bar" id="status-bar"></div>
 
 <div class="wrap">
-  <div class="section-title">현재값</div>
-  <div class="index-grid" id="index-grid"></div>
+  <div class="section-title">이동평균선 스테이지 (EMA 5 / 20 / 40)</div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--s1)"></div>스테이지1 (5&gt;20&gt;40 최강세)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--s2)"></div>스테이지2 (20&gt;5&gt;40)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--s3)"></div>스테이지3 (20&gt;40&gt;5)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--s4)"></div>스테이지4 (40&gt;20&gt;5 최약세)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--s5)"></div>스테이지5 (40&gt;5&gt;20 반등시작)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--s6)"></div>스테이지6 (5&gt;40&gt;20 전환)</div>
+  </div>
 
-  <div class="section-title">트렌드 그래프</div>
-  <div id="charts-wrap"></div>
+  <div class="tbl-outer" id="tbl-outer-stage">
+    <table class="stage-table" id="stage-table">
+      <thead><tr id="stage-thead-row">
+        <th style="text-align:left;">종목명</th>
+        <th>코드</th>
+        <th>일봉</th>
+        <th>주봉</th>
+        <th>월봉</th>
+        <th style="width:40px;"></th>
+      </tr></thead>
+      <tbody id="stage-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="chart-panel" id="chart-panel">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title" id="chart-panel-title">차트</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="tf-btns">
+          <button class="tf-btn active" id="tf-d" onclick="setChartTF('d')">일봉</button>
+          <button class="tf-btn" id="tf-w" onclick="setChartTF('w')">주봉</button>
+          <button class="tf-btn" id="tf-m" onclick="setChartTF('m')">월봉</button>
+        </div>
+        <span class="close-panel" onclick="closeChartPanel()">✕ 닫기</span>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <div class="loading-overlay" id="chart-loading" style="display:none;">불러오는 중...</div>
+      <canvas id="stage-chart"></canvas>
+    </div>
+  </div>
 </div>
-
 <script>
-const INDICATORS=[
-  {key:'KOSPI',sym:'^KS11',name:'코스피',unit:'',color:'#a78bfa'},
-  {key:'KOSDAQ',sym:'^KQ11',name:'코스닥',unit:'',color:'#34d399'},
-  {key:'SP500',sym:'^GSPC',name:'S&P 500',unit:'',color:'#60a5fa'},
-  {key:'NASDAQ',sym:'^IXIC',name:'나스닥',unit:'',color:'#f472b6'},
-  {key:'DJI',sym:'^DJI',name:'다우존스',unit:'',color:'#fb923c'},
-  {key:'USD_KRW',sym:'KRW=X',name:'USD/KRW',unit:'₩',color:'#fbbf24'},
-  {key:'TNX',sym:'^TNX',name:'미10년금리',unit:'%',color:'#e879f9'},
-  {key:'VIX',sym:'^VIX',name:'VIX 공포지수',unit:'',color:'#f87171'},
-  {key:'GOLD',sym:'GC=F',name:'금 (Gold)',unit:'$',color:'#fde047'},
-  {key:'OIL',sym:'CL=F',name:'WTI 유가',unit:'$',color:'#86efac'},
+/* ============================================================
+   기본 지수 목록 (코드 고정 행)
+   ============================================================ */
+const FIXED_STOCKS=[
+  {name:'코스피',sym:'^KS11',fixed:true},
+  {name:'코스닥',sym:'^KQ11',fixed:true},
+  {name:'나스닥',sym:'^IXIC',fixed:true},
+  {name:'나스닥100',sym:'^NDX',fixed:true},
+  {name:'필라델피아반도체',sym:'^SOX',fixed:true},
+  {name:'S&P500',sym:'^GSPC',fixed:true}
 ];
 
+const STORAGE_KEY='market_stage_data';
+const CACHE_PREFIX='mstage_cache_';
+const CACHE_TTL=6*60*60*1000; /* 6시간 캐시 */
 const DAYS=['일','월','화','수','목','금','토'];
-let currentPeriod='1mo';
-let selectedKey=null;
-let cachedData={};
-let charts={};
+
+let chartObj=null;
+let currentChartSym=null;
+let currentChartName=null;
+let currentChartTF='d';
 
 function pad(n){return String(n).padStart(2,'0');}
 function ls(k){return localStorage.getItem(k);}
 function lss(k,v){localStorage.setItem(k,v);}
-function setStatus(msg){document.getElementById('status-bar').textContent=msg;}
+function setStatus(msg){const el=document.getElementById('status-bar');if(el)el.textContent=msg;}
 
-// 야후 파이낸스 API 호출 (프록시 경유)
-async function fetchQuote(sym){
-  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d`;
-  const proxy=`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+/* ============================================================
+   데이터 구조: getData() / saveData()
+   data = { stocks:[{name,sym}], memoCols:[{key,label}], memos:{sym:{colKey:val}} }
+   ============================================================ */
+function getData(){
+  const raw=ls(STORAGE_KEY);
+  if(raw){try{
+    const d=JSON.parse(raw);
+    if(!d.stocks)d.stocks=[...FIXED_STOCKS];
+    if(!d.memoCols)d.memoCols=[];
+    if(!d.memos)d.memos={};
+    return d;
+  }catch(e){}}
+  return {stocks:[...FIXED_STOCKS],memoCols:[],memos:{}};
+}
+function saveData(d){lss(STORAGE_KEY,JSON.stringify(d));}
+
+/* ============================================================
+   캐시: 종목별 OHLC 데이터를 localStorage에 6시간 캐싱
+   ============================================================ */
+function getCache(sym,range){
+  const key=CACHE_PREFIX+sym+'_'+range;
+  const raw=ls(key);
+  if(!raw)return null;
   try{
-    const res=await fetch(proxy,{signal:AbortSignal.timeout(8000)});
-    const data=await res.json();
-    const parsed=JSON.parse(data.contents);
-    const result=parsed?.chart?.result?.[0];
-    if(!result)return null;
-    const meta=result.meta;
-    return {
-      price:meta.regularMarketPrice||meta.previousClose,
-      prev:meta.previousClose||meta.chartPreviousClose,
-      time:new Date(meta.regularMarketTime*1000).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})
-    };
+    const obj=JSON.parse(raw);
+    if(Date.now()-obj.ts>CACHE_TTL)return null;
+    return obj.data;
   }catch(e){return null;}
 }
+function setCache(sym,range,data){
+  const key=CACHE_PREFIX+sym+'_'+range;
+  try{lss(key,JSON.stringify({ts:Date.now(),data}));}catch(e){}
+}
 
-async function fetchHistory(sym,period){
-  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${period}`;
+/* ============================================================
+   야후 파이낸스 fetch (프록시 경유) - 일봉 데이터 가져와서
+   주봉/월봉은 클라이언트에서 리샘플링 (API 호출 횟수 최소화로 속도 개선)
+   ============================================================ */
+async function fetchDaily(sym){
+  const cached=getCache(sym,'2y');
+  if(cached)return cached;
+  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=2y`;
   const proxy=`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
   try{
-    const res=await fetch(proxy,{signal:AbortSignal.timeout(10000)});
+    const res=await fetch(proxy,{signal:AbortSignal.timeout(12000)});
     const data=await res.json();
     const parsed=JSON.parse(data.contents);
     const result=parsed?.chart?.result?.[0];
     if(!result)return null;
     const timestamps=result.timestamp||[];
     const q=result.indicators?.quote?.[0]||{};
-    const opens=q.open||[],highs=q.high||[],lows=q.low||[],closes=q.close||[];
-    return timestamps.map((t,i)=>({
-      t:t*1000,
-      date:new Date(t*1000).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'}),
-      o:opens[i],h:highs[i],l:lows[i],c:closes[i],
-      value:closes[i]
-    })).filter(d=>d.value!=null);
+    const closes=q.close||[],opens=q.open||[],highs=q.high||[],lows=q.low||[];
+    const bars=[];
+    for(let i=0;i<timestamps.length;i++){
+      if(closes[i]==null)continue;
+      bars.push({t:timestamps[i]*1000,o:opens[i],h:highs[i],l:lows[i],c:closes[i]});
+    }
+    setCache(sym,'2y',bars);
+    return bars;
+  }catch(e){console.warn('fetch fail',sym,e);return null;}
+}
+
+/* 일봉 → 주봉/월봉 리샘플링 */
+function resample(dailyBars,mode){
+  if(!dailyBars||!dailyBars.length)return [];
+  if(mode==='d')return dailyBars;
+  const groups={};
+  dailyBars.forEach(bar=>{
+    const dt=new Date(bar.t);
+    let key;
+    if(mode==='w'){
+      const d=new Date(dt);
+      const day=d.getDay();
+      const diff=d.getDate()-day+(day===0?-6:1); /* 월요일 기준 */
+      const monday=new Date(d.setDate(diff));
+      key=monday.getFullYear()+'-'+pad(monday.getMonth()+1)+'-'+pad(monday.getDate());
+    }else{
+      key=dt.getFullYear()+'-'+pad(dt.getMonth()+1);
+    }
+    if(!groups[key])groups[key]=[];
+    groups[key].push(bar);
+  });
+  return Object.keys(groups).sort().map(key=>{
+    const g=groups[key];
+    return {
+      t:g[0].t,
+      o:g[0].o,
+      h:Math.max(...g.map(b=>b.h)),
+      l:Math.min(...g.map(b=>b.l)),
+      c:g[g.length-1].c
+    };
+  });
+}
+
+/* EMA 계산 */
+function calcEMA(values,period){
+  if(values.length<period)return values.map(()=>null);
+  const k=2/(period+1);
+  const ema=[];
+  let prev=values.slice(0,period).reduce((a,b)=>a+b,0)/period;
+  for(let i=0;i<values.length;i++){
+    if(i<period-1){ema.push(null);continue;}
+    if(i===period-1){ema.push(prev);continue;}
+    prev=values[i]*k+prev*(1-k);
+    ema.push(prev);
+  }
+  return ema;
+}
+
+/* ============================================================
+   고지로 스테이지 계산: EMA 5/20/40 정배열 순서로 6단계 판정
+   1: 5>20>40   2: 20>5>40   3: 20>40>5
+   4: 40>20>5   5: 40>5>20   6: 5>40>20
+   진입일/경과일수도 함께 계산 (스테이지가 바뀐 시점 탐색)
+   ============================================================ */
+function classifyStage(e5,e20,e40){
+  if(e5==null||e20==null||e40==null)return null;
+  if(e5>e20&&e20>e40)return 1;
+  if(e20>e5&&e5>e40)return 2;
+  if(e20>e40&&e40>e5)return 3;
+  if(e40>e20&&e20>e5)return 4;
+  if(e40>e5&&e5>e20)return 5;
+  if(e5>e40&&e40>e20)return 6;
+  return null;
+}
+
+function calcStage(bars){
+  if(!bars||bars.length<45)return null;
+  const closes=bars.map(b=>b.c);
+  const e5arr=calcEMA(closes,5);
+  const e20arr=calcEMA(closes,20);
+  const e40arr=calcEMA(closes,40);
+
+  const stages=bars.map((b,i)=>classifyStage(e5arr[i],e20arr[i],e40arr[i]));
+  const lastIdx=stages.length-1;
+  const currentStage=stages[lastIdx];
+  if(currentStage==null)return null;
+
+  /* 현재 스테이지가 시작된 시점 찾기 (뒤에서부터 같은 스테이지 거슬러 올라가기) */
+  let entryIdx=lastIdx;
+  for(let i=lastIdx;i>=0;i--){
+    if(stages[i]===currentStage){entryIdx=i;}
+    else break;
+  }
+  const entryDate=new Date(bars[entryIdx].t);
+  const todayDate=new Date(bars[lastIdx].t);
+  const daysElapsed=Math.round((todayDate-entryDate)/(864e5));
+
+  return {
+    stage:currentStage,
+    entryDate:entryDate.getFullYear().toString().slice(2)+'/'+pad(entryDate.getMonth()+1)+'/'+pad(entryDate.getDate()),
+    daysElapsed:daysElapsed
+  };
+}
+
+const STAGE_COLORS={1:'var(--s1)',2:'var(--s2)',3:'var(--s3)',4:'var(--s4)',5:'var(--s5)',6:'var(--s6)'};
+
+function renderStageCell(info){
+  if(!info)return '<span class="stage-loading">불러오는 중...</span>';
+  const bg=STAGE_COLORS[info.stage];
+  return `<div class="stage-cell" style="background:${bg};color:#0c0c0e;">
+    <div class="stage-num">스테이지 ${info.stage}</div>
+    <div class="stage-date">${info.entryDate}</div>
+    <div class="stage-days">+${info.daysElapsed}일</div>
+  </div>`;
+}
+</script>
+<script>
+/* ============================================================
+   테이블 렌더링
+   ============================================================ */
+function renderTable(){
+  const data=getData();
+  /* 헤더 - 메모 열 추가 */
+  const theadRow=document.getElementById('stage-thead-row');
+  theadRow.innerHTML=`
+    <th style="text-align:left;">종목명</th>
+    <th>코드</th>
+    <th>일봉</th>
+    <th>주봉</th>
+    <th>월봉</th>
+    ${data.memoCols.map(col=>`<th>${col.label}<span class="col-del-btn" onclick="deleteMemoCol('${col.key}')">✕</span></th>`).join('')}
+    <th style="width:40px;"></th>
+  `;
+
+  const tbody=document.getElementById('stage-tbody');
+  tbody.innerHTML=data.stocks.map((stock,idx)=>{
+    const cached=getStageCache(stock.sym);
+    return `<tr data-sym="${stock.sym}">
+      <td class="stock-name-cell" onclick="openChartPanel('${stock.sym}','${stock.name.replace(/'/g,"\\'")}')">${stock.name}</td>
+      <td class="stock-sym-cell">${stock.sym}</td>
+      <td id="stage-d-${cssSafe(stock.sym)}">${renderStageCell(cached?cached.d:null)}</td>
+      <td id="stage-w-${cssSafe(stock.sym)}">${renderStageCell(cached?cached.w:null)}</td>
+      <td id="stage-m-${cssSafe(stock.sym)}">${renderStageCell(cached?cached.m:null)}</td>
+      ${data.memoCols.map(col=>`<td><div class="ce-cell ce-memo" contenteditable="true" data-sym="${stock.sym}" data-col="${col.key}" onblur="updateMemo(this)">${(data.memos[stock.sym]&&data.memos[stock.sym][col.key])||''}</div></td>`).join('')}
+      <td>${stock.fixed?'':`<span class="del-row-btn" onclick="deleteStockRow('${stock.sym}')">✕</span>`}</td>
+    </tr>`;
+  }).join('');
+}
+
+function cssSafe(sym){return sym.replace(/[^a-zA-Z0-9]/g,'_');}
+
+function updateMemo(el){
+  const sym=el.dataset.sym, col=el.dataset.col;
+  const data=getData();
+  if(!data.memos[sym])data.memos[sym]={};
+  data.memos[sym][col]=el.innerHTML;
+  saveData(data);
+}
+
+function addStockRow(){
+  const name=prompt('종목명 입력:');
+  if(!name||!name.trim())return;
+  const sym=prompt('종목코드 입력 (야후 파이낸스 티커, 예: 005930.KS, AAPL):');
+  if(!sym||!sym.trim())return;
+  const data=getData();
+  if(data.stocks.find(s=>s.sym===sym.trim())){showConfirm('이미 있는 종목코드');return;}
+  data.stocks.push({name:name.trim(),sym:sym.trim(),fixed:false});
+  saveData(data);
+  renderTable();
+  fetchOneStage(sym.trim());
+}
+
+function deleteStockRow(sym){
+  if(!confirm('이 종목을 삭제할까요?'))return;
+  const data=getData();
+  data.stocks=data.stocks.filter(s=>s.sym!==sym);
+  delete data.memos[sym];
+  saveData(data);
+  removeStageCache(sym);
+  renderTable();
+}
+
+function addMemoCol(){
+  const label=prompt('새 열 제목:');
+  if(!label||!label.trim())return;
+  const data=getData();
+  const key='col_'+Date.now();
+  data.memoCols.push({key,label:label.trim()});
+  saveData(data);
+  renderTable();
+}
+
+function deleteMemoCol(key){
+  if(!confirm('이 열을 삭제할까요?'))return;
+  const data=getData();
+  data.memoCols=data.memoCols.filter(c=>c.key!==key);
+  Object.keys(data.memos).forEach(sym=>{if(data.memos[sym])delete data.memos[sym][key];});
+  saveData(data);
+  renderTable();
+}
+
+function showConfirm(msg){setStatus(msg);setTimeout(()=>setStatus(''),2500);}
+
+/* ============================================================
+   스테이지 캐시 (계산결과 캐싱 - daily/weekly/monthly)
+   ============================================================ */
+function getStageCache(sym){
+  const raw=ls('mstage_result_'+cssSafe(sym));
+  if(!raw)return null;
+  try{
+    const obj=JSON.parse(raw);
+    if(Date.now()-obj.ts>CACHE_TTL)return null;
+    return obj.data;
   }catch(e){return null;}
 }
+function setStageCache(sym,data){
+  try{lss('mstage_result_'+cssSafe(sym),JSON.stringify({ts:Date.now(),data}));}catch(e){}
+}
+function removeStageCache(sym){
+  try{localStorage.removeItem('mstage_result_'+cssSafe(sym));}catch(e){}
+}
 
-async function fetchAll(){
-  setStatus('업데이트 중...');
-  const grid=document.getElementById('index-grid');
-  // 로딩 상태 표시
-  grid.innerHTML=INDICATORS.map(ind=>`
-    <div class="idx-card neutral-card" id="card-${ind.key}">
-      <div class="idx-name">${ind.name}</div>
-      <div class="idx-val" style="color:var(--text3);">로딩중...</div>
-      <div class="idx-chg neutral">-</div>
-    </div>
-  `).join('');
-
-  let success=0;
-  for(const ind of INDICATORS){
-    const q=await fetchQuote(ind.sym);
-    if(q){
-      cachedData[ind.key]={...ind,...q};
-      renderCard(ind.key,q,ind);
-      success++;
-      // localStorage 캐시
-      lss('idx_cache_'+ind.key,JSON.stringify({...q,ts:Date.now()}));
-    } else {
-      // 캐시에서 복구
-      const cached=ls('idx_cache_'+ind.key);
-      if(cached){
-        const c=JSON.parse(cached);
-        cachedData[ind.key]={...ind,...c};
-        renderCard(ind.key,c,ind,true);
-      }
-    }
+/* ============================================================
+   종목 하나의 일/주/월봉 스테이지 계산 (일봉 데이터 1번 받아서 리샘플링)
+   ============================================================ */
+async function fetchOneStage(sym){
+  const dailyBars=await fetchDaily(sym);
+  if(!dailyBars||!dailyBars.length){
+    const el=document.getElementById('stage-d-'+cssSafe(sym));
+    if(el)el.innerHTML='<span class="stage-loading" style="color:var(--neg);">데이터 없음</span>';
+    return null;
   }
-  const now=new Date();
-  const timeStr=now.getFullYear()+'.'+pad(now.getMonth()+1)+'.'+pad(now.getDate())+' '+now.getHours()+':'+pad(now.getMinutes());
-  document.getElementById('last-update').textContent='업데이트: '+timeStr;
-  setStatus(success+'/'+INDICATORS.length+' 업데이트 완료'+(success<INDICATORS.length?' (일부 캐시 사용)':''));
-  renderAllCharts();
+  const weeklyBars=resample(dailyBars,'w');
+  const monthlyBars=resample(dailyBars,'m');
+
+  const result={
+    d:calcStage(dailyBars),
+    w:calcStage(weeklyBars),
+    m:calcStage(monthlyBars)
+  };
+  setStageCache(sym,result);
+
+  const dEl=document.getElementById('stage-d-'+cssSafe(sym));
+  const wEl=document.getElementById('stage-w-'+cssSafe(sym));
+  const mEl=document.getElementById('stage-m-'+cssSafe(sym));
+  if(dEl)dEl.innerHTML=renderStageCell(result.d);
+  if(wEl)wEl.innerHTML=renderStageCell(result.w);
+  if(mEl)mEl.innerHTML=renderStageCell(result.m);
+
+  return result;
 }
 
-function renderCard(key,q,ind,fromCache=false){
-  const card=document.getElementById('card-'+key);
-  if(!card)return;
-  const chg=q.price-q.prev;
-  const chgPct=(chg/q.prev*100);
-  const isPos=chg>=0;
-  const fmtVal=ind.unit==='%'?q.price.toFixed(2):(q.price>=1000?q.price.toLocaleString('en-US',{maximumFractionDigits:2}):q.price.toFixed(2));
-  card.className=`idx-card ${isPos?'pos-card':'neg-card'}${selectedKey===key?' selected':''}`;
-  card.onclick=()=>selectIndicator(key);
-  card.innerHTML=`
-    <div class="idx-name">${ind.name}${fromCache?' (캐시)':''}</div>
-    <div class="idx-val">${ind.unit==='$'?'$':''}${fmtVal}${ind.unit==='%'?'%':''}${ind.unit==='₩'?'₩':''}</div>
-    <div class="idx-chg ${isPos?'pos':'neg'}">${isPos?'▲':'▼'} ${Math.abs(chg).toFixed(ind.unit==='%'?2:2)} (${isPos?'+':''}${chgPct.toFixed(2)}%)</div>
-    <div class="idx-time">${q.time||''}</div>
-  `;
+/* ============================================================
+   전체 종목 병렬 fetch (속도 개선 핵심)
+   ============================================================ */
+async function fetchAllStages(){
+  const data=getData();
+  setStatus('데이터 불러오는 중... (0/'+data.stocks.length+')');
+  let done=0;
+  const promises=data.stocks.map(stock=>
+    fetchOneStage(stock.sym).then(()=>{
+      done++;
+      setStatus('데이터 불러오는 중... ('+done+'/'+data.stocks.length+')');
+    })
+  );
+  await Promise.all(promises);
+  setStatus('완료 ✓ '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}));
+  document.getElementById('last-update').textContent='마지막 업데이트: '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
 }
 
-function selectIndicator(key){
-  selectedKey=key;
-  document.querySelectorAll('.idx-card').forEach(c=>c.classList.remove('selected'));
-  const card=document.getElementById('card-'+key);
-  if(card)card.classList.add('selected');
-  // 해당 그래프로 스크롤
-  const chartEl=document.getElementById('chart-section-'+key);
-  if(chartEl)chartEl.scrollIntoView({behavior:'smooth',block:'start'});
-}
-
-function setPeriod(p,btn){
-  currentPeriod=p;
-  document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  renderAllCharts();
-}
-
-async function renderAllCharts(){
-  const wrap=document.getElementById('charts-wrap');
-  wrap.innerHTML=INDICATORS.map(ind=>`
-    <div class="chart-section" id="chart-section-${ind.key}">
-      <div class="chart-header">
-        <div>
-          <div class="chart-title">${ind.name}</div>
-          <div class="chart-sub" id="chart-sub-${ind.key}">로딩 중...</div>
-        </div>
-      </div>
-      <div class="chart-wrap">
-        <canvas id="chart-${ind.key}"></canvas>
-        <div class="loading-overlay" id="chart-loading-${ind.key}">데이터 로딩 중...</div>
-      </div>
-    </div>
-  `).join('');
-
-  for(const ind of INDICATORS){
-    renderChart(ind);
+/* 캐시만 있으면 그걸로 먼저 표시 (즉시 렌더), 없는 것만 fetch */
+async function loadInitial(){
+  renderTable();
+  const data=getData();
+  const needFetch=data.stocks.filter(s=>!getStageCache(s.sym));
+  if(needFetch.length){
+    setStatus('신규 종목 '+needFetch.length+'개 데이터 불러오는 중...');
+    await Promise.all(needFetch.map(s=>fetchOneStage(s.sym)));
+    setStatus('완료 ✓');
   }
 }
+</script>
+<script>
+/* ============================================================
+   차트 패널 - 행 클릭 시 열림, 일/주/월봉 전환 + EMA 5/20/40
+   ============================================================ */
+async function openChartPanel(sym,name){
+  currentChartSym=sym;
+  currentChartName=name;
+  currentChartTF='d';
+  document.getElementById('chart-panel-title').textContent=name+' ('+sym+')';
+  document.getElementById('chart-panel').classList.add('open');
+  document.querySelectorAll('.tf-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tf-d').classList.add('active');
+  document.getElementById('chart-panel').scrollIntoView({behavior:'smooth',block:'nearest'});
+  await renderChart();
+}
 
-async function renderChart(ind){
-  const loading=document.getElementById('chart-loading-'+ind.key);
-  const canvas=document.getElementById('chart-'+ind.key);
-  const sub=document.getElementById('chart-sub-'+ind.key);
-  if(!canvas)return;
+function closeChartPanel(){
+  document.getElementById('chart-panel').classList.remove('open');
+  if(chartObj){chartObj.destroy();chartObj=null;}
+}
 
-  const hist=await fetchHistory(ind.sym,currentPeriod);
-  if(loading)loading.style.display='none';
+function setChartTF(tf){
+  currentChartTF=tf;
+  document.querySelectorAll('.tf-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tf-'+tf).classList.add('active');
+  renderChart();
+}
 
-  if(!hist||!hist.length){
-    canvas.parentElement.innerHTML=`<div class="error-msg">데이터를 불러오지 못했어요. 새로고침 해보세요.</div>`;
+async function renderChart(){
+  if(!currentChartSym)return;
+  const loadingEl=document.getElementById('chart-loading');
+  loadingEl.style.display='flex';
+
+  const dailyBars=await fetchDaily(currentChartSym);
+  loadingEl.style.display='none';
+
+  if(!dailyBars||!dailyBars.length){
+    loadingEl.style.display='flex';
+    loadingEl.innerHTML='<span class="error-msg">데이터를 불러올 수 없어요</span>';
     return;
   }
 
-  const values=hist.map(d=>d.value);
-  const first=values[0],last=values[values.length-1];
-  const chg=last-first,chgPct=(chg/first*100);
-  const isPos=chg>=0;
+  let bars=resample(dailyBars,currentChartTF);
+  /* 차트는 최근 200개 봉만 표시 (너무 많으면 느려짐) */
+  if(bars.length>200)bars=bars.slice(bars.length-200);
 
-  if(sub){
-    const fmtLast=ind.unit==='%'?last.toFixed(2):(last>=1000?last.toLocaleString('en-US',{maximumFractionDigits:2}):last.toFixed(2));
-    sub.innerHTML=`<span style="color:var(--text);font-weight:500;">${ind.unit==='$'?'$':''}${fmtLast}${ind.unit==='%'?'%':''}</span> &nbsp; <span style="color:${isPos?'var(--pos)':'var(--neg)'};">${isPos?'▲':'▼'} ${Math.abs(chgPct).toFixed(2)}% (${currentPeriod})</span>`;
-  }
+  const closes=bars.map(b=>b.c);
+  const ema5=calcEMA(closes,5);
+  const ema20=calcEMA(closes,20);
+  const ema40=calcEMA(closes,40);
 
-  if(charts[ind.key])charts[ind.key].destroy();
+  const ctx=document.getElementById('stage-chart').getContext('2d');
+  if(chartObj)chartObj.destroy();
 
-  const ctx=canvas.getContext('2d');
+  const candleData=bars.map(b=>({x:b.t,o:b.o,h:b.h,l:b.l,c:b.c}));
 
-  // OHLC 완비 여부 확인
-  const hasOHLC=hist.some(d=>d.o!=null&&d.h!=null&&d.l!=null);
-
-  if(hasOHLC && typeof Chart.registry !== 'undefined' && Chart.registry.getController){
-    // 캔들차트
-    const candleData=hist.map(d=>({
-      x:d.t,
-      o:d.o||d.value,
-      h:d.h||d.value,
-      l:d.l||d.value,
-      c:d.c||d.value
-    }));
-
-    charts[ind.key]=new Chart(ctx,{
-      type:'candlestick',
-      data:{datasets:[{
-        label:ind.name,
-        data:candleData,
-        color:{up:'#34d399',down:'#fb7185',unchanged:'#999'},
-        borderColor:{up:'#34d399',down:'#fb7185',unchanged:'#999'},
-        backgroundColors:{up:'rgba(52,211,153,0.7)',down:'rgba(251,113,133,0.7)',unchanged:'rgba(153,153,153,0.7)'}
-      }]},
-      options:{
-        responsive:true,
-        maintainAspectRatio:false,
-        plugins:{
-          legend:{display:false},
-          tooltip:{
-            backgroundColor:'#1c1c1f',borderColor:'rgba(255,255,255,0.2)',borderWidth:1,titleColor:'#ccc',bodyColor:'#f0f0f0',
-            callbacks:{
-              label:ctx=>{
-                const d=ctx.raw;
-                return [`시가: ${d.o?.toFixed(2)}`,`고가: ${d.h?.toFixed(2)}`,`저가: ${d.l?.toFixed(2)}`,`종가: ${d.c?.toFixed(2)}`];
-              }
-            }
-          }
+  chartObj=new Chart(ctx,{
+    type:'candlestick',
+    data:{
+      datasets:[
+        {
+          label:currentChartName,
+          data:candleData,
+          color:{up:'#34d399',down:'#fb7185',unchanged:'#999'}
         },
-        scales:{
-          x:{type:'time',time:{unit:'day',tooltipFormat:'yyyy-MM-dd'},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',maxTicksLimit:8,font:{size:11}},border:{display:false}},
-          y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:11},callback:v=>v>=1000?v.toLocaleString():v.toFixed(2)},border:{display:false},position:'right'}
+        {
+          type:'line',label:'EMA5',data:bars.map((b,i)=>({x:b.t,y:ema5[i]})),
+          borderColor:'#fbbf24',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true
+        },
+        {
+          type:'line',label:'EMA20',data:bars.map((b,i)=>({x:b.t,y:ema20[i]})),
+          borderColor:'#60a5fa',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true
+        },
+        {
+          type:'line',label:'EMA40',data:bars.map((b,i)=>({x:b.t,y:ema40[i]})),
+          borderColor:'#a78bfa',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true
         }
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,labels:{color:'#ccc',font:{size:11}}}},
+      scales:{
+        x:{type:'time',time:{unit:currentChartTF==='d'?'day':currentChartTF==='w'?'week':'month'},ticks:{color:'#999',font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}},
+        y:{ticks:{color:'#999',font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}}
       }
-    });
-  } else {
-    // fallback: 라인차트
-    const gradient=ctx.createLinearGradient(0,0,0,240);
-    gradient.addColorStop(0,isPos?'rgba(52,211,153,0.3)':'rgba(251,113,133,0.3)');
-    gradient.addColorStop(1,'rgba(0,0,0,0)');
-    charts[ind.key]=new Chart(ctx,{
-      type:'line',
-      data:{labels:hist.map(d=>d.date),datasets:[{data:values,borderColor:isPos?'#34d399':'#fb7185',backgroundColor:gradient,borderWidth:2,pointRadius:0,pointHoverRadius:4,fill:true,tension:0.3}]},
-      options:{
-        responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,backgroundColor:'#1c1c1f',borderColor:'rgba(255,255,255,0.2)',borderWidth:1,titleColor:'#ccc',bodyColor:'#f0f0f0'}},
-        scales:{
-          x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',maxTicksLimit:8,font:{size:11}},border:{display:false}},
-          y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:11},callback:v=>v>=1000?v.toLocaleString():v.toFixed(2)},border:{display:false},position:'right'}
-        },
-        interaction:{mode:'index',intersect:false}
-      }
-    });
-  }
+    }
+  });
 }
-
-// 초기 그리드 (로딩 상태만 표시, 캐시값 표시 안 함)
-function loadFromCache(){
-  const grid=document.getElementById('index-grid');
-  grid.innerHTML=INDICATORS.map(ind=>`
-    <div class="idx-card neutral-card" id="card-${ind.key}" onclick="selectIndicator('${ind.key}')">
-      <div class="idx-name">${ind.name}</div>
-      <div class="idx-val" style="color:var(--text3);">로딩중...</div>
-      <div class="idx-chg neutral">-</div>
-    </div>
-  `).join('');
-  setStatus('실시간 데이터 불러오는 중...');
-}
-
-/* [수정] localStorage 먼저 렌더 후 Firebase 재렌더 */
-loadFromCache();
+</script>
+<script>
+const d=new Date();
+loadInitial();
 fbSync(()=>{
-  loadFromCache();
-  if(!window._editing)fetchAll();
+  if(window._editing)return;
+  renderTable();
+  setTimeout(function(){if(window.initAllTopScrolls)window.initAllTopScrolls();},100);
 });
 </script>
 <script>
@@ -427,8 +667,7 @@ fbSync(()=>{
   window.SAVE_ENGINE_LOADED=true;
   setTimeout(function(){getBar();setMsg('준비됨','#888');},300);
 })();
-</script>
-<script>
+</script><script>
 /* ============================================================
    TOP SCROLL ENGINE v3
    - position:fixed, nav+toolbar 높이 동적계산
@@ -476,28 +715,39 @@ fbSync(()=>{
       if(bar)bar.scrollLeft=el.scrollLeft;
       syncing=false;
     });
+    /* mouseenter + 스크롤 위치 기반으로 활성 테이블 감지 */
     el.addEventListener('mouseenter',function(){syncBar(el);});
     el.addEventListener('focusin',function(){syncBar(el);});
+    el.addEventListener('click',function(){syncBar(el);});
     const obs=new ResizeObserver(function(){if(activeWrap===el)syncBar(el);});
     const tbl=el.querySelector('table');if(tbl)obs.observe(tbl);
     syncBar(el);
   };
   window.initAllTopScrolls=function(){
-    /* 클래스 기반 */
     document.querySelectorAll('.tbl-outer,.tbl-wrap,.ex-table-wrap').forEach(function(el){
       if(el.querySelector('table'))window.initTopScrollFixed(el);
     });
-    /* id 포함 */
     document.querySelectorAll('[id*="tbl-outer"],[id*="tbl-wrap"],[id*="tbl-outer-s"]').forEach(function(el){
       if(el.querySelector('table'))window.initTopScrollFixed(el);
     });
-    /* inline style overflow-x:auto */
     document.querySelectorAll('div').forEach(function(el){
       if(el.style&&el.style.overflowX==='auto'&&el.querySelector('table'))window.initTopScrollFixed(el);
     });
+    /* 페이지 스크롤 시 현재 화면에 보이는 테이블 자동 감지 */
+    window.addEventListener('scroll',function(){
+      const bar=document.getElementById('top-scroll-fixed');
+      if(!bar)return;
+      /* 화면에 보이는 overflow-x:auto div 중 테이블 있는 것 찾기 */
+      let found=null;
+      document.querySelectorAll('.tbl-outer,.tbl-wrap,.ex-table-wrap,div[style]').forEach(function(el){
+        if(!el.querySelector('table'))return;
+        if(el.style&&el.style.overflowX!=='auto'&&!el.classList.contains('tbl-outer')&&!el.classList.contains('tbl-wrap')&&!el.classList.contains('ex-table-wrap'))return;
+        const r=el.getBoundingClientRect();
+        if(r.top<window.innerHeight&&r.bottom>0){found=el;}
+      });
+      if(found)syncBar(found);
+    },true);
   };
   window.TOP_SCROLL_V3_LOADED=true;
 })();
-</script>
-</body>
-</html>
+</script></body></html>
