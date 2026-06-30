@@ -26,8 +26,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .tl-item:last-child .tl-line{display:none;}
 .tl-right{flex:1;padding:10px 0 20px;}
 .tl-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 14px;}
-.tl-card-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px;line-height:1.4;}
-.tl-card-sub{font-size:11px;color:var(--text3);line-height:1.6;}
+.tl-card-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px;line-height:1.4;outline:none;border-radius:4px;padding:2px 4px;margin-left:-4px;margin-right:-4px;cursor:text;}
+.tl-card-title:hover,.tl-card-title:focus{background:rgba(255,255,255,0.05);}
+.tl-card-sub{font-size:11px;color:var(--text3);line-height:1.6;outline:none;border-radius:4px;padding:2px 4px;margin-left:-4px;margin-right:-4px;cursor:text;}
+.tl-card-sub:hover,.tl-card-sub:focus{background:rgba(255,255,255,0.05);}
 .tl-tag{display:inline-block;font-family:'DM Mono',monospace;font-size:9px;padding:2px 6px;border-radius:3px;margin-right:4px;margin-bottom:2px;}
 .career .tl-dot{border-color:var(--job);}
 .career .tl-line{background:linear-gradient(var(--job),rgba(167,139,250,0.1));}
@@ -53,6 +55,7 @@ const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ia
 if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
 const db=firebase.firestore();
 const UID='ian';
+window._editing=false;
 async function fbSave(){try{const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)data[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(data,{merge:true});}catch(e){console.warn('FB:',e);}}
 async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){const d=doc.data();Object.entries(d).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB:',e);}if(cb)cb();}
 </script>
@@ -66,156 +69,102 @@ async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get
 
 <div class="section">
   <div class="sec-label" style="color:var(--job)">Career</div>
-  <div class="timeline career">
-    <div class="tl-item">
-      <div class="tl-left"><div class="tl-year">2026<span class="now-badge">NOW</span></div></div>
-      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
-      <div class="tl-right"><div class="tl-card">
-        <div class="tl-card-title">반도체 패키징 분야 이직 성공</div>
-        <div class="tl-card-sub">
-          <span class="tl-tag">SK하이닉스</span><span class="tl-tag">삼성DS</span><span class="tl-tag">현대차</span><br>
-          Package Reliability 직무 · 2026년 8월 목표
-        </div>
-      </div></div>
-    </div>
-    <div class="tl-item">
-      <div class="tl-left"><div class="tl-year">2028</div></div>
-      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
-      <div class="tl-right"><div class="tl-card">
-        <div class="tl-card-title">미국 주재원 발령</div>
-        <div class="tl-card-sub">해외 기술영업/개발 경험 · 영어 실력 활용</div>
-      </div></div>
-    </div>
-    <div class="tl-item">
-      <div class="tl-left"><div class="tl-year">2031</div></div>
-      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
-      <div class="tl-right"><div class="tl-card">
-        <div class="tl-card-title">팀장 (책임/수석급)</div>
-        <div class="tl-card-sub">패키징 신뢰성 전문가로 조직 리드</div>
-      </div></div>
-    </div>
-    <div class="tl-item">
-      <div class="tl-left"><div class="tl-year">2036</div></div>
-      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
-      <div class="tl-right"><div class="tl-card">
-        <div class="tl-card-title">임원 후보군 등재</div>
-        <div class="tl-card-sub">부문장급 · 국내외 네트워크 + 전문성으로 승부</div>
-      </div></div>
-    </div>
-  </div>
+  <div class="timeline career" id="tl-career"></div>
 </div>
 
 <div class="section">
   <div class="sec-label" style="color:var(--stock)">주식 / 자산</div>
-  <div class="timeline stock-tl">
-    <div class="tl-item">
-      <div class="tl-left"><div class="tl-year">2026<span class="now-badge">NOW</span></div></div>
-      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
-      <div class="tl-right"><div class="tl-card">
-        <div class="tl-card-title">실현손익 1,100만원</div>
-        <div class="tl-card-sub">
-          <span class="tl-tag">승률 60%+</span><span class="tl-tag">평균수익률 20%+</span><br>
-          월별 목표 달성으로 시드 축적
-        </div>
-      </div></div>
-    </div>
-    <div class="tl-item">
-      <div class="tl-left"><div class="tl-year">2028</div></div>
-      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
-      <div class="tl-right"><div class="tl-card">
-        <div class="tl-card-title">누적 자산 1억</div>
-        <div class="tl-card-sub">수익 + 성과급 추가 투입 · 복리 시작</div>
-      </div></div>
-    </div>
-    <div class="tl-item">
-      <div class="tl-left"><div class="tl-year">2031</div></div>
-      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
-      <div class="tl-right"><div class="tl-card">
-        <div class="tl-card-title">누적 자산 5억</div>
-        <div class="tl-card-sub">시드 증가 + 복리 효과 본격화</div>
-      </div></div>
-    </div>
-    <div class="tl-item">
-      <div class="tl-left"><div class="tl-year">2036</div></div>
-      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
-      <div class="tl-right"><div class="tl-card">
-        <div class="tl-card-title">누적 자산 100억</div>
-        <div class="tl-card-sub">연봉·성과급 시드 지속 투입 + 복리 폭발 구간</div>
-      </div></div>
-    </div>
-  </div>
+  <div class="timeline stock-tl" id="tl-stock"></div>
 </div>
 
 <div class="section">
   <div class="sec-label" style="color:var(--eng)">영어</div>
-  <div class="timeline eng-tl">
-    <div class="tl-item">
-      <div class="tl-left"><div class="tl-year">2026.04<span class="now-badge">NOW</span></div></div>
-      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
-      <div class="tl-right"><div class="tl-card">
-        <div class="tl-card-title">OPIc IH 달성</div>
-        <div class="tl-card-sub">이직 서류/면접 대비 · 4월 말 시험</div>
-      </div></div>
-    </div>
-    <div class="tl-item">
-      <div class="tl-left"><div class="tl-year">2026.08</div></div>
-      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
-      <div class="tl-right"><div class="tl-card">
-        <div class="tl-card-title">김재우 문장패턴 100강 완주</div>
-        <div class="tl-card-sub">현재 34강 · 2일 사이클 유지</div>
-      </div></div>
-    </div>
-    <div class="tl-item">
-      <div class="tl-left"><div class="tl-year">2026.12</div></div>
-      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
-      <div class="tl-right"><div class="tl-card">
-        <div class="tl-card-title">OPIc AL 도전</div>
-        <div class="tl-card-sub">100강 완주 후 AL 집중 준비 2~3개월</div>
-      </div></div>
-    </div>
-    <div class="tl-item">
-      <div class="tl-left"><div class="tl-year">2027</div></div>
-      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
-      <div class="tl-right"><div class="tl-card">
-        <div class="tl-card-title">OPIc AL 확보</div>
-        <div class="tl-card-sub">미국 주재원 준비 본격화</div>
-      </div></div>
-    </div>
-    <div class="tl-item">
-      <div class="tl-left"><div class="tl-year">2028</div></div>
-      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
-      <div class="tl-right"><div class="tl-card">
-        <div class="tl-card-title">김재우 구동사 300강 완주</div>
-        <div class="tl-card-sub">2026년 9월 시작 · 원어민급 자연스러운 표현력</div>
-      </div></div>
-    </div>
-  </div>
+  <div class="timeline eng-tl" id="tl-eng"></div>
 </div>
 
 <script>
+const STORAGE_KEY='goals_data';
+const DEFAULT_DATA={
+  career:[
+    {year:'2026',now:true,title:'반도체 패키징 분야 이직 성공',sub:'<span class="tl-tag">SK하이닉스</span><span class="tl-tag">삼성DS</span><span class="tl-tag">현대차</span><br>Package Reliability 직무 · 2026년 8월 목표'},
+    {year:'2028',now:false,title:'미국 주재원 발령',sub:'해외 기술영업/개발 경험 · 영어 실력 활용'},
+    {year:'2031',now:false,title:'팀장 (책임/수석급)',sub:'패키징 신뢰성 전문가로 조직 리드'},
+    {year:'2036',now:false,title:'임원 후보군 등재',sub:'부문장급 · 국내외 네트워크 + 전문성으로 승부'}
+  ],
+  stock:[
+    {year:'2026',now:true,title:'실현손익 1,100만원',sub:'<span class="tl-tag">승률 60%+</span><span class="tl-tag">평균수익률 20%+</span><br>월별 목표 달성으로 시드 축적'},
+    {year:'2028',now:false,title:'누적 자산 1억',sub:'수익 + 성과급 추가 투입 · 복리 시작'},
+    {year:'2031',now:false,title:'누적 자산 5억',sub:'시드 증가 + 복리 효과 본격화'},
+    {year:'2036',now:false,title:'누적 자산 100억',sub:'연봉·성과급 시드 지속 투입 + 복리 폭발 구간'}
+  ],
+  eng:[
+    {year:'2026.04',now:true,title:'OPIc IH 달성',sub:'이직 서류/면접 대비 · 4월 말 시험'},
+    {year:'2026.08',now:false,title:'김재우 문장패턴 100강 완주',sub:'현재 34강 · 2일 사이클 유지'},
+    {year:'2026.12',now:false,title:'OPIc AL 도전',sub:'100강 완주 후 AL 집중 준비 2~3개월'},
+    {year:'2027',now:false,title:'OPIc AL 확보',sub:'미국 주재원 준비 본격화'},
+    {year:'2028',now:false,title:'김재우 구동사 300강 완주',sub:'2026년 9월 시작 · 원어민급 자연스러운 표현력'}
+  ]
+};
+
+function getData(){
+  const raw=localStorage.getItem(STORAGE_KEY);
+  if(raw){try{return JSON.parse(raw);}catch(e){}}
+  return JSON.parse(JSON.stringify(DEFAULT_DATA));
+}
+function saveData(d){localStorage.setItem(STORAGE_KEY,JSON.stringify(d));}
+
+function renderTimeline(containerId, items, dataKey){
+  const el=document.getElementById(containerId);
+  el.innerHTML=items.map((item,idx)=>`
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-year">${item.year}${item.now?'<span class="now-badge">NOW</span>':''}</div></div>
+      <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-right"><div class="tl-card">
+        <div class="tl-card-title ce-cell" contenteditable="true" data-key="${dataKey}" data-idx="${idx}" data-field="title"
+          onblur="updateCard(this)">${item.title}</div>
+        <div class="tl-card-sub ce-cell" contenteditable="true" data-key="${dataKey}" data-idx="${idx}" data-field="sub"
+          onblur="updateCard(this)">${item.sub}</div>
+      </div></div>
+    </div>
+  `).join('');
+}
+
+function updateCard(el){
+  const key=el.dataset.key, idx=parseInt(el.dataset.idx), field=el.dataset.field;
+  const data=getData();
+  if(!data[key]||!data[key][idx])return;
+  data[key][idx][field]=el.innerHTML;
+  saveData(data);
+}
+
+function renderAll(){
+  const data=getData();
+  renderTimeline('tl-career', data.career, 'career');
+  renderTimeline('tl-stock', data.stock, 'stock');
+  renderTimeline('tl-eng', data.eng, 'eng');
+}
+
+renderAll();
+fbSync(()=>{
+  if(window._editing)return;
+  renderAll();
+});
+
 const d=new Date();
 const days=['일','월','화','수','목','금','토'];
 document.getElementById('today-str').textContent=d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')+' '+days[d.getDay()]+'요일';
 </script>
 <script>
-/* ============================================================
-   SAVE ENGINE v2 - 수동저장만 / 자동저장 없음
-   - 💾 버튼: 모든 CE셀 innerHTML 수집 → localStorage → Firebase
-   - 실제 Firebase 완료 후에만 ✅ 저장됨 표시
-   - 가짜 저장됨 표시 없음
-   ============================================================ */
 (function(){
   function pad(n){return String(n).padStart(2,'0');}
   function nowTime(){const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes());}
-
   function getBar(){
     let bar=document.getElementById('save-status-bar');
     if(bar)return bar;
     bar=document.createElement('div');
     bar.id='save-status-bar';
     bar.style.cssText='position:fixed;bottom:0;left:0;right:0;height:30px;background:#141416;border-top:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:9998;font-family:\'DM Mono\',monospace;font-size:12px;color:#888;';
-    bar.innerHTML='<span id="save-status-msg">준비됨</span>'
-      +'<button onclick="window.manualSave&&window.manualSave()" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:4px;color:#fbbf24;font-size:12px;padding:3px 10px;cursor:pointer;font-family:\'DM Mono\',monospace;">💾 저장</button>';
+    bar.innerHTML='<span id="save-status-msg">준비됨</span><button onclick="window.manualSave&&window.manualSave()" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:4px;color:#fbbf24;font-size:12px;padding:3px 10px;cursor:pointer;font-family:\'DM Mono\',monospace;">💾 저장</button>';
     document.body.appendChild(bar);
     document.body.style.paddingBottom='38px';
     return bar;
@@ -225,34 +174,21 @@ document.getElementById('today-str').textContent=d.getFullYear()+'.'+String(d.ge
     const el=document.getElementById('save-status-msg');
     if(el){el.textContent=msg;el.style.color=color||'#888';}
   }
-  /* CE셀 innerHTML 즉시 수집 - blur 없이 */
-  function flushAllCells(){
-    document.querySelectorAll('.ce-cell[contenteditable="true"]').forEach(function(el){
-      const attr=el.getAttribute('onblur');
-      if(!attr)return;
-      try{ new Function('el',attr.replace(/\bthis\b/g,'el'))(el); }catch(e){}
-    });
-  }
   window.manualSave=async function(){
     setMsg('저장 중...','#fbbf24');
     try{
-      flushAllCells();
+      const active=document.activeElement;
+      if(active&&active.classList&&active.classList.contains('ce-cell'))active.blur();
       const d={};
       for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}
       if(!Object.keys(d).length){setMsg('저장할 데이터 없음','#fb7185');return;}
-      if(typeof db!=='undefined'&&typeof UID!=='undefined'){
-        await db.collection('data').doc(UID).set(d,{merge:true});
-        setMsg('✅ 저장됨 '+nowTime(),'#34d399');
-      }else{
-        setMsg('✅ 로컬 저장됨 '+nowTime(),'#fbbf24');
-      }
+      await db.collection('data').doc(UID).set(d,{merge:true});
+      setMsg('✅ 저장됨 '+nowTime(),'#34d399');
     }catch(e){
       setMsg('❌ 저장 실패: '+e.message,'#fb7185');
       console.error('저장 실패:',e);
     }
   };
-  window.fbSaveWithStatus=window.manualSave;
-  /* CE셀 포커스 추적 - fbSync 재렌더 방지용 */
   document.addEventListener('focusin',function(e){
     if(e.target.classList&&e.target.classList.contains('ce-cell'))window._editing=true;
   });
@@ -263,77 +199,6 @@ document.getElementById('today-str').textContent=d.getFullYear()+'.'+String(d.ge
   });
   window.SAVE_ENGINE_LOADED=true;
   setTimeout(function(){getBar();setMsg('준비됨','#888');},300);
-})();
-</script>
-<script>
-/* ============================================================
-   TOP SCROLL ENGINE v3
-   - position:fixed, nav+toolbar 높이 동적계산
-   - 셀렉터 확대: .tbl-outer, .tbl-wrap, id*=tbl, div[overflow-x:auto]
-   ============================================================ */
-(function(){
-  let activeWrap=null,syncing=false;
-  function getNavBottom(){
-    const nav=document.querySelector('.nav'),tb=document.querySelector('.toolbar');
-    let top=nav?nav.getBoundingClientRect().bottom:56;
-    if(tb){const r=tb.getBoundingClientRect();if(r.top<=top+2)top=r.bottom;}
-    return Math.round(top);
-  }
-  function getOrCreateBar(){
-    let bar=document.getElementById('top-scroll-fixed');
-    if(bar)return bar;
-    bar=document.createElement('div');
-    bar.id='top-scroll-fixed';
-    bar.style.cssText='position:fixed;left:0;right:0;height:14px;overflow-x:auto;overflow-y:hidden;z-index:998;background:#1c1c1f;border-bottom:2px solid rgba(251,191,36,0.3);display:none;cursor:pointer;';
-    const dummy=document.createElement('div');
-    dummy.id='top-scroll-dummy';dummy.style.height='1px';
-    bar.appendChild(dummy);document.body.appendChild(bar);
-    bar.addEventListener('scroll',function(){
-      if(syncing||!activeWrap)return;
-      syncing=true;activeWrap.scrollLeft=bar.scrollLeft;syncing=false;
-    });
-    return bar;
-  }
-  function syncBar(wrap){
-    const bar=getOrCreateBar(),dummy=document.getElementById('top-scroll-dummy');
-    const tbl=wrap.querySelector('table');
-    if(!tbl){bar.style.display='none';return;}
-    activeWrap=wrap;
-    dummy.style.width=tbl.scrollWidth+'px';
-    bar.scrollLeft=wrap.scrollLeft;
-    bar.style.top=getNavBottom()+'px';
-    bar.style.display=tbl.scrollWidth>wrap.clientWidth?'block':'none';
-  }
-  window.initTopScrollFixed=function(el){
-    if(!el||el.dataset.tsFixed)return;
-    el.dataset.tsFixed='1';
-    el.addEventListener('scroll',function(){
-      if(syncing)return;syncing=true;
-      const bar=document.getElementById('top-scroll-fixed');
-      if(bar)bar.scrollLeft=el.scrollLeft;
-      syncing=false;
-    });
-    el.addEventListener('mouseenter',function(){syncBar(el);});
-    el.addEventListener('focusin',function(){syncBar(el);});
-    const obs=new ResizeObserver(function(){if(activeWrap===el)syncBar(el);});
-    const tbl=el.querySelector('table');if(tbl)obs.observe(tbl);
-    syncBar(el);
-  };
-  window.initAllTopScrolls=function(){
-    /* 클래스 기반 */
-    document.querySelectorAll('.tbl-outer,.tbl-wrap,.ex-table-wrap').forEach(function(el){
-      if(el.querySelector('table'))window.initTopScrollFixed(el);
-    });
-    /* id 포함 */
-    document.querySelectorAll('[id*="tbl-outer"],[id*="tbl-wrap"],[id*="tbl-outer-s"]').forEach(function(el){
-      if(el.querySelector('table'))window.initTopScrollFixed(el);
-    });
-    /* inline style overflow-x:auto */
-    document.querySelectorAll('div').forEach(function(el){
-      if(el.style&&el.style.overflowX==='auto'&&el.querySelector('table'))window.initTopScrollFixed(el);
-    });
-  };
-  window.TOP_SCROLL_V3_LOADED=true;
 })();
 </script>
 </body>

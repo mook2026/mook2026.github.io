@@ -154,6 +154,25 @@ function deleteCol(col){
   if(!confirm('"'+col+'" 열 삭제?'))return;
   const data=getData();data.cols=data.cols.filter(c=>c!==col);data.rows.forEach(r=>delete r[col]);saveData(data);render();
 }
+function renameCol(oldName){
+  if(FIXED_COLS.includes(oldName)){showConfirm('날짜 열은 이름 변경 불가');return;}
+  const newName=prompt('열 이름 변경:',oldName);
+  if(!newName||!newName.trim()||newName.trim()===oldName)return;
+  const data=getData();
+  if(data.cols.includes(newName.trim())){showConfirm('이미 있는 열 이름');return;}
+  const idx=data.cols.indexOf(oldName);
+  if(idx<0)return;
+  data.cols[idx]=newName.trim();
+  data.rows.forEach(r=>{
+    if(oldName in r){r[newName.trim()]=r[oldName];delete r[oldName];}
+  });
+  /* colWidths도 같이 이전 */
+  if(data.colWidths&&oldName in data.colWidths){
+    data.colWidths[newName.trim()]=data.colWidths[oldName];
+    delete data.colWidths[oldName];
+  }
+  saveData(data);render();
+}
 function updateCellCE_op(el, idx, col){
   const data=getData();if(!data.rows[idx])return;
   data.rows[idx][col]=el.innerHTML;saveData(data);
@@ -250,7 +269,7 @@ function render(){
                     <th style="width:28px;min-width:28px;"><div class="th-content"><span class="th-label">↕</span></div></th>
                     <th data-col="날짜" style="width:${cw['날짜']||110}px;min-width:${cw['날짜']||110}px;"><div class="th-content"><span class="th-label">날짜</span></div><div class="resizer" onmousedown="startResize(event,'날짜')"></div></th>
                     ${cols.filter(c=>c!=='날짜').map(c=>`<th data-col="${c}" style="width:${cw[c]||COL_W[c]||140}px;min-width:${cw[c]||COL_W[c]||140}px;">
-                      <div class="th-content"><span class="th-label">${c} <span onclick="deleteCol('${c}')" style="cursor:pointer;color:var(--text3);font-size:11px;">✕</span></span></div>
+                      <div class="th-content"><span class="th-label" onclick="renameCol('${c.replace(/'/g,"\\'")}')"  style="cursor:pointer;" title="클릭하여 이름 변경">${c}</span> <span onclick="event.stopPropagation();deleteCol('${c.replace(/'/g,"\\'")}')" style="cursor:pointer;color:var(--text3);font-size:11px;">✕</span></div>
                       <div class="resizer" onmousedown="startResize(event,'${c}')"></div>
                     </th>`).join('')}
                     <th style="width:52px;min-width:52px;"></th>
@@ -566,25 +585,38 @@ fbSync(()=>{
       if(bar)bar.scrollLeft=el.scrollLeft;
       syncing=false;
     });
+    /* mouseenter + 스크롤 위치 기반으로 활성 테이블 감지 */
     el.addEventListener('mouseenter',function(){syncBar(el);});
     el.addEventListener('focusin',function(){syncBar(el);});
+    el.addEventListener('click',function(){syncBar(el);});
     const obs=new ResizeObserver(function(){if(activeWrap===el)syncBar(el);});
     const tbl=el.querySelector('table');if(tbl)obs.observe(tbl);
     syncBar(el);
   };
   window.initAllTopScrolls=function(){
-    /* 클래스 기반 */
     document.querySelectorAll('.tbl-outer,.tbl-wrap,.ex-table-wrap').forEach(function(el){
       if(el.querySelector('table'))window.initTopScrollFixed(el);
     });
-    /* id 포함 */
     document.querySelectorAll('[id*="tbl-outer"],[id*="tbl-wrap"],[id*="tbl-outer-s"]').forEach(function(el){
       if(el.querySelector('table'))window.initTopScrollFixed(el);
     });
-    /* inline style overflow-x:auto */
     document.querySelectorAll('div').forEach(function(el){
       if(el.style&&el.style.overflowX==='auto'&&el.querySelector('table'))window.initTopScrollFixed(el);
     });
+    /* 페이지 스크롤 시 현재 화면에 보이는 테이블 자동 감지 */
+    window.addEventListener('scroll',function(){
+      const bar=document.getElementById('top-scroll-fixed');
+      if(!bar)return;
+      /* 화면에 보이는 overflow-x:auto div 중 테이블 있는 것 찾기 */
+      let found=null;
+      document.querySelectorAll('.tbl-outer,.tbl-wrap,.ex-table-wrap,div[style]').forEach(function(el){
+        if(!el.querySelector('table'))return;
+        if(el.style&&el.style.overflowX!=='auto'&&!el.classList.contains('tbl-outer')&&!el.classList.contains('tbl-wrap')&&!el.classList.contains('ex-table-wrap'))return;
+        const r=el.getBoundingClientRect();
+        if(r.top<window.innerHeight&&r.bottom>0){found=el;}
+      });
+      if(found)syncBar(found);
+    },true);
   };
   window.TOP_SCROLL_V3_LOADED=true;
 })();
