@@ -245,9 +245,9 @@ async function fetchViaProxy(targetUrl,timeoutMs){
 }
 
 async function fetchDaily(sym){
-  const cached=getCache(sym,'2y');
+  const cached=getCache(sym,'5y');
   if(cached)return cached;
-  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=2y`;
+  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=5y`;
   try{
     const parsed=await fetchViaProxy(url,12000);
     const result=parsed?.chart?.result?.[0];
@@ -261,7 +261,7 @@ async function fetchDaily(sym){
       bars.push({t:timestamps[i]*1000,o:opens[i],h:highs[i],l:lows[i],c:closes[i]});
     }
     if(!bars.length)return null;
-    setCache(sym,'2y',bars);
+    setCache(sym,'5y',bars);
     return bars;
   }catch(e){console.warn('fetch fail',sym,e);return null;}
 }
