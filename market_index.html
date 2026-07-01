@@ -578,7 +578,8 @@ async function renderChart(){
   }
 
   let bars=resample(dailyBars,currentChartTF);
-  if(bars.length>200)bars=bars.slice(bars.length-200);
+  /* 일봉만 200개 제한, 주봉/월봉은 전체 표시 */
+  if(currentChartTF==='d'&&bars.length>200)bars=bars.slice(bars.length-200);
 
   const closes=bars.map(b=>b.c);
   const ema5=calcEMA(closes,5);
@@ -587,33 +588,40 @@ async function renderChart(){
 
   /* 각 봉의 스테이지 계산 */
   const STAGE_RGBA={
-    1:'rgba(34,197,94,0.13)',
-    2:'rgba(234,179,8,0.13)',
-    3:'rgba(249,115,22,0.13)',
-    4:'rgba(239,68,68,0.15)',
-    5:'rgba(139,92,246,0.13)',
-    6:'rgba(59,130,246,0.13)'
+    1:'rgba(34,197,94,0.15)',
+    2:'rgba(234,179,8,0.15)',
+    3:'rgba(249,115,22,0.15)',
+    4:'rgba(239,68,68,0.18)',
+    5:'rgba(139,92,246,0.15)',
+    6:'rgba(59,130,246,0.15)'
   };
   const STAGE_BORDER={
-    1:'rgba(34,197,94,0.5)',
-    2:'rgba(234,179,8,0.5)',
-    3:'rgba(249,115,22,0.5)',
-    4:'rgba(239,68,68,0.5)',
-    5:'rgba(139,92,246,0.5)',
-    6:'rgba(59,130,246,0.5)'
+    1:'rgba(34,197,94,0.6)',
+    2:'rgba(234,179,8,0.6)',
+    3:'rgba(249,115,22,0.6)',
+    4:'rgba(239,68,68,0.6)',
+    5:'rgba(139,92,246,0.6)',
+    6:'rgba(59,130,246,0.6)'
   };
 
-  /* 스테이지 구간 블록 계산 (연속된 같은 스테이지를 하나의 블록으로) */
+  /* null 구간을 이전 스테이지로 채움 (교차 구간 검정 제거) */
   const stagePerBar=bars.map((_,i)=>classifyStage(ema5[i],ema20[i],ema40[i]));
+  let lastStage=null;
+  const stagePerBarFilled=stagePerBar.map(s=>{
+    if(s!==null)lastStage=s;
+    return lastStage;
+  });
+
   const stageAnnotations=[];
-  let blockStart=0,blockStage=stagePerBar[0];
-  for(let i=1;i<=stagePerBar.length;i++){
-    if(i===stagePerBar.length||stagePerBar[i]!==blockStage){
-      if(blockStage){
+  let blockStart=0,blockStage=stagePerBarFilled[0];
+  for(let i=1;i<=stagePerBarFilled.length;i++){
+    const s=i<stagePerBarFilled.length?stagePerBarFilled[i]:null;
+    if(s!==blockStage){
+      if(blockStage!==null){
         stageAnnotations.push({xMin:blockStart,xMax:i-1,stage:blockStage});
       }
       blockStart=i;
-      blockStage=stagePerBar[i];
+      blockStage=s;
     }
   }
 
@@ -626,14 +634,31 @@ async function renderChart(){
   wrap.appendChild(newCanvas);
   const ctx=newCanvas.getContext('2d');
 
-  const labels=bars.map(b=>{
+  /* 연도 포함 레이블 */
+  const labels=bars.map((b,i)=>{
     const d=new Date(b.t);
-    if(currentChartTF==='m')return (d.getMonth()+1)+'월';
-    if(currentChartTF==='w')return (d.getMonth()+1)+'/'+d.getDate();
-    return (d.getMonth()+1)+'/'+String(d.getDate()).padStart(2,'0');
+    const yr=d.getFullYear();
+    const mo=d.getMonth()+1;
+    const da=d.getDate();
+    if(currentChartTF==='m'){
+      /* 월봉: 1월이거나 첫번째 봉이면 연도 표기 */
+      if(mo===1||i===0)return yr+'년';
+      return mo+'월';
+    }
+    if(currentChartTF==='w'){
+      /* 주봉: 1월 첫주거나 첫봉이면 연도 표기 */
+      if((mo===1&&da<=7)||i===0)return yr+'/'+String(mo).padStart(2,'0');
+      return mo+'/'+da;
+    }
+    /* 일봉: 매월 1일 근처에 월/일 표기, 연초엔 연도도 */
+    if(da<=3){
+      if(mo===1)return yr+'/'+String(mo).padStart(2,'0');
+      return mo+'/'+String(da).padStart(2,'0');
+    }
+    return mo+'/'+String(da).padStart(2,'0');
   });
 
-  /* 스테이지 배경 블록을 Chart.js 플러그인으로 직접 그리기 */
+  /* 스테이지 배경 블록 플러그인 */
   const stageBgPlugin={
     id:'stageBg',
     beforeDraw(chart){
@@ -646,11 +671,10 @@ async function renderChart(){
         const xMax=Math.min(ann.xMax,bars.length-1);
         const x0=x.getPixelForValue(xMin);
         const x1=x.getPixelForValue(xMax);
-        c.fillStyle=STAGE_RGBA[ann.stage]||'rgba(128,128,128,0.1)';
+        c.fillStyle=STAGE_RGBA[ann.stage]||'transparent';
         c.fillRect(x0,top,x1-x0,bottom-top);
-        /* 스테이지 번호 텍스트 */
         const w=x1-x0;
-        if(w>30){
+        if(w>24){
           c.fillStyle=STAGE_BORDER[ann.stage]||'rgba(128,128,128,0.5)';
           c.font='bold 10px DM Mono, monospace';
           c.textAlign='center';
@@ -667,10 +691,10 @@ async function renderChart(){
     data:{
       labels:labels,
       datasets:[
-        {label:'종가',data:closes,borderColor:'#e5e7eb',borderWidth:1.5,pointRadius:0,fill:false,tension:0.1},
-        {label:'EMA5',data:ema5,borderColor:'#fbbf24',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
-        {label:'EMA20',data:ema20,borderColor:'#60a5fa',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
-        {label:'EMA40',data:ema40,borderColor:'#a78bfa',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0}
+        {label:'종가',data:closes,borderColor:'rgba(229,231,235,0.7)',borderWidth:1.5,pointRadius:0,fill:false,tension:0.1},
+        {label:'EMA5',data:ema5,borderColor:'#f472b6',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
+        {label:'EMA20',data:ema20,borderColor:'#ca8a04',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
+        {label:'EMA40',data:ema40,borderColor:'#3b82f6',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0}
       ]
     },
     options:{
@@ -681,7 +705,7 @@ async function renderChart(){
         tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+(ctx.parsed.y?.toFixed(2)||'-');}}}
       },
       scales:{
-        x:{ticks:{color:'#888',font:{size:10},maxTicksLimit:12,maxRotation:0},grid:{color:'rgba(255,255,255,0.04)'}},
+        x:{ticks:{color:'#888',font:{size:10},maxTicksLimit:currentChartTF==='m'?24:currentChartTF==='w'?20:15,maxRotation:0},grid:{color:'rgba(255,255,255,0.04)'}},
         y:{ticks:{color:'#888',font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}}
       }
     }
