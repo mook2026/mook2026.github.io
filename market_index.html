@@ -19,6 +19,8 @@
 <title>주요 경제지표 - 스테이지 분석</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script>
@@ -634,28 +636,29 @@ async function renderChart(){
   wrap.appendChild(newCanvas);
   const ctx=newCanvas.getContext('2d');
 
-  /* 연도 포함 레이블 */
+  /* 연도 중간중간 표기 - 연도 바뀔 때마다 표시 */
   const labels=bars.map((b,i)=>{
     const d=new Date(b.t);
     const yr=d.getFullYear();
     const mo=d.getMonth()+1;
     const da=d.getDate();
+    const prevD=i>0?new Date(bars[i-1].t):null;
+    const prevYr=prevD?prevD.getFullYear():null;
+    const yearChanged=prevYr&&yr!==prevYr;
+
     if(currentChartTF==='m'){
-      /* 월봉: 1월이거나 첫번째 봉이면 연도 표기 */
-      if(mo===1||i===0)return yr+'년';
+      if(i===0||yearChanged)return String(yr).slice(2)+"'"+String(mo).padStart(2,'0');
       return mo+'월';
     }
     if(currentChartTF==='w'){
-      /* 주봉: 1월 첫주거나 첫봉이면 연도 표기 */
-      if((mo===1&&da<=7)||i===0)return yr+'/'+String(mo).padStart(2,'0');
-      return mo+'/'+da;
-    }
-    /* 일봉: 매월 1일 근처에 월/일 표기, 연초엔 연도도 */
-    if(da<=3){
-      if(mo===1)return yr+'/'+String(mo).padStart(2,'0');
+      if(i===0||yearChanged)return String(yr).slice(2)+"'"+String(mo).padStart(2,'0')+'/'+String(da).padStart(2,'0');
+      if(mo===1&&da<=7)return String(yr).slice(2)+"'01";
       return mo+'/'+String(da).padStart(2,'0');
     }
-    return mo+'/'+String(da).padStart(2,'0');
+    /* 일봉 */
+    if(i===0||yearChanged)return String(yr).slice(2)+"'"+String(mo).padStart(2,'0');
+    if(da===1||da<=3&&(i===0||new Date(bars[i-1].t).getMonth()!==d.getMonth()))return mo+'/'+String(da).padStart(2,'0');
+    return '';
   });
 
   /* 스테이지 배경 블록 플러그인 */
@@ -685,6 +688,17 @@ async function renderChart(){
     }
   };
 
+  /* 줌 리셋 버튼 추가 */
+  let resetBtn=document.getElementById('chart-zoom-reset');
+  if(!resetBtn){
+    resetBtn=document.createElement('button');
+    resetBtn.id='chart-zoom-reset';
+    resetBtn.textContent='↺ 초기화';
+    resetBtn.style.cssText='font-family:"DM Mono",monospace;font-size:11px;padding:4px 10px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:#888;cursor:pointer;margin-left:8px;';
+    resetBtn.onclick=function(){if(chartObj)chartObj.resetZoom();};
+    document.querySelector('.tf-btns').appendChild(resetBtn);
+  }
+
   chartObj=new Chart(ctx,{
     type:'line',
     plugins:[stageBgPlugin],
@@ -702,10 +716,14 @@ async function renderChart(){
       interaction:{mode:'index',intersect:false},
       plugins:{
         legend:{display:true,labels:{color:'#ccc',font:{size:11},boxWidth:20}},
-        tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+(ctx.parsed.y?.toFixed(2)||'-');}}}
+        tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+(ctx.parsed.y?.toFixed(2)||'-');}}},
+        zoom:{
+          zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'},
+          pan:{enabled:true,mode:'x'}
+        }
       },
       scales:{
-        x:{ticks:{color:'#888',font:{size:10},maxTicksLimit:currentChartTF==='m'?24:currentChartTF==='w'?20:15,maxRotation:0},grid:{color:'rgba(255,255,255,0.04)'}},
+        x:{ticks:{color:'#888',font:{size:10},maxTicksLimit:currentChartTF==='m'?30:currentChartTF==='w'?24:18,maxRotation:0,autoSkip:true},grid:{color:'rgba(255,255,255,0.04)'}},
         y:{ticks:{color:'#888',font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}}
       }
     }
