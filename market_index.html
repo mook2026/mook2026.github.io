@@ -31,7 +31,7 @@ async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get
 </script>
 <style>
 :root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.2);--border2:rgba(255,255,255,0.3);--text:#f0f0f0;--text2:#ccc;--text3:#999;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;
---s1:#22c55e;--s2:#f97316;--s3:#f97316;--s4:#ef4444;--s5:#eab308;--s6:#3b82f6;}
+--s1:#22c55e;--s2:#eab308;--s3:#f97316;--s4:#ef4444;--s5:#8b5cf6;--s6:#3b82f6;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;}
 .nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100;}
@@ -585,7 +585,39 @@ async function renderChart(){
   const ema20=calcEMA(closes,20);
   const ema40=calcEMA(closes,40);
 
-  /* Canvas 중복 사용 방지 - 기존 차트 destroy 후 canvas 재생성 */
+  /* 각 봉의 스테이지 계산 */
+  const STAGE_RGBA={
+    1:'rgba(34,197,94,0.13)',
+    2:'rgba(234,179,8,0.13)',
+    3:'rgba(249,115,22,0.13)',
+    4:'rgba(239,68,68,0.15)',
+    5:'rgba(139,92,246,0.13)',
+    6:'rgba(59,130,246,0.13)'
+  };
+  const STAGE_BORDER={
+    1:'rgba(34,197,94,0.5)',
+    2:'rgba(234,179,8,0.5)',
+    3:'rgba(249,115,22,0.5)',
+    4:'rgba(239,68,68,0.5)',
+    5:'rgba(139,92,246,0.5)',
+    6:'rgba(59,130,246,0.5)'
+  };
+
+  /* 스테이지 구간 블록 계산 (연속된 같은 스테이지를 하나의 블록으로) */
+  const stagePerBar=bars.map((_,i)=>classifyStage(ema5[i],ema20[i],ema40[i]));
+  const stageAnnotations=[];
+  let blockStart=0,blockStage=stagePerBar[0];
+  for(let i=1;i<=stagePerBar.length;i++){
+    if(i===stagePerBar.length||stagePerBar[i]!==blockStage){
+      if(blockStage){
+        stageAnnotations.push({xMin:blockStart,xMax:i-1,stage:blockStage});
+      }
+      blockStart=i;
+      blockStage=stagePerBar[i];
+    }
+  }
+
+  /* Canvas 재생성 */
   if(chartObj){chartObj.destroy();chartObj=null;}
   const wrap=document.getElementById('stage-chart').parentNode;
   wrap.querySelector('canvas')?.remove();
@@ -594,7 +626,6 @@ async function renderChart(){
   wrap.appendChild(newCanvas);
   const ctx=newCanvas.getContext('2d');
 
-  /* 날짜 레이블 */
   const labels=bars.map(b=>{
     const d=new Date(b.t);
     if(currentChartTF==='m')return (d.getMonth()+1)+'월';
@@ -602,8 +633,37 @@ async function renderChart(){
     return (d.getMonth()+1)+'/'+String(d.getDate()).padStart(2,'0');
   });
 
+  /* 스테이지 배경 블록을 Chart.js 플러그인으로 직접 그리기 */
+  const stageBgPlugin={
+    id:'stageBg',
+    beforeDraw(chart){
+      const{ctx:c,chartArea:{left,right,top,bottom},scales:{x}}=chart;
+      if(!x)return;
+      c.save();
+      stageAnnotations.forEach(ann=>{
+        if(ann.xMin>=bars.length||ann.xMax<0)return;
+        const xMin=Math.max(ann.xMin,0);
+        const xMax=Math.min(ann.xMax,bars.length-1);
+        const x0=x.getPixelForValue(xMin);
+        const x1=x.getPixelForValue(xMax);
+        c.fillStyle=STAGE_RGBA[ann.stage]||'rgba(128,128,128,0.1)';
+        c.fillRect(x0,top,x1-x0,bottom-top);
+        /* 스테이지 번호 텍스트 */
+        const w=x1-x0;
+        if(w>30){
+          c.fillStyle=STAGE_BORDER[ann.stage]||'rgba(128,128,128,0.5)';
+          c.font='bold 10px DM Mono, monospace';
+          c.textAlign='center';
+          c.fillText('S'+ann.stage,x0+w/2,top+12);
+        }
+      });
+      c.restore();
+    }
+  };
+
   chartObj=new Chart(ctx,{
     type:'line',
+    plugins:[stageBgPlugin],
     data:{
       labels:labels,
       datasets:[
