@@ -320,15 +320,30 @@ function restoreFromFile(input){
           setProgress('restore-progress',null); input.value=''; return;
         }
         localStorage.clear();
+        setProgress('restore-progress',50);
+        entries.forEach(([k,v])=>localStorage.setItem(k,v));
+      } else {
+        /* 진짜 병합: 현재 localStorage에 없는 키만 추가, 있는 키는 유지 */
+        setProgress('restore-progress',50);
+        let added=0, skipped=0;
+        entries.forEach(([k,v])=>{
+          if(localStorage.getItem(k)===null){
+            localStorage.setItem(k,v); added++;
+          } else {
+            skipped++;
+          }
+        });
+        console.log(`병합: ${added}개 추가, ${skipped}개 유지(현재값 우선)`);
       }
-
-      setProgress('restore-progress',50);
-      entries.forEach(([k,v])=>localStorage.setItem(k,v));
       setProgress('restore-progress',80);
 
       // Firebase에도 동기화
       try{
-        await db.collection('data').doc(UID).set(backup.data,{merge: restoreMode==='merge'});
+        /* 병합 모드: Firebase에 현재 localStorage 전체 업로드 (오래된 백업 덮어쓰기 방지) */
+        const currentData={};
+        for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)currentData[k]=localStorage.getItem(k);}
+        const dataToUpload = restoreMode==='merge' ? currentData : backup.data;
+        await db.collection('data').doc(UID).set(dataToUpload,{merge:false});
         setProgress('restore-progress',100);
         setTimeout(()=>setProgress('restore-progress',null),1000);
         showStatus('restore-status',
@@ -426,7 +441,7 @@ scanData();
     try{
       flushAllCells();
       const d={};
-      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}
+      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&!k.startsWith('mstage_'))d[k]=localStorage.getItem(k);}
       if(!Object.keys(d).length){setMsg('저장할 데이터 없음','#fb7185');return;}
       if(typeof db!=='undefined'&&typeof UID!=='undefined'){
         await db.collection('data').doc(UID).set(d,{merge:true});

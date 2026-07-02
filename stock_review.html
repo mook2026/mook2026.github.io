@@ -856,7 +856,7 @@ function startRowResize(e, tableId, rowDataIdx) {
       const active=document.activeElement;
       if(active&&active.classList&&active.classList.contains('ce-cell'))active.blur();
       const d={};
-      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}
+      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&!k.startsWith('mstage_'))d[k]=localStorage.getItem(k);}
       if(!Object.keys(d).length){setMsg('저장할 데이터 없음','#fb7185');return;}
       if(typeof db!=='undefined'&&typeof UID!=='undefined'){
         await db.collection('data').doc(UID).set(d,{merge:true});

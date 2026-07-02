@@ -28,7 +28,7 @@ const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ia
 if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
 const db=firebase.firestore();const UID='ian';
 window._editing=false;
-async function fbSave(){try{const d={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(d,{merge:true});}catch(e){console.warn('FB:',e);}}
+async function fbSave(){try{const d={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&!k.startsWith('mstage_'))d[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(d,{merge:true});}catch(e){console.warn('FB:',e);}}
 async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){Object.entries(doc.data()).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB:',e);}if(cb)cb();}
 </script>
 <style>
@@ -479,7 +479,49 @@ function removeStageCache(sym){
 /* ============================================================
    종목 하나의 일/주/월봉 스테이지 계산 (일봉 데이터 1번 받아서 리샘플링)
    ============================================================ */
+/* ============================================================
+   Firebase에서 스테이지 데이터 불러오기 (GitHub Actions가 저장한 것)
+   없으면 프록시로 직접 fetch 시도 (폴백)
+   ============================================================ */
+async function loadStageFromFirebase(){
+  try{
+    const doc=await db.collection('market').doc('stage_data').get();
+    if(doc.exists){
+      const d=doc.data();
+      const results=JSON.parse(d.results||'{}');
+      const updatedAt=d.updatedAt||'';
+      if(updatedAt){
+        const dt=new Date(updatedAt);
+        document.getElementById('last-update').textContent=
+          '데이터 기준: '+dt.toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})+
+          ' '+(dt.getUTCHours()+9)+'시';
+      }
+      return results;
+    }
+  }catch(e){console.warn('Firebase stage 로드 실패:',e);}
+  return null;
+}
+
 async function fetchOneStage(sym){
+  /* 1) Firebase 데이터 먼저 시도 */
+  try{
+    const doc=await db.collection('market').doc('stage_data').get();
+    if(doc.exists){
+      const results=JSON.parse(doc.data().results||'{}');
+      if(results[sym]){
+        setStageCache(sym,results[sym]);
+        const dEl=document.getElementById('stage-d-'+cssSafe(sym));
+        const wEl=document.getElementById('stage-w-'+cssSafe(sym));
+        const mEl=document.getElementById('stage-m-'+cssSafe(sym));
+        if(dEl)dEl.innerHTML=renderStageCell(results[sym].d);
+        if(wEl)wEl.innerHTML=renderStageCell(results[sym].w);
+        if(mEl)mEl.innerHTML=renderStageCell(results[sym].m);
+        return results[sym];
+      }
+    }
+  }catch(e){console.warn('Firebase 조회 실패, 프록시 시도:',e);}
+
+  /* 2) Firebase에 없으면 프록시로 직접 fetch */
   const dailyBars=await fetchDaily(sym);
   if(!dailyBars||!dailyBars.length){
     const el=document.getElementById('stage-d-'+cssSafe(sym));
@@ -488,30 +530,46 @@ async function fetchOneStage(sym){
   }
   const weeklyBars=resample(dailyBars,'w');
   const monthlyBars=resample(dailyBars,'m');
-
-  const result={
-    d:calcStage(dailyBars),
-    w:calcStage(weeklyBars),
-    m:calcStage(monthlyBars)
-  };
+  const result={d:calcStage(dailyBars),w:calcStage(weeklyBars),m:calcStage(monthlyBars)};
   setStageCache(sym,result);
-
   const dEl=document.getElementById('stage-d-'+cssSafe(sym));
   const wEl=document.getElementById('stage-w-'+cssSafe(sym));
   const mEl=document.getElementById('stage-m-'+cssSafe(sym));
   if(dEl)dEl.innerHTML=renderStageCell(result.d);
   if(wEl)wEl.innerHTML=renderStageCell(result.w);
   if(mEl)mEl.innerHTML=renderStageCell(result.m);
-
   return result;
 }
 
-/* ============================================================
-   전체 종목 병렬 fetch (속도 개선 핵심)
-   ============================================================ */
 async function fetchAllStages(){
   const data=getData();
-  setStatus('데이터 불러오는 중... (0/'+data.stocks.length+')');
+  setStatus('데이터 불러오는 중...');
+
+  /* Firebase에서 전체 한번에 로드 */
+  const fbResults=await loadStageFromFirebase();
+  if(fbResults){
+    data.stocks.forEach(stock=>{
+      if(fbResults[stock.sym]){
+        setStageCache(stock.sym,fbResults[stock.sym]);
+        const dEl=document.getElementById('stage-d-'+cssSafe(stock.sym));
+        const wEl=document.getElementById('stage-w-'+cssSafe(stock.sym));
+        const mEl=document.getElementById('stage-m-'+cssSafe(stock.sym));
+        if(dEl)dEl.innerHTML=renderStageCell(fbResults[stock.sym].d);
+        if(wEl)wEl.innerHTML=renderStageCell(fbResults[stock.sym].w);
+        if(mEl)mEl.innerHTML=renderStageCell(fbResults[stock.sym].m);
+      }
+    });
+    /* Firebase에 없는 종목만 프록시로 직접 fetch */
+    const missing=data.stocks.filter(s=>!fbResults[s.sym]);
+    if(missing.length){
+      setStatus('신규 종목 '+missing.length+'개 직접 불러오는 중...');
+      await Promise.all(missing.map(s=>fetchOneStage(s.sym)));
+    }
+    setStatus('완료 ✓ '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}));
+    return;
+  }
+
+  /* Firebase 전체 실패 시 프록시 폴백 */
   let done=0;
   const promises=data.stocks.map(stock=>
     fetchOneStage(stock.sym).then(()=>{
@@ -521,16 +579,39 @@ async function fetchAllStages(){
   );
   await Promise.all(promises);
   setStatus('완료 ✓ '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}));
-  document.getElementById('last-update').textContent='마지막 업데이트: '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
 }
 
-/* 캐시만 있으면 그걸로 먼저 표시 (즉시 렌더), 없는 것만 fetch */
 async function loadInitial(){
   renderTable();
+  /* Firebase에서 전체 로드 먼저 시도 */
+  const fbResults=await loadStageFromFirebase();
   const data=getData();
+  if(fbResults){
+    data.stocks.forEach(stock=>{
+      if(fbResults[stock.sym]){
+        setStageCache(stock.sym,fbResults[stock.sym]);
+        const dEl=document.getElementById('stage-d-'+cssSafe(stock.sym));
+        const wEl=document.getElementById('stage-w-'+cssSafe(stock.sym));
+        const mEl=document.getElementById('stage-m-'+cssSafe(stock.sym));
+        if(dEl)dEl.innerHTML=renderStageCell(fbResults[stock.sym].d);
+        if(wEl)wEl.innerHTML=renderStageCell(fbResults[stock.sym].w);
+        if(mEl)mEl.innerHTML=renderStageCell(fbResults[stock.sym].m);
+      }
+    });
+    const missing=data.stocks.filter(s=>!fbResults[s.sym]);
+    if(missing.length){
+      setStatus('신규 종목 '+missing.length+'개 불러오는 중...');
+      await Promise.all(missing.map(s=>fetchOneStage(s.sym)));
+      setStatus('완료 ✓');
+    }else{
+      setStatus('완료 ✓');
+    }
+    return;
+  }
+  /* Firebase 실패 시 캐시 확인 후 프록시 */
   const needFetch=data.stocks.filter(s=>!getStageCache(s.sym));
   if(needFetch.length){
-    setStatus('신규 종목 '+needFetch.length+'개 데이터 불러오는 중...');
+    setStatus('데이터 불러오는 중... ('+needFetch.length+'개)');
     await Promise.all(needFetch.map(s=>fetchOneStage(s.sym)));
     setStatus('완료 ✓');
   }
@@ -758,7 +839,7 @@ fbSync(()=>{
       const active=document.activeElement;
       if(active&&active.classList&&active.classList.contains('ce-cell'))active.blur();
       const d={};
-      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}
+      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&!k.startsWith('mstage_'))d[k]=localStorage.getItem(k);}
       if(!Object.keys(d).length){setMsg('저장할 데이터 없음','#fb7185');return;}
       if(typeof db!=='undefined'&&typeof UID!=='undefined'){
         await db.collection('data').doc(UID).set(d,{merge:true});

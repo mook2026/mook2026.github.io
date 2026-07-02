@@ -27,7 +27,7 @@
 const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ian-dashboard.firebaseapp.com",projectId:"ian-dashboard",storageBucket:"ian-dashboard.firebasestorage.app",messagingSenderId:"47067460467",appId:"1:47067460467:web:37906ad2ddb74133238b06"};
 if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
 const db=firebase.firestore();const UID='ian';
-async function fbSave(){try{const d={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(d,{merge:true});}catch(e){console.warn('FB:',e);}}
+async function fbSave(){try{const d={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&!k.startsWith('mstage_'))d[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(d,{merge:true});}catch(e){console.warn('FB:',e);}}
 async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){Object.entries(doc.data()).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB:',e);}if(cb)cb();}
 </script>
 <style>
@@ -668,7 +668,7 @@ function startRowResize(e, tableId, rowDataIdx) {
       const active=document.activeElement;
       if(active&&active.classList&&active.classList.contains('ce-cell'))active.blur();
       const d={};
-      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)d[k]=localStorage.getItem(k);}
+      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&!k.startsWith('mstage_'))d[k]=localStorage.getItem(k);}
       if(!Object.keys(d).length){setMsg('저장할 데이터 없음','#fb7185');return;}
       if(typeof db!=='undefined'&&typeof UID!=='undefined'){
         await db.collection('data').doc(UID).set(d,{merge:true});
@@ -743,25 +743,38 @@ function startRowResize(e, tableId, rowDataIdx) {
       if(bar)bar.scrollLeft=el.scrollLeft;
       syncing=false;
     });
+    /* mouseenter + 스크롤 위치 기반으로 활성 테이블 감지 */
     el.addEventListener('mouseenter',function(){syncBar(el);});
     el.addEventListener('focusin',function(){syncBar(el);});
+    el.addEventListener('click',function(){syncBar(el);});
     const obs=new ResizeObserver(function(){if(activeWrap===el)syncBar(el);});
     const tbl=el.querySelector('table');if(tbl)obs.observe(tbl);
     syncBar(el);
   };
   window.initAllTopScrolls=function(){
-    /* 클래스 기반 */
     document.querySelectorAll('.tbl-outer,.tbl-wrap,.ex-table-wrap').forEach(function(el){
       if(el.querySelector('table'))window.initTopScrollFixed(el);
     });
-    /* id 포함 */
     document.querySelectorAll('[id*="tbl-outer"],[id*="tbl-wrap"],[id*="tbl-outer-s"]').forEach(function(el){
       if(el.querySelector('table'))window.initTopScrollFixed(el);
     });
-    /* inline style overflow-x:auto */
     document.querySelectorAll('div').forEach(function(el){
       if(el.style&&el.style.overflowX==='auto'&&el.querySelector('table'))window.initTopScrollFixed(el);
     });
+    /* 페이지 스크롤 시 현재 화면에 보이는 테이블 자동 감지 */
+    window.addEventListener('scroll',function(){
+      const bar=document.getElementById('top-scroll-fixed');
+      if(!bar)return;
+      /* 화면에 보이는 overflow-x:auto div 중 테이블 있는 것 찾기 */
+      let found=null;
+      document.querySelectorAll('.tbl-outer,.tbl-wrap,.ex-table-wrap,div[style]').forEach(function(el){
+        if(!el.querySelector('table'))return;
+        if(el.style&&el.style.overflowX!=='auto'&&!el.classList.contains('tbl-outer')&&!el.classList.contains('tbl-wrap')&&!el.classList.contains('ex-table-wrap'))return;
+        const r=el.getBoundingClientRect();
+        if(r.top<window.innerHeight&&r.bottom>0){found=el;}
+      });
+      if(found)syncBar(found);
+    },true);
   };
   window.TOP_SCROLL_V3_LOADED=true;
 })();
