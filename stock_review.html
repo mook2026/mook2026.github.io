@@ -220,6 +220,34 @@ tr:hover .ex-table td{background:rgba(255,255,255,0.015);}
   <div class="nav-date" id="nav-date"></div>
   <button id="save-btn-manual" onclick="window.manualSave&&window.manualSave()" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:6px;color:#fbbf24;font-size:13px;padding:6px 14px;cursor:pointer;font-family:'DM Mono',monospace;white-space:nowrap;">💾 저장</button>
 </div>
+<!-- 복기기준 테이블 (최상단 고정) -->
+<div id="criteria-section" style="padding:12px 20px 0;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+    <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--stock);letter-spacing:0.08em;">📋 복기 기준 체크리스트</div>
+    <div style="display:flex;gap:6px;">
+      <button class="btn" onclick="addCriteriaRow()" style="font-size:12px;padding:4px 10px;">+ 행 추가</button>
+      <button class="btn" onclick="toggleCriteria()" id="criteria-toggle-btn" style="font-size:12px;padding:4px 10px;">접기</button>
+    </div>
+  </div>
+  <div id="criteria-wrap" class="tbl-wrap">
+    <table id="criteria-table" class="ex-table" style="min-width:600px;">
+      <thead id="criteria-thead">
+        <tr>
+          <th style="width:40px;">No.</th>
+          <th style="width:220px;">기준 항목</th>
+          <th style="width:80px;">중요도</th>
+          <th style="width:220px;">세부내용</th>
+          <th style="width:180px;">비고</th>
+          <th style="width:40px;"></th>
+        </tr>
+      </thead>
+      <tbody id="criteria-tbody"></tbody>
+    </table>
+  </div>
+  <div id="criteria-empty" class="empty-msg hidden" style="padding:12px;">복기 기준을 추가해보세요</div>
+</div>
+<div style="height:1px;background:var(--border);margin:12px 0 0;"></div>
+
 <div class="tabs">
   <div class="tab on" onclick="showTab('table')">누적 테이블</div>
   <div class="tab" onclick="showTab('write')">새 복기 입력</div>
@@ -451,57 +479,6 @@ function updateDate(rowIdx,val){
   saveData(data);
 }
 
-function renderTable(){
-  const data=getData();
-  const tbody=document.getElementById('review-tbody');
-  const empty=document.getElementById('review-empty');
-  const thead=document.getElementById('review-thead');
-
-  // 헤더
-  const cw=data.colWidths||{};
-  thead.innerHTML='<tr>'+
-    `<th data-col="날짜" style="width:${cw['날짜']||COL_DEF['날짜']}px;">날짜<div class="col-rz" onmousedown="startColResize(event,'review-table','날짜')"></div></th>`+
-    `<th data-col="주차" style="width:${cw['주차']||COL_DEF['주차']}px;">주차<div class="col-rz" onmousedown="startColResize(event,'review-table','주차')"></div></th>`+
-    data.cols.map(c=>`<th data-col="${c}" style="width:${cw[c]||COL_DEF[c]||180}px;">
-      <input style="background:transparent;border:none;color:var(--text2);font-family:'DM Mono',monospace;font-size:12px;outline:none;width:calc(100% - 22px);cursor:text;"
-        value="${c.replace(/"/g,'&quot;')}"
-        onblur="renameColSR('${c.replace(/'/g,"\'")}',this.value)"
-        onclick="event.stopPropagation()"/>
-      <span onclick="deleteCol('${c.replace(/'/g,"\'")}'')" style="cursor:pointer;color:var(--text3);font-size:11px;position:absolute;right:18px;top:50%;transform:translateY(-50%);">✕</span>
-      <div class="col-rz" onmousedown="startColResize(event,'review-table','${c.replace(/'/g,"\'")}')"></div>
-    </th>`).join('')+
-    '<th style="width:52px;"></th></tr>';
-
-  if(!data.rows.length){
-    tbody.innerHTML='';
-    empty.classList.remove('hidden');
-    return;
-  }
-  empty.classList.add('hidden');
-
-  const rhs=data.rowHeights||{};
-  tbody.innerHTML=data.rows.map((row,ri)=>{
-    const rh=rhs[ri]||80;
-    return `<tr data-ri="${ri}">
-      <td data-col="날짜" style="width:${cw['날짜']||COL_DEF['날짜']}px;height:${rh}px;vertical-align:middle;border:2px solid var(--border2);">
-        <input type="date" value="${row.date}" onchange="updateDate(${ri},this.value)">
-      </td>
-      <td data-col="주차" id="week-${ri}" style="width:${cw['주차']||COL_DEF['주차']}px;height:${rh}px;vertical-align:middle;border:2px solid var(--border2);padding:8px 10px;font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);">${row.week||getWeekLabel(row.date)}</td>
-      ${data.cols.map(c=>`<td data-col="${c}" style="width:${cw[c]||COL_DEF[c]||180}px;height:${rh}px;border:2px solid var(--border2);">
-        <div class="ce-cell" contenteditable="true"
-          onblur="updateCellCE_sr(this,${ri},'${c}')"
-          placeholder="${c}...">${(row.cells&&row.cells[c])||''}</div>
-      </td>`).join('')}
-      <td style="width:52px;height:${rh}px;text-align:center;vertical-align:middle;border:2px solid var(--border2);padding:4px;">
-        <button class="del-btn" onclick="deleteRow(${ri})">삭제</button>
-      </td>
-    </tr>
-    <tr class="rh-row">
-      <td colspan="${data.cols.length+3}" onmousedown="startRowResize(event,'review-table',${ri})"></td>
-    </tr>`;
-  }).join('');
-  setTimeout(function(){if(window.initAllTopScrolls)window.initAllTopScrolls();},50);
-}
 
 function updateActual(){
   const v=parseInt(document.getElementById('actual-input').value)||0;
@@ -575,6 +552,176 @@ function importExcel(input,mode){
   reader.readAsBinaryString(file);input.value='';
 }
 
+/* ============================================================
+   복기기준 테이블
+   ============================================================ */
+const CRITERIA_KEY='stock_review_criteria';
+const CRITERIA_COLS=['기준 항목','중요도','세부내용','비고'];
+const CRITERIA_WIDTHS={No:40,'기준 항목':220,'중요도':80,'세부내용':220,'비고':180};
+
+function getCriteriaData(){
+  const raw=ls(CRITERIA_KEY);
+  if(raw){try{return JSON.parse(raw);}catch(e){}}
+  return {rows:[
+    {cells:{'기준 항목':'시황 파악 했는가?','중요도':'★★★','세부내용':'나스닥/코스피 방향성 확인','비고':''}},
+    {cells:{'기준 항목':'매수 근거가 명확한가?','중요도':'★★★','세부내용':'스테이지, 이평선, 거래량 확인','비고':''}},
+    {cells:{'기준 항목':'손절 기준 설정했는가?','중요도':'★★★','세부내용':'진입 전 손절가 설정','비고':''}},
+    {cells:{'기준 항목':'목표가 설정했는가?','중요도':'★★','세부내용':'1차/2차 목표가','비고':''}},
+    {cells:{'기준 항목':'원칙 준수했는가?','중요도':'★★','세부내용':'매매원칙 체크리스트 확인','비고':''}},
+  ]};
+}
+function saveCriteriaData(d){lss(CRITERIA_KEY,JSON.stringify(d));}
+
+function updateCriteriaCE(el,ri,col){
+  const d=getCriteriaData();
+  if(!d.rows[ri])return;
+  if(!d.rows[ri].cells)d.rows[ri].cells={};
+  d.rows[ri].cells[col]=el.innerHTML;
+  saveCriteriaData(d);
+}
+
+function addCriteriaRow(){
+  const d=getCriteriaData();
+  d.rows.push({cells:{'기준 항목':'','중요도':'★','세부내용':'','비고':''}});
+  saveCriteriaData(d);
+  renderCriteria();
+}
+
+function deleteCriteriaRow(ri){
+  const d=getCriteriaData();
+  d.rows.splice(ri,1);
+  saveCriteriaData(d);
+  renderCriteria();
+}
+
+function toggleCriteria(){
+  const wrap=document.getElementById('criteria-wrap');
+  const empty=document.getElementById('criteria-empty');
+  const btn=document.getElementById('criteria-toggle-btn');
+  const hidden=wrap.style.display==='none';
+  wrap.style.display=hidden?'':'none';
+  empty.style.display='none';
+  btn.textContent=hidden?'접기':'펼치기';
+}
+
+function renderCriteria(){
+  const d=getCriteriaData();
+  const tbody=document.getElementById('criteria-tbody');
+  const empty=document.getElementById('criteria-empty');
+  if(!d.rows.length){
+    tbody.innerHTML='';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  tbody.innerHTML=d.rows.map((row,ri)=>`
+    <tr data-ri="${ri}">
+      <td style="width:40px;text-align:center;color:var(--text3);font-family:'DM Mono',monospace;font-size:12px;">${ri+1}</td>
+      ${CRITERIA_COLS.map(c=>`<td style="width:${CRITERIA_WIDTHS[c]||180}px;">
+        <div class="ce-cell" contenteditable="true"
+          onblur="updateCriteriaCE(this,${ri},'${c}')"
+          placeholder="${c}...">${(row.cells&&row.cells[c])||''}</div>
+      </td>`).join('')}
+      <td style="width:40px;text-align:center;">
+        <span onclick="deleteCriteriaRow(${ri})" style="cursor:pointer;color:var(--text3);font-size:13px;">✕</span>
+      </td>
+    </tr>
+    <tr class="rh-row">
+      <td colspan="6" onmousedown="startRowResize(event,'criteria-table',${ri})"></td>
+    </tr>
+  `).join('');
+}
+
+/* ============================================================
+   월별 섹션 묶기 renderTable 교체
+   ============================================================ */
+function renderTable(){
+  const data=getData();
+  const empty=document.getElementById('review-empty');
+  const wrap=document.querySelector('#tab-table .tbl-wrap');
+
+  if(!data.rows.length){
+    wrap.innerHTML='';
+    empty.classList.remove('hidden');
+    setTimeout(function(){if(window.initAllTopScrolls)window.initAllTopScrolls();},50);
+    return;
+  }
+  empty.classList.add('hidden');
+
+  const cw=data.colWidths||{};
+  const rhs=data.rowHeights||{};
+
+  /* 헤더 생성 함수 */
+  function makeHeader(tableId){
+    return '<thead><tr>'+
+      `<th data-col="날짜" style="width:${cw['날짜']||COL_DEF['날짜']}px;">날짜<div class="col-rz" onmousedown="startColResize(event,'${tableId}','날짜')"></div></th>`+
+      `<th data-col="주차" style="width:${cw['주차']||COL_DEF['주차']}px;">주차<div class="col-rz" onmousedown="startColResize(event,'${tableId}','주차')"></div></th>`+
+      data.cols.map(c=>`<th data-col="${c}" style="width:${cw[c]||COL_DEF[c]||180}px;position:relative;">
+        <input style="background:transparent;border:none;color:var(--text2);font-family:'DM Mono',monospace;font-size:12px;outline:none;width:calc(100% - 22px);cursor:text;"
+          value="${c.replace(/"/g,'&quot;')}"
+          onblur="renameColSR('${c.replace(/'/g,"\\'")}',this.value)"
+          onclick="event.stopPropagation()"/>
+        <span onclick="deleteCol('${c.replace(/'/g,"\\'")}'')" style="cursor:pointer;color:var(--text3);font-size:11px;position:absolute;right:18px;top:50%;transform:translateY(-50%);">✕</span>
+        <div class="col-rz" onmousedown="startColResize(event,'${tableId}','${c.replace(/'/g,"\\'")}')"></div>
+      </th>`).join('')+
+      '<th style="width:52px;"></th></tr></thead>';
+  }
+
+  /* 월별 그룹핑 */
+  const groups={};
+  data.rows.forEach((row,ri)=>{
+    const key=row.date?row.date.slice(0,7):'기타';
+    if(!groups[key])groups[key]=[];
+    groups[key].push({row,ri});
+  });
+
+  /* 월 내림차순 정렬 */
+  const sortedKeys=Object.keys(groups).sort().reverse();
+
+  wrap.innerHTML=sortedKeys.map(key=>{
+    const [yr,mo]=key.split('-');
+    const label=yr&&mo?yr+'년 '+parseInt(mo)+'월':'기타';
+    const tableId='review-table-'+key.replace('-','');
+    const rows=groups[key];
+
+    const tbody=rows.map(({row,ri})=>{
+      const rh=rhs[ri]||80;
+      return `<tr data-ri="${ri}">
+        <td data-col="날짜" style="width:${cw['날짜']||COL_DEF['날짜']}px;height:${rh}px;vertical-align:middle;border:2px solid var(--border2);">
+          <input type="date" value="${row.date}" onchange="updateDate(${ri},this.value)">
+        </td>
+        <td data-col="주차" style="width:${cw['주차']||COL_DEF['주차']}px;height:${rh}px;vertical-align:middle;border:2px solid var(--border2);padding:8px 10px;font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);">${row.week||getWeekLabel(row.date)}</td>
+        ${data.cols.map(c=>`<td data-col="${c}" style="width:${cw[c]||COL_DEF[c]||180}px;height:${rh}px;border:2px solid var(--border2);">
+          <div class="ce-cell" contenteditable="true"
+            onblur="updateCellCE_sr(this,${ri},'${c}')"
+            placeholder="${c}...">${(row.cells&&row.cells[c])||''}</div>
+        </td>`).join('')}
+        <td style="width:52px;height:${rh}px;text-align:center;vertical-align:middle;border:2px solid var(--border2);padding:4px;">
+          <button class="del-btn" onclick="deleteRow(${ri})">삭제</button>
+        </td>
+      </tr>
+      <tr class="rh-row">
+        <td colspan="${data.cols.length+3}" onmousedown="startRowResize(event,'${tableId}',${ri})"></td>
+      </tr>`;
+    }).join('');
+
+    return `
+      <div style="margin-bottom:24px;">
+        <div style="font-family:'DM Mono',monospace;font-size:13px;color:var(--stock);padding:8px 4px 6px;border-bottom:1px solid var(--border2);margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+          ${label} <span style="color:var(--text3);font-size:11px;">${rows.length}개</span>
+        </div>
+        <div class="tbl-wrap" id="tbl-wrap-${key.replace('-','')}">
+          <table id="${tableId}" class="ex-table">
+            ${makeHeader(tableId)}
+            <tbody>${tbody}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }).join('');
+
+  setTimeout(function(){if(window.initAllTopScrolls)window.initAllTopScrolls();},50);
+}
+
 function showTab(t){
   ['table','write','monthly'].forEach((id,i)=>{
     document.getElementById('tab-'+id).classList.toggle('hidden',id!==t);
@@ -586,8 +733,8 @@ function showTab(t){
 const d=new Date();
 document.getElementById('nav-date').textContent=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+DAYS[d.getDay()];
 
-// 즉시 로컬 데이터로 먼저 렌더 (Firebase 기다리지 않음)
-initDate();/* [수정] localStorage 먼저 렌더 → Firebase 재렌더 */
+initDate();
+renderCriteria();
 renderTable();
 fbSync(()=>{
   if(window._editing)return;
