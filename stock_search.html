@@ -162,7 +162,7 @@ tr:hover .ex-table td{background:rgba(255,255,255,0.015);}
 
 
 
-</style>
+.col-rz-ss{position:absolute;right:0;top:0;width:5px;height:100%;cursor:col-resize;z-index:1;}.col-rz-ss:hover{background:var(--stock);}</style>
 </head>
 <body>
 <div class="nav">
@@ -187,11 +187,11 @@ tr:hover .ex-table td{background:rgba(255,255,255,0.015);}
     <table id="ss-criteria-table" style="border-collapse:collapse;font-size:14px;width:max-content;min-width:100%;">
       <thead>
         <tr>
-          <th style="width:36px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:8px 10px;border:2px solid var(--border2);background:var(--bg2);">No.</th>
-          <th style="width:280px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:8px 10px;border:2px solid var(--border2);background:var(--bg2);">시황</th>
-          <th style="width:240px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:8px 10px;border:2px solid var(--border2);background:var(--bg2);">주도섹터</th>
-          <th style="width:200px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:8px 10px;border:2px solid var(--border2);background:var(--bg2);">거래대금</th>
-          <th style="width:200px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:8px 10px;border:2px solid var(--border2);background:var(--bg2);">상승률</th>
+          <th style="width:36px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:8px 10px;border:2px solid var(--border2);background:var(--bg2);">≡</th>
+          <th data-col="시황" style="width:220px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:8px 10px;border:2px solid var(--border2);background:var(--bg2);position:relative;">시황<div class="col-rz-ss" onmousedown="startSSColRz(event,'시황')"></div></th>
+          <th data-col="주도섹터" style="width:220px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:8px 10px;border:2px solid var(--border2);background:var(--bg2);position:relative;">주도섹터<div class="col-rz-ss" onmousedown="startSSColRz(event,'주도섹터')"></div></th>
+          <th data-col="거래대금/진입" style="width:260px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:8px 10px;border:2px solid var(--border2);background:var(--bg2);position:relative;">거래대금/진입<div class="col-rz-ss" onmousedown="startSSColRz(event,'거래대금/진입')"></div></th>
+          <th data-col="상승률/복기" style="width:280px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:8px 10px;border:2px solid var(--border2);background:var(--bg2);position:relative;">상승률/복기<div class="col-rz-ss" onmousedown="startSSColRz(event,'상승률/복기')"></div></th>
           <th style="width:36px;border:2px solid var(--border2);background:var(--bg2);"></th>
         </tr>
       </thead>
@@ -396,18 +396,20 @@ function startResize(e, col){
 
 /* ── 검색식복기 복기기준 테이블 ─────────────────────────── */
 const SS_CRITERIA_KEY='ss_criteria_data';
-const SS_COLS=['시황','주도섹터','거래대금','상승률'];
-const SS_WIDTHS={'시황':280,'주도섹터':240,'거래대금':200,'상승률':200};
+const SS_COLS=['시황','주도섹터','거래대금/진입','상승률/복기'];
+const SS_WIDTHS={'시황':220,'주도섹터':220,'거래대금/진입':260,'상승률/복기':280};
 
 function getSSCriteriaData(){
   const raw=localStorage.getItem(SS_CRITERIA_KEY);
   if(raw){try{return JSON.parse(raw);}catch(e){}}
-  return {rows:[{cells:{
-    '시황':'1. 코스피/나스닥 방향성은?\n2. 현재 지수 스테이지는?\n3. 거시경제 이슈가 있는가?\n4. 전일 미국시장 흐름은?',
-    '주도섹터':'1. 오늘 주도 섹터/테마는?\n2. 섹터 내 선도주는?\n3. 수급이 몰리는 곳은?\n4. 소외 섹터는?',
-    '거래대금':'1. 전체 시장 거래대금 수준은?\n2. 평균 대비 많은가 적은가?\n3. 거래대금 상위 종목은?\n4. 거래대금 급증 종목은?',
-    '상승률':'1. 상한가 종목 수는?\n2. 상승률 상위 공통점은?\n3. 하락률 상위 원인은?\n4. 내 종목 상대강도는?'
-  }}]};
+  return {rows:[
+    {cells:{
+      '시황':'1. 지수가 20/60/120일 이평선 위에 있는가?\n2. 시장 방향과 싸우는 역추세 매매는 아닌가?\n3. 거래대금과 시장 참여가 증가하고 있는가?\n4. 시장 전반적인 방향성이 상승인가?\n5. 부정적 뉴스/반대 의견을 의도적으로 찾아봤는가?\n6. 직전 손실을 만회하려는 조급함으로 매수하려는 것은 아닌가?\n7. 커뮤니티/유튜브/지인의 추천에 영향받은 충동매매는 아닌가?\n8. 지금 안 사면 놓친다는 FOMO에 빠져 있지 않은가?',
+      '주도섹터':'1. 시장 주도 섹터가 명확한가?\n2. 현재 시장의 주도 섹터인가?\n3. 섹터 내 3개 이상 종목이 동반 상승 구조인가?\n4. 섹터 리더 종목이 강한 흐름을 유지하는가?\n5. 뉴스보다 수급·차트가 먼저 확인되는가?\n6. 20일/60일/120일 이평선 구조가 우호적인가?\n7. 오늘 발동된 검색식과 실제 매수 조건이 일치하는가?\n8. 검색식 미발동 종목 중 놓친 우량주가 있는가?',
+      '거래대금/진입':'1. 거래대금이 충분한 종목인가?\n2. 기관/외국인/개인 수급 중 유리한 흐름이 있는가?\n3. 기술적 근거를 세 문장 이내로 설명할 수 있는가?\n4. 매수 가격·목표가·손절가가 사전에 정해져 있는가?\n5. 이격도가 과도하지 않은가? (20일선 대비 115~120 이상 경계)\n6. 추격/FOMO가 아니라 계획된 자리인가?\n7. 진입 후 바로 틀렸음을 확인할 기준이 있는가?\n8. 손익비가 최소 1:2 이상인가?\n9. 한 매매 투입금액이 전체 계좌의 10~20% 이내인가?\n10. 손절 시 계좌 손실이 허용범위 안인가?\n11. 손절 조건 충족 시 핑계 없이 기계적으로 실행 가능한가?',
+      '상승률/복기':'1. 매수 전 정한 손절선을 그대로 유지하고 있는가?\n2. 조금만 더 버텨보자는 생각으로 계획을 바꾸고 있지 않은가?\n3. 수익이 났다고 조급하게 청산하려 하지 않는가?\n4. 추세가 살아있는지 기준으로 판단하고 있는가?\n5. 손실을 인정하지 못하고 근거 없이 버티고 있지 않은가?\n6. 근거·진입가·청산가·결과를 기록했는가?\n7. 동일한 실수를 반복하는 패턴을 최근 5회와 비교했는가?\n8. 결과와 관계없이 과정이 계획대로 진행됐는가?\n9. 수익이 운인지 실력인지 구분했는가?\n10. 손실 원인이 분석 오류인지 시장의 불가항력인지 구분했는가?\n11. 다음 매매에 적용할 개선점을 1개 이상 도출했는가?\n12. 매수 근거를 세 문장 이내로 설명할 수 있는가?'
+    }},
+  ]};
 }
 function saveSSCriteriaData(d){localStorage.setItem(SS_CRITERIA_KEY,JSON.stringify(d));}
 
@@ -463,7 +465,7 @@ function renderSSCriteria(){
       ondrop="ssCritDragDrop(event,${ri})"
       ondragend="ssCritDragEnd(event)">
       <td style="width:36px;text-align:center;color:var(--text3);cursor:grab;border:2px solid var(--border2);padding:6px;">≡</td>
-      ${SS_COLS.map(col=>`<td style="width:${SS_WIDTHS[col]}px;border:2px solid var(--border2);padding:0;">
+      ${SS_COLS.map(col=>`<td data-col="${col}" style="width:${SS_WIDTHS[col]}px;border:2px solid var(--border2);padding:0;">
         <div contenteditable="true"
           style="min-height:60px;padding:8px;outline:none;color:var(--text);font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;"
           onblur="updateSSCriteriaCE(this,${ri},'${col}')">${(row.cells&&row.cells[col])||''}</div>
@@ -473,6 +475,27 @@ function renderSSCriteria(){
       </td>
     </tr>
   `).join('');
+}
+
+
+/* ss-criteria 열너비 드래그 */
+let _ssColName=null,_ssColStartX=0,_ssColStartW=0;
+function startSSColRz(e,colName){
+  e.preventDefault();
+  _ssColName=colName;_ssColStartX=e.clientX;
+  const th=document.querySelector('#ss-criteria-table th[data-col="'+colName+'"]');
+  _ssColStartW=th?th.offsetWidth:160;
+  const mm=ev=>{
+    const w=Math.max(60,_ssColStartW+(ev.clientX-_ssColStartX));
+    document.querySelectorAll('#ss-criteria-table [data-col="'+_ssColName+'"]').forEach(el=>el.style.width=w+'px');
+  };
+  const mu=()=>{
+    document.removeEventListener('mousemove',mm);
+    document.removeEventListener('mouseup',mu);
+    const th2=document.querySelector('#ss-criteria-table th[data-col="'+_ssColName+'"]');
+    if(th2){const d=getSSCriteriaData();if(!d.colWidths)d.colWidths={};d.colWidths[_ssColName]=th2.offsetWidth;saveSSCriteriaData(d);}
+  };
+  document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
 }
 
 function render(){
