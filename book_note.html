@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ko">
+<!--
+  [수정 이력]
+  v1. 신규 페이지 - 독서노트
+      - 상단 복기질문 테이블 (고정, 접기/펼치기)
+      - 하단 누적 테이블 (연도별 묶기)
+      - 행/열 추가/삭제, CE셀 편집, 행높이/열너비 드래그
+      - SAVE ENGINE v2, TOP SCROLL v3, mstage_ 제외
+-->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>독서노트</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.2);--border2:rgba(255,255,255,0.15);--text:#f0f0f0;--text2:#bbb;--text3:#888;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--job:#a78bfa;--r:10px;--r-sm:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100;}
+.nav-left{display:flex;align-items:center;gap:10px;}
+.nav-back{font-size:22px;color:var(--text2);text-decoration:none;}
+.nav-logo{font-family:'DM Mono',monospace;font-size:15px;color:var(--text2);letter-spacing:0.08em;}
+.nav-date{font-family:'DM Mono',monospace;font-size:14px;color:var(--text3);}
+.toolbar{display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.btn{font-size:14px;padding:8px 16px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;}
+.btn:hover{border-color:var(--stock);color:var(--stock);}
+.confirm-bar{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);padding:6px 20px;min-height:28px;}
+.wrap{padding:16px 20px 80px;}
+.section-label{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+.section-line{flex:1;height:1px;background:var(--border);margin-left:10px;}
+.year-label{font-family:'DM Mono',monospace;font-size:13px;color:var(--stock);padding:8px 4px 6px;border-bottom:1px solid var(--border2);margin-bottom:8px;display:flex;align-items:center;gap:10px;}
+.year-count{color:var(--text3);font-size:11px;}
+.tbl-wrap{overflow-x:auto;margin-bottom:4px;}
+.ex-table{border-collapse:collapse;font-size:14px;width:max-content;min-width:100%;table-layout:fixed;}
+.ex-table th{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);letter-spacing:.04em;padding:10px 12px;border:2px solid var(--border2);background:var(--bg2);text-align:left;white-space:nowrap;position:relative;user-select:none;}
+.ex-table td{padding:0;border:2px solid var(--border2);vertical-align:top;}
+.ce-cell{width:100%;min-height:28px;background:transparent;color:var(--text);font-size:14px;padding:8px 10px;font-family:'Noto Sans KR',sans-serif;line-height:1.6;box-sizing:border-box;outline:none;overflow-y:auto;word-break:break-word;white-space:pre-wrap;}
+.ce-cell:empty:before{content:attr(placeholder);color:var(--text3);pointer-events:none;}
+.ce-cell:focus{background:rgba(255,255,255,0.03);}
+.del-btn{background:transparent;border:1px solid var(--border2);border-radius:4px;color:var(--text3);font-size:11px;padding:3px 7px;cursor:pointer;}
+.del-btn:hover{border-color:var(--neg);color:var(--neg);}
+.col-rz{position:absolute;right:0;top:0;width:5px;height:100%;cursor:col-resize;z-index:1;}
+.col-rz:hover{background:var(--stock);}
+.rh-row td{padding:0!important;height:12px!important;border-top:none!important;border-bottom:2px solid var(--border2)!important;background:transparent!important;cursor:row-resize;}
+.rh-row:hover td{background:rgba(251,191,36,0.15)!important;}
+.empty-msg{text-align:center;padding:32px;color:var(--text3);font-family:'DM Mono',monospace;font-size:14px;}
+.add-row-btn{margin-top:8px;font-size:13px;padding:6px 14px;border-radius:6px;border:1px dashed var(--border2);background:transparent;color:var(--text3);cursor:pointer;}
+.add-row-btn:hover{border-color:var(--stock);color:var(--stock);}
+.criteria-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:16px;}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ian-dashboard.firebaseapp.com",projectId:"ian-dashboard",storageBucket:"ian-dashboard.firebasestorage.app",messagingSenderId:"47067460467",appId:"1:47067460467:web:37906ad2ddb74133238b06"};
+if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
+const db=firebase.firestore();const UID='ian';
+window._editing=false;
+async function fbSave(){try{const d={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&!k.startsWith('mstage_'))d[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(d,{merge:true});}catch(e){console.warn('FB:',e);}}
+async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){Object.entries(doc.data()).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB:',e);}if(cb)cb();}
+</script>
+</head>
+<body>
+<div class="nav">
+  <div class="nav-left"><a class="nav-back" href="home.html">←</a><div class="nav-logo">BOOK NOTE</div></div>
+  <div class="nav-date" id="nav-date"></div>
+</div>
+
+<!-- 복기질문 테이블 -->
+<div class="wrap" style="padding-bottom:0;">
+  <div class="criteria-box">
+    <div class="section-label">
+      <span style="color:var(--job);">📋 독서 복기 질문</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="btn" onclick="addQRow()" style="font-size:12px;padding:4px 10px;">+ 행 추가</button>
+        <button class="btn" id="q-toggle-btn" onclick="toggleQ()" style="font-size:12px;padding:4px 10px;">접기</button>
+        <div class="section-line"></div>
+      </div>
+    </div>
+    <div id="q-wrap" class="tbl-wrap">
+      <table class="ex-table" id="q-table">
+        <thead><tr>
+          <th style="width:36px;">No.</th>
+          <th style="width:260px;">질문 항목<div class="col-rz" onmousedown="startColRz(event,'q-table','질문 항목')"></div></th>
+          <th style="width:200px;">답변 가이드<div class="col-rz" onmousedown="startColRz(event,'q-table','답변 가이드')"></div></th>
+          <th style="width:36px;"></th>
+        </tr></thead>
+        <tbody id="q-tbody"></tbody>
+      </table>
+    </div>
+    <div id="q-empty" class="empty-msg hidden" style="padding:10px;">질문을 추가해보세요</div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <button class="btn" style="border-color:var(--stock);color:var(--stock);" onclick="addBookRow()">+ 독서 추가</button>
+  <button class="btn" onclick="addBookCol()">+ 열 추가</button>
+  <button class="btn" onclick="exportExcel()">⬇ 엑셀 다운로드</button>
+</div>
+<div class="confirm-bar" id="confirm-bar"></div>
+
+<div class="wrap" id="book-wrap"></div>
+<div id="book-empty" class="empty-msg hidden" style="padding:40px;">아직 독서 기록이 없어요<br><span style="font-size:13px;">위의 "+ 독서 추가" 버튼으로 시작하세요</span></div>
+
+<script>
+const DAYS=['일','월','화','수','목','금','토'];
+function pad(n){return String(n).padStart(2,'0');}
+function ls(k){return localStorage.getItem(k);}
+function lss(k,v){localStorage.setItem(k,v);}
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function showConfirm(msg){const el=document.getElementById('confirm-bar');el.textContent=msg;setTimeout(()=>el.textContent='',2500);}
+
+/* ── 데이터 ──────────────────────────────────────────────── */
+const BOOK_KEY='book_note_data';
+const Q_KEY='book_note_questions';
+
+const DEFAULT_COLS=['날짜','책 제목','저자','핵심 내용','인상 깊은 구절','적용할 점','평점'];
+const COL_W={'날짜':100,'책 제목':160,'저자':100,'핵심 내용':220,'인상 깊은 구절':220,'적용할 점':200,'평점':70};
+
+function getBookData(){
+  const raw=ls(BOOK_KEY);
+  if(raw){try{const d=JSON.parse(raw);if(!d.cols)d.cols=[...DEFAULT_COLS];if(!d.colWidths)d.colWidths={};if(!d.rowHeights)d.rowHeights={};return d;}catch(e){}}
+  return {cols:[...DEFAULT_COLS],rows:[],colWidths:{},rowHeights:{}};
+}
+function saveBookData(d){lss(BOOK_KEY,JSON.stringify(d));}
+
+const DEFAULT_Q=[
+  {cells:{'질문 항목':'이 책의 핵심 주장은 무엇인가?','답변 가이드':'저자가 가장 강조하는 메시지'}},
+  {cells:{'질문 항목':'가장 인상 깊은 내용은?','답변 가이드':'이유와 함께 서술'}},
+  {cells:{'질문 항목':'내 삶/일에 적용할 수 있는 것은?','답변 가이드':'구체적인 실행 방법'}},
+  {cells:{'질문 항목':'저자의 주장에 동의하지 않는 부분은?','답변 가이드':'반론 근거'}},
+  {cells:{'질문 항목':'다음에 읽을 책으로 연결되는 키워드는?','답변 가이드':'관련 주제/책'}},
+];
+function getQData(){
+  const raw=ls(Q_KEY);
+  if(raw){try{return JSON.parse(raw);}catch(e){}}
+  return {rows:[...DEFAULT_Q.map(r=>({cells:{...r.cells}}))],colWidths:{}};
+}
+function saveQData(d){lss(Q_KEY,JSON.stringify(d));}
+
+/* ── 복기질문 테이블 ─────────────────────────────────────── */
+function updateQCE(el,ri,col){
+  const d=getQData();
+  if(!d.rows[ri])return;
+  d.rows[ri].cells[col]=el.innerHTML;
+  saveQData(d);
+}
+function addQRow(){
+  const d=getQData();
+  d.rows.push({cells:{'질문 항목':'','답변 가이드':''}});
+  saveQData(d);renderQ();
+}
+function deleteQRow(ri){
+  const d=getQData();d.rows.splice(ri,1);saveQData(d);renderQ();
+}
+function toggleQ(){
+  const wrap=document.getElementById('q-wrap');
+  const btn=document.getElementById('q-toggle-btn');
+  const hidden=wrap.style.display==='none';
+  wrap.style.display=hidden?'':'none';
+  btn.textContent=hidden?'접기':'펼치기';
+}
+function renderQ(){
+  const d=getQData();
+  const tbody=document.getElementById('q-tbody');
+  const empty=document.getElementById('q-empty');
+  const qCols=['질문 항목','답변 가이드'];
+  const qW={'질문 항목':260,'답변 가이드':200};
+  if(!d.rows.length){tbody.innerHTML='';empty.classList.remove('hidden');return;}
+  empty.classList.add('hidden');
+  tbody.innerHTML=d.rows.map((row,ri)=>`
+    <tr data-ri="${ri}">
+      <td style="width:36px;text-align:center;color:var(--text3);font-family:'DM Mono',monospace;font-size:12px;">${ri+1}</td>
+      ${qCols.map(c=>`<td style="width:${(d.colWidths&&d.colWidths[c])||qW[c]}px;">
+        <div class="ce-cell" contenteditable="true" onblur="updateQCE(this,${ri},'${c}')" placeholder="${c}...">${(row.cells&&row.cells[c])||''}</div>
+      </td>`).join('')}
+      <td style="width:36px;text-align:center;"><span onclick="deleteQRow(${ri})" style="cursor:pointer;color:var(--text3);">✕</span></td>
+    </tr>
+    <tr class="rh-row"><td colspan="4" onmousedown="startRowRz(event,'q-tbody',${ri})"></td></tr>
+  `).join('');
+}
+
+/* ── 독서 누적 테이블 ────────────────────────────────────── */
+function updateBookCE(el,ri,col){
+  const d=getBookData();
+  if(!d.rows[ri])return;
+  if(!d.rows[ri].cells)d.rows[ri].cells={};
+  d.rows[ri].cells[col]=el.innerHTML;
+  saveBookData(d);
+}
+function addBookRow(){
+  const d=getBookData();
+  d.rows.unshift({date:todayStr(),cells:{'날짜':todayStr()}});
+  saveBookData(d);renderBook();
+}
+function deleteBookRow(ri){
+  if(!confirm('이 행을 삭제할까요?'))return;
+  const d=getBookData();d.rows.splice(ri,1);saveBookData(d);renderBook();
+}
+function addBookCol(){
+  const name=prompt('새 열 이름:');
+  if(!name||!name.trim())return;
+  const d=getBookData();
+  if(d.cols.includes(name.trim())){showConfirm('이미 있는 열');return;}
+  d.cols.push(name.trim());saveBookData(d);renderBook();
+}
+function deleteBookCol(col){
+  if(!confirm('"'+col+'" 열 삭제?'))return;
+  const d=getBookData();
+  d.cols=d.cols.filter(c=>c!==col);
+  d.rows.forEach(r=>{if(r.cells)delete r.cells[col];});
+  saveBookData(d);renderBook();
+}
+function renameBookCol(oldName,newName){
+  if(!newName?.trim()||newName.trim()===oldName)return;
+  const d=getBookData();
+  if(d.cols.includes(newName.trim())&&newName.trim()!==oldName){showConfirm('이미 있는 이름');return;}
+  const idx=d.cols.indexOf(oldName);if(idx<0)return;
+  d.cols[idx]=newName.trim();
+  d.rows.forEach(r=>{if(r.cells){r.cells[newName.trim()]=r.cells[oldName]||'';delete r.cells[oldName];}});
+  if(d.colWidths?.[oldName]){d.colWidths[newName.trim()]=d.colWidths[oldName];delete d.colWidths[oldName];}
+  saveBookData(d);renderBook();
+}
+
+function renderBook(){
+  const d=getBookData();
+  const wrap=document.getElementById('book-wrap');
+  const empty=document.getElementById('book-empty');
+  if(!d.rows.length){wrap.innerHTML='';empty.classList.remove('hidden');setTimeout(()=>{if(window.initAllTopScrolls)window.initAllTopScrolls();},50);return;}
+  empty.classList.add('hidden');
+
+  const cw=d.colWidths||{};
+  const rhs=d.rowHeights||{};
+
+  /* 연도별 그룹핑 */
+  const groups={};
+  d.rows.forEach((row,ri)=>{
+    const yr=(row.cells&&row.cells['날짜']||row.date||'').slice(0,4)||'기타';
+    if(!groups[yr])groups[yr]=[];
+    groups[yr].push({row,ri});
+  });
+  const sortedYrs=Object.keys(groups).sort().reverse();
+
+  function makeHeader(tid){
+    return '<thead><tr>'+
+      d.cols.map(c=>`<th data-col="${c}" style="width:${cw[c]||COL_W[c]||160}px;position:relative;">
+        <input style="background:transparent;border:none;color:var(--text2);font-family:'DM Mono',monospace;font-size:12px;outline:none;width:calc(100% - 20px);cursor:text;"
+          value="${c.replace(/"/g,'&quot;')}"
+          onblur="renameBookCol('${c.replace(/'/g,"\\'")}',this.value)"
+          onclick="event.stopPropagation()"/>
+        <span onclick="deleteBookCol('${c.replace(/'/g,"\\'")}'')" style="cursor:pointer;color:var(--text3);font-size:11px;position:absolute;right:16px;top:50%;transform:translateY(-50%);">✕</span>
+        <div class="col-rz" onmousedown="startColRz(event,'${tid}','${c.replace(/'/g,"\\'")}')"></div>
+      </th>`).join('')+
+      '<th style="width:52px;"></th></tr></thead>';
+  }
+
+  wrap.innerHTML=sortedYrs.map(yr=>{
+    const tid='book-tbl-'+yr;
+    const rows=groups[yr];
+    const tbody=rows.map(({row,ri})=>{
+      const rh=rhs[ri]||60;
+      return `<tr data-ri="${ri}">
+        ${d.cols.map(c=>`<td style="width:${cw[c]||COL_W[c]||160}px;height:${rh}px;">
+          <div class="ce-cell" contenteditable="true"
+            onblur="updateBookCE(this,${ri},'${c}')"
+            placeholder="${c}...">${(row.cells&&row.cells[c])||''}</div>
+        </td>`).join('')}
+        <td style="width:52px;height:${rh}px;text-align:center;vertical-align:middle;padding:4px;">
+          <button class="del-btn" onclick="deleteBookRow(${ri})">삭제</button>
+        </td>
+      </tr>
+      <tr class="rh-row"><td colspan="${d.cols.length+1}" onmousedown="startRowRz(event,'book-tbody-${yr}',${ri})"></td></tr>`;
+    }).join('');
+
+    return `<div style="margin-bottom:28px;">
+      <div class="year-label">${yr}년 <span class="year-count">${rows.length}권</span></div>
+      <div class="tbl-wrap" id="book-wrap-${yr}">
+        <table class="ex-table" id="${tid}">
+          ${makeHeader(tid)}
+          <tbody id="book-tbody-${yr}">${tbody}</tbody>
+        </table>
+      </div>
+      <button class="add-row-btn" onclick="addBookRow()">+ 추가</button>
+    </div>`;
+  }).join('');
+
+  setTimeout(()=>{if(window.initAllTopScrolls)window.initAllTopScrolls();},50);
+}
+
+/* ── 열 너비 드래그 ─────────────────────────────────────── */
+let _rzCol=null,_rzTid=null,_rzStartX=0,_rzStartW=0;
+function startColRz(e,tid,col){
+  e.preventDefault();
+  _rzCol=col;_rzTid=tid;_rzStartX=e.clientX;
+  const th=document.querySelector('#'+tid+' th[data-col="'+col+'"]');
+  _rzStartW=th?th.offsetWidth:160;
+  const mm=ev=>{
+    const w=Math.max(40,_rzStartW+(ev.clientX-_rzStartX));
+    document.querySelectorAll('#'+_rzTid+' [data-col="'+col+'"]').forEach(el=>el.style.width=w+'px');
+  };
+  const mu=()=>{
+    document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);
+    const th2=document.querySelector('#'+_rzTid+' th[data-col="'+_rzCol+'"]');
+    if(!th2)return;
+    /* 어느 테이블인지 판단해서 저장 */
+    if(_rzTid==='q-table'){const d=getQData();if(!d.colWidths)d.colWidths={};d.colWidths[_rzCol]=th2.offsetWidth;saveQData(d);}
+    else{const d=getBookData();if(!d.colWidths)d.colWidths={};d.colWidths[_rzCol]=th2.offsetWidth;saveBookData(d);}
+  };
+  document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
+}
+
+/* ── 행 높이 드래그 ─────────────────────────────────────── */
+let _rhTbid=null,_rhRi=-1,_rhStartY=0,_rhStartH=0;
+function startRowRz(e,tbodyId,ri){
+  e.preventDefault();
+  _rhTbid=tbodyId;_rhRi=ri;_rhStartY=e.clientY;
+  const tbody=document.getElementById(tbodyId);
+  const dTr=tbody?tbody.querySelector('tr[data-ri="'+ri+'"]'):null;
+  const td1=dTr?dTr.querySelector('td'):null;
+  _rhStartH=td1?td1.offsetHeight:60;
+  const mm=ev=>{
+    const h=Math.max(24,_rhStartH+(ev.clientY-_rhStartY));
+    const tbody2=document.getElementById(_rhTbid);
+    const dTr2=tbody2?tbody2.querySelector('tr[data-ri="'+_rhRi+'"]'):null;
+    if(dTr2)dTr2.querySelectorAll('td').forEach(td=>td.style.height=h+'px');
+  };
+  const mu=()=>{
+    document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);
+    const tbody2=document.getElementById(_rhTbid);
+    const dTr2=tbody2?tbody2.querySelector('tr[data-ri="'+_rhRi+'"]'):null;
+    const td1=dTr2?dTr2.querySelector('td'):null;
+    if(td1){
+      /* q-tbody vs book-tbody 구분 */
+      if(_rhTbid==='q-tbody'){/* 질문테이블은 rowHeights 별도 저장 안함 */}
+      else{
+        const d=getBookData();
+        if(!d.rowHeights)d.rowHeights={};
+        d.rowHeights[_rhRi]=td1.offsetHeight;
+        saveBookData(d);
+      }
+    }
+    _rhRi=-1;
+  };
+  document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
+}
+
+/* ── 엑셀 다운로드 ──────────────────────────────────────── */
+function exportExcel(){
+  const d=getBookData();
+  if(!d.rows.length){showConfirm('데이터가 없어요');return;}
+  const headers=d.cols;
+  const rows=[headers,...d.rows.map(r=>d.cols.map(c=>{
+    const v=(r.cells&&r.cells[c])||'';
+    return v.replace(/<[^>]+>/g,'');
+  }))];
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,'독서노트',ws);
+  const dt=new Date();
+  XLSX.writeFile(wb,'독서노트_'+dt.getFullYear()+pad(dt.getMonth()+1)+pad(dt.getDate())+'.xlsx');
+  showConfirm('다운로드 완료!');
+}
+
+/* ── 초기화 ─────────────────────────────────────────────── */
+const _d=new Date();
+document.getElementById('nav-date').textContent=_d.getFullYear()+'.'+pad(_d.getMonth()+1)+'.'+pad(_d.getDate())+' '+DAYS[_d.getDay()];
+
+renderQ();
+renderBook();
+fbSync(()=>{
+  if(window._editing)return;
+  renderQ();
+  renderBook();
+  setTimeout(()=>{if(window.initAllTopScrolls)window.initAllTopScrolls();},100);
+});
+</script>
+<script>
+/* ============================================================
+   SAVE ENGINE v2 - 수동저장만 / 자동저장 없음
+   ============================================================ */
+(function(){
+  function pad(n){return String(n).padStart(2,'0');}
+  function nowTime(){const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes());}
+  function getBar(){
+    let bar=document.getElementById('save-status-bar');
+    if(bar)return bar;
+    bar=document.createElement('div');
+    bar.id='save-status-bar';
+    bar.style.cssText='position:fixed;bottom:0;left:0;right:0;height:30px;background:#141416;border-top:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:9998;font-family:\'DM Mono\',monospace;font-size:12px;color:#888;';
+    bar.innerHTML='<span id="save-status-msg">준비됨</span><button onclick="window.manualSave&&window.manualSave()" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:4px;color:#fbbf24;font-size:12px;padding:3px 10px;cursor:pointer;font-family:\'DM Mono\',monospace;">💾 저장</button>';
+    document.body.appendChild(bar);
+    document.body.style.paddingBottom='38px';
+    return bar;
+  }
+  function setMsg(msg,color){getBar();const el=document.getElementById('save-status-msg');if(el){el.textContent=msg;el.style.color=color||'#888';}}
+  window.manualSave=async function(){
+    setMsg('저장 중...','#fbbf24');
+    try{
+      const active=document.activeElement;
+      if(active&&active.classList&&active.classList.contains('ce-cell'))active.blur();
+      const d={};
+      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&!k.startsWith('mstage_'))d[k]=localStorage.getItem(k);}
+      if(!Object.keys(d).length){setMsg('저장할 데이터 없음','#fb7185');return;}
+      await db.collection('data').doc(UID).set(d,{merge:true});
+      setMsg('✅ 저장됨 '+nowTime(),'#34d399');
+    }catch(e){setMsg('❌ 저장 실패: '+e.message,'#fb7185');console.error('저장 실패:',e);}
+  };
+  document.addEventListener('focusin',function(e){if(e.target.classList&&e.target.classList.contains('ce-cell'))window._editing=true;});
+  document.addEventListener('focusout',function(e){if(e.target.classList&&e.target.classList.contains('ce-cell')){setTimeout(function(){if(!document.querySelector('.ce-cell:focus'))window._editing=false;},150);}});
+  window.SAVE_ENGINE_LOADED=true;
+  setTimeout(function(){getBar();setMsg('준비됨','#888');},300);
+})();
+</script>
+<script>
+/* ============================================================
+   TOP SCROLL ENGINE v3
+   ============================================================ */
+(function(){
+  let activeWrap=null,syncing=false;
+  function getNavBottom(){const nav=document.querySelector('.nav');let top=nav?nav.getBoundingClientRect().bottom:56;return Math.round(top);}
+  function getOrCreateBar(){
+    let bar=document.getElementById('top-scroll-fixed');if(bar)return bar;
+    bar=document.createElement('div');bar.id='top-scroll-fixed';
+    bar.style.cssText='position:fixed;left:0;right:0;height:14px;overflow-x:auto;overflow-y:hidden;z-index:998;background:#1c1c1f;border-bottom:2px solid rgba(251,191,36,0.3);display:none;cursor:pointer;';
+    const dummy=document.createElement('div');dummy.id='top-scroll-dummy';dummy.style.height='1px';
+    bar.appendChild(dummy);document.body.appendChild(bar);
+    bar.addEventListener('scroll',function(){if(syncing||!activeWrap)return;syncing=true;activeWrap.scrollLeft=bar.scrollLeft;syncing=false;});
+    return bar;
+  }
+  function syncBar(wrap){
+    const bar=getOrCreateBar(),dummy=document.getElementById('top-scroll-dummy');
+    const tbl=wrap.querySelector('table');if(!tbl){bar.style.display='none';return;}
+    activeWrap=wrap;dummy.style.width=tbl.scrollWidth+'px';bar.scrollLeft=wrap.scrollLeft;
+    bar.style.top=getNavBottom()+'px';bar.style.display=tbl.scrollWidth>wrap.clientWidth?'block':'none';
+  }
+  window.initTopScrollFixed=function(el){
+    if(!el||el.dataset.tsFixed)return;el.dataset.tsFixed='1';
+    el.addEventListener('scroll',function(){if(syncing)return;syncing=true;const bar=document.getElementById('top-scroll-fixed');if(bar)bar.scrollLeft=el.scrollLeft;syncing=false;});
+    el.addEventListener('mouseenter',function(){syncBar(el);});
+    el.addEventListener('click',function(){syncBar(el);});
+    const obs=new ResizeObserver(function(){if(activeWrap===el)syncBar(el);});
+    const tbl=el.querySelector('table');if(tbl)obs.observe(tbl);syncBar(el);
+  };
+  window.initAllTopScrolls=function(){
+    document.querySelectorAll('.tbl-wrap').forEach(function(el){if(el.querySelector('table'))window.initTopScrollFixed(el);});
+    window.addEventListener('scroll',function(){
+      let found=null;
+      document.querySelectorAll('.tbl-wrap').forEach(function(el){
+        if(!el.querySelector('table'))return;
+        const r=el.getBoundingClientRect();
+        if(r.top<window.innerHeight&&r.bottom>0)found=el;
+      });
+      if(found)syncBar(found);
+    },true);
+  };
+  window.TOP_SCROLL_V3_LOADED=true;
+})();
+</script>
+</body>
+</html>
