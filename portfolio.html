@@ -26,7 +26,7 @@ async function fbSave(){try{const d={};for(let i=0;i<localStorage.length;i++){co
 async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){Object.entries(doc.data()).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB:',e);}if(cb)cb();}
 </script>
 <style>
-:root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.2);--border2:rgba(255,255,255,0.3);--text:#f0f0f0;--text2:#ccc;--text3:#999;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;}
+:root{--s1:#22c55e;--s2:#eab308;--s3:#f97316;--s4:#ef4444;--s5:#8b5cf6;--s6:#3b82f6;--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.2);--border2:rgba(255,255,255,0.3);--text:#f0f0f0;--text2:#ccc;--text3:#999;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;}
 .nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100;}
@@ -272,6 +272,223 @@ function startResize(e,col){
   document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
 }
 
+
+/* ── 스테이지 계산 엔진 (market_index에서 공유) ─────────── */
+const PORTFOLIO_CACHE_TTL=6*60*60*1000;
+
+function getCache(sym,range){
+  const key=CACHE_PREFIX+sym+'_'+range;
+  const raw=ls(key);
+  if(!raw)return null;
+  try{
+    const obj=JSON.parse(raw);
+    if(Date.now()-obj.ts>CACHE_TTL)return null;
+    return obj.data;
+  }catch(e){return null;}
+}
+function setCache(sym,range,data){
+  const key=CACHE_PREFIX+sym+'_'+range;
+  try{lss(key,JSON.stringify({ts:Date.now(),data}));}catch(e){}
+}
+
+/* ============================================================
+   야후 파이낸스 fetch (프록시 경유) - 일봉 데이터 가져와서
+   주봉/월봉은 클라이언트에서 리샘플링 (API 호출 횟수 최소화로 속도 개선)
+   ============================================================ */
+/* 여러 프록시를 순서대로 시도 - 하나 막히면 다음 것으로 자동 전환 */
+/* 프록시 목록 - targetUrl은 인코딩 안 된 원본 URL */
+async function fetchViaProxy(targetUrl,timeoutMs){
+  const encoded=encodeURIComponent(targetUrl);
+  const proxies=[
+    /* allorigins raw - 직접 텍스트 반환 */
+    {url:`https://api.allorigins.win/raw?url=${encoded}`,isRaw:true},
+    /* allorigins get - JSON 래퍼 반환 */
+    {url:`https://api.allorigins.win/get?url=${encoded}`,isRaw:false},
+    /* codetabs - 직접 텍스트 반환 */
+    {url:`https://api.codetabs.com/v1/proxy/?quest=${encoded}`,isRaw:true},
+  ];
+  for(let i=0;i<proxies.length;i++){
+    try{
+      const res=await fetch(proxies[i].url,{signal:AbortSignal.timeout(timeoutMs)});
+      if(!res.ok)continue;
+      const text=await res.text();
+      let jsonText=text;
+      if(!proxies[i].isRaw){
+        try{const w=JSON.parse(text);if(w&&typeof w.contents==='string')jsonText=w.contents;}
+        catch(e){}
+      }
+      const parsed=JSON.parse(jsonText);
+      if(parsed?.chart?.result?.[0])return parsed;
+    }catch(e){
+      console.warn('프록시',i,'실패:',e.message);
+    }
+  }
+  return null;
+}
+
+async function fetchDaily(sym){
+  const cached=getCache(sym,'5y');
+  if(cached)return cached;
+  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=5y`;
+  try{
+    const parsed=await fetchViaProxy(url,12000);
+    const result=parsed?.chart?.result?.[0];
+    if(!result)return null;
+    const timestamps=result.timestamp||[];
+    const q=result.indicators?.quote?.[0]||{};
+    const closes=q.close||[],opens=q.open||[],highs=q.high||[],lows=q.low||[];
+    const bars=[];
+    for(let i=0;i<timestamps.length;i++){
+      if(closes[i]==null)continue;
+      bars.push({t:timestamps[i]*1000,o:opens[i],h:highs[i],l:lows[i],c:closes[i]});
+    }
+    if(!bars.length)return null;
+    setCache(sym,'5y',bars);
+    return bars;
+  }catch(e){console.warn('fetch fail',sym,e);return null;}
+}
+
+/* 일봉 → 주봉/월봉 리샘플링 */
+function resample(dailyBars,mode){
+  if(!dailyBars||!dailyBars.length)return [];
+  if(mode==='d')return dailyBars;
+  const groups={};
+  dailyBars.forEach(bar=>{
+    const dt=new Date(bar.t);
+    let key;
+    if(mode==='w'){
+      const d=new Date(dt);
+      const day=d.getDay();
+      const diff=d.getDate()-day+(day===0?-6:1); /* 월요일 기준 */
+      const monday=new Date(d.setDate(diff));
+      key=monday.getFullYear()+'-'+pad(monday.getMonth()+1)+'-'+pad(monday.getDate());
+    }else{
+      key=dt.getFullYear()+'-'+pad(dt.getMonth()+1);
+    }
+    if(!groups[key])groups[key]=[];
+    groups[key].push(bar);
+  });
+  return Object.keys(groups).sort().map(key=>{
+    const g=groups[key];
+    return {
+      t:g[0].t,
+      o:g[0].o,
+      h:Math.max(...g.map(b=>b.h)),
+      l:Math.min(...g.map(b=>b.l)),
+      c:g[g.length-1].c
+    };
+  });
+}
+
+/* EMA 계산 */
+function calcEMA(values,period){
+  if(values.length<period)return values.map(()=>null);
+  const k=2/(period+1);
+  const ema=[];
+  let prev=values.slice(0,period).reduce((a,b)=>a+b,0)/period;
+  for(let i=0;i<values.length;i++){
+    if(i<period-1){ema.push(null);continue;}
+    if(i===period-1){ema.push(prev);continue;}
+    prev=values[i]*k+prev*(1-k);
+    ema.push(prev);
+  }
+  return ema;
+}
+
+/* ============================================================
+   고지로 스테이지 계산: EMA 5/20/40 정배열 순서로 6단계 판정
+   1: 5>20>40   2: 20>5>40   3: 20>40>5
+   4: 40>20>5   5: 40>5>20   6: 5>40>20
+   진입일/경과일수도 함께 계산 (스테이지가 바뀐 시점 탐색)
+   ============================================================ */
+function classifyStage(e5,e20,e40){
+  if(e5==null||e20==null||e40==null)return null;
+  if(e5>e20&&e20>e40)return 1;
+  if(e20>e5&&e5>e40)return 2;
+  if(e20>e40&&e40>e5)return 3;
+  if(e40>e20&&e20>e5)return 4;
+  if(e40>e5&&e5>e20)return 5;
+  if(e5>e40&&e40>e20)return 6;
+  return null;
+}
+
+function calcStage(bars){
+  if(!bars||bars.length<45)return null;
+  const closes=bars.map(b=>b.c);
+  const e5arr=calcEMA(closes,5);
+  const e20arr=calcEMA(closes,20);
+  const e40arr=calcEMA(closes,40);
+
+  const stages=bars.map((b,i)=>classifyStage(e5arr[i],e20arr[i],e40arr[i]));
+  const lastIdx=stages.length-1;
+  const currentStage=stages[lastIdx];
+  if(currentStage==null)return null;
+
+  /* 현재 스테이지가 시작된 시점 찾기 (뒤에서부터 같은 스테이지 거슬러 올라가기) */
+  let entryIdx=lastIdx;
+  for(let i=lastIdx;i>=0;i--){
+    if(stages[i]===currentStage){entryIdx=i;}
+    else break;
+  }
+  const entryDate=new Date(bars[entryIdx].t);
+  const todayDate=new Date(bars[lastIdx].t);
+  const daysElapsed=Math.round((todayDate-entryDate)/(864e5));
+
+  return {
+    stage:currentStage,
+    entryDate:entryDate.getFullYear().toString().slice(2)+'/'+pad(entryDate.getMonth()+1)+'/'+pad(entryDate.getDate()),
+    daysElapsed:daysElapsed
+  };
+}
+
+const STAGE_COLORS={1:'#22c55e',2:'#eab308',3:'#f97316',4:'#ef4444',5:'#8b5cf6',6:'#3b82f6'};
+
+function renderStageCell(info){
+  if(!info)return '<span class="stage-loading">불러오는 중...</span>';
+  const bg=STAGE_COLORS[info.stage];
+  return `<div class="stage-cell" style="background:${bg};color:#0c0c0e;">
+    <div class="stage-num">스테이지 ${info.stage}</div>
+    <div class="stage-date">${info.entryDate}</div>
+    <div class="stage-days">+${info.daysElapsed}일</div>
+  </div>`;
+}
+</script>
+<script>
+/* 종목별 일봉 스테이지 계산 및 표시 */
+async function fetchPortfolioStage(sym, cellId){
+  const el=document.getElementById(cellId);
+  if(!el)return;
+
+  /* 캐시 먼저 */
+  const cached=getStageCache(sym);
+  if(cached){
+    el.innerHTML=renderStageCell(cached.d);
+    return;
+  }
+
+  el.innerHTML='<span style="font-family:\'DM Mono\',monospace;font-size:11px;color:#888;">불러오는 중...</span>';
+  const bars=await fetchDaily(sym);
+  if(!bars||!bars.length){
+    el.innerHTML='<span style="font-size:11px;color:var(--neg);">오류</span>';
+    return;
+  }
+  const weekly=resample(bars,'w');
+  const monthly=resample(bars,'m');
+  const result={d:calcStage(bars),w:calcStage(weekly),m:calcStage(monthly)};
+  setStageCache(sym,result);
+  el.innerHTML=renderStageCell(result.d);
+}
+
+async function refreshAllPortfolioStages(){
+  const data=getListData();
+  data.rows.forEach((row,ri)=>{
+    const sym=(row['종목']||'').trim();
+    if(!sym)return;
+    const cellId='pf-stage-'+ri;
+    fetchPortfolioStage(sym,cellId);
+  });
+}
+
 function renderList(){
   const data=getListData();
   const cw=data.colWidths||{};
@@ -290,7 +507,7 @@ function renderList(){
       </div>
       <div class="resizer" onmousedown="startResize(event,'${c}')"></div>
     </th>`;
-  }).join('')+'<th style="width:56px;border:2px solid var(--border2);font-size:12px;color:var(--text3);text-align:center;">지표</th><th style="width:52px;border:2px solid var(--border2);"></th></tr>';
+  }).join('')+'<th style="width:110px;border:2px solid var(--border2);font-size:12px;color:var(--text3);text-align:center;">스테이지(일봉)</th><th style="width:52px;border:2px solid var(--border2);"></th></tr>';
 
   if(!data.rows.length){tbody.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
@@ -303,14 +520,15 @@ function renderList(){
       if(c==='날짜')return `<td data-col="${c}" style="width:${w}px;padding:0;"><input type="date" value="${val}" onchange="updateListCell(${ri},'${c}',this.value)" style="width:100%;background:transparent;border:none;color:var(--text2);font-size:13px;font-family:'DM Mono',monospace;outline:none;padding:9px 11px;"></td>`;
       return `<td data-col="${c}" style="width:${w}px;"><div class="ce-cell" contenteditable="true" onblur="updateListCellCE(this,${ri},'${c}')" placeholder="${c}...">${val}</div></td>`;
     }).join('')}
-    <td style="width:56px;text-align:center;padding:8px;border:2px solid var(--border2);">
-      <button class="btn" style="font-size:12px;padding:4px 8px;" onclick="openInd('${row['종목']}')">체크</button>
+    <td id="pf-stage-${ri}" style="width:110px;text-align:center;padding:4px;border:2px solid var(--border2);">
+      <span style="font-family:'DM Mono',monospace;font-size:11px;color:#888;">-</span>
     </td>
     <td style="width:52px;text-align:center;padding:8px;border:2px solid var(--border2);">
       <button class="del-btn" onclick="deleteListRow(${ri})">삭제</button>
     </td>
   </tr>`).join('');
   setTimeout(function(){if(window.initAllTopScrolls)window.initAllTopScrolls();},50);
+  setTimeout(refreshAllPortfolioStages,100);
 }
 
 // 지표 체크

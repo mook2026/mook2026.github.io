@@ -583,11 +583,34 @@ async function fetchAllStages(){
 
 async function loadInitial(){
   renderTable();
-  /* Firebase에서 전체 로드 먼저 시도 */
-  const fbResults=await loadStageFromFirebase();
   const data=getData();
+
+  /* ① 로컬 캐시 먼저 - 즉시 표시 (가장 빠름) */
+  const cached=data.stocks.filter(s=>getStageCache(s.sym));
+  cached.forEach(stock=>{
+    const result=getStageCache(stock.sym);
+    const dEl=document.getElementById('stage-d-'+cssSafe(stock.sym));
+    const wEl=document.getElementById('stage-w-'+cssSafe(stock.sym));
+    const mEl=document.getElementById('stage-m-'+cssSafe(stock.sym));
+    if(dEl)dEl.innerHTML=renderStageCell(result.d);
+    if(wEl)wEl.innerHTML=renderStageCell(result.w);
+    if(mEl)mEl.innerHTML=renderStageCell(result.m);
+  });
+
+  /* ② 캐시 없는 종목만 Firebase → 프록시 순서로 fetch */
+  const needFetch=data.stocks.filter(s=>!getStageCache(s.sym));
+  if(!needFetch.length){
+    setStatus('완료 ✓ (캐시)');
+    return;
+  }
+
+  setStatus('신규 종목 '+needFetch.length+'개 불러오는 중...');
+
+  /* Firebase에서 먼저 시도 */
+  const fbResults=await loadStageFromFirebase();
   if(fbResults){
-    data.stocks.forEach(stock=>{
+    const stillMissing=[];
+    needFetch.forEach(stock=>{
       if(fbResults[stock.sym]){
         setStageCache(stock.sym,fbResults[stock.sym]);
         const dEl=document.getElementById('stage-d-'+cssSafe(stock.sym));
@@ -596,25 +619,21 @@ async function loadInitial(){
         if(dEl)dEl.innerHTML=renderStageCell(fbResults[stock.sym].d);
         if(wEl)wEl.innerHTML=renderStageCell(fbResults[stock.sym].w);
         if(mEl)mEl.innerHTML=renderStageCell(fbResults[stock.sym].m);
+      }else{
+        stillMissing.push(stock);
       }
     });
-    const missing=data.stocks.filter(s=>!fbResults[s.sym]);
-    if(missing.length){
-      setStatus('신규 종목 '+missing.length+'개 불러오는 중...');
-      await Promise.all(missing.map(s=>fetchOneStage(s.sym)));
-      setStatus('완료 ✓');
-    }else{
-      setStatus('완료 ✓');
+    if(stillMissing.length){
+      setStatus('프록시로 '+stillMissing.length+'개 직접 fetch...');
+      await Promise.all(stillMissing.map(s=>fetchOneStage(s.sym)));
     }
+    setStatus('완료 ✓');
     return;
   }
-  /* Firebase 실패 시 캐시 확인 후 프록시 */
-  const needFetch=data.stocks.filter(s=>!getStageCache(s.sym));
-  if(needFetch.length){
-    setStatus('데이터 불러오는 중... ('+needFetch.length+'개)');
-    await Promise.all(needFetch.map(s=>fetchOneStage(s.sym)));
-    setStatus('완료 ✓');
-  }
+
+  /* ③ Firebase도 없으면 프록시로 직접 fetch */
+  await Promise.all(needFetch.map(s=>fetchOneStage(s.sym)));
+  setStatus('완료 ✓');
 }
 </script>
 <script>

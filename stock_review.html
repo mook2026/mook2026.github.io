@@ -233,12 +233,12 @@ tr:hover .ex-table td{background:rgba(255,255,255,0.015);}
     <table id="criteria-table" class="ex-table" style="min-width:600px;">
       <thead id="criteria-thead">
         <tr>
-          <th style="width:40px;">No.</th>
-          <th style="width:220px;">기준 항목</th>
-          <th style="width:80px;">중요도</th>
-          <th style="width:220px;">세부내용</th>
-          <th style="width:180px;">비고</th>
-          <th style="width:40px;"></th>
+          <th style="width:36px;">No.</th>
+          <th style="width:280px;">시황</th>
+          <th style="width:240px;">주도섹터</th>
+          <th style="width:200px;">거래대금</th>
+          <th style="width:200px;">상승률</th>
+          <th style="width:36px;"></th>
         </tr>
       </thead>
       <tbody id="criteria-tbody"></tbody>
@@ -556,18 +556,19 @@ function importExcel(input,mode){
    복기기준 테이블
    ============================================================ */
 const CRITERIA_KEY='stock_review_criteria';
-const CRITERIA_COLS=['기준 항목','중요도','세부내용','비고'];
-const CRITERIA_WIDTHS={No:40,'기준 항목':220,'중요도':80,'세부내용':220,'비고':180};
+const CRITERIA_COLS=['시황','주도섹터','거래대금','상승률'];
+const CRITERIA_WIDTHS={No:36,'시황':280,'주도섹터':240,'거래대금':200,'상승률':200};
 
 function getCriteriaData(){
   const raw=ls(CRITERIA_KEY);
   if(raw){try{return JSON.parse(raw);}catch(e){}}
   return {rows:[
-    {cells:{'기준 항목':'시황 파악 했는가?','중요도':'★★★','세부내용':'나스닥/코스피 방향성 확인','비고':''}},
-    {cells:{'기준 항목':'매수 근거가 명확한가?','중요도':'★★★','세부내용':'스테이지, 이평선, 거래량 확인','비고':''}},
-    {cells:{'기준 항목':'손절 기준 설정했는가?','중요도':'★★★','세부내용':'진입 전 손절가 설정','비고':''}},
-    {cells:{'기준 항목':'목표가 설정했는가?','중요도':'★★','세부내용':'1차/2차 목표가','비고':''}},
-    {cells:{'기준 항목':'원칙 준수했는가?','중요도':'★★','세부내용':'매매원칙 체크리스트 확인','비고':''}},
+    {cells:{
+      '시황':'1. 코스피/나스닥 방향성은?\n2. 현재 지수 스테이지는?\n3. 거시경제 이슈가 있는가?\n4. 전일 미국시장 흐름은?',
+      '주도섹터':'1. 오늘 주도 섹터/테마는?\n2. 섹터 내 선도주는?\n3. 수급이 몰리는 곳은?\n4. 소외 섹터는?',
+      '거래대금':'1. 전체 시장 거래대금 수준은?\n2. 평균 대비 많은가 적은가?\n3. 거래대금 상위 종목은?\n4. 거래대금 급증 종목은?',
+      '상승률':'1. 상한가 종목 수는?\n2. 상승률 상위 공통점은?\n3. 하락률 상위 원인은?\n4. 내 종목 상대강도는?'
+    }},
   ]};
 }
 function saveCriteriaData(d){lss(CRITERIA_KEY,JSON.stringify(d));}
@@ -615,8 +616,13 @@ function renderCriteria(){
   }
   empty.classList.add('hidden');
   tbody.innerHTML=d.rows.map((row,ri)=>`
-    <tr data-ri="${ri}">
-      <td style="width:40px;text-align:center;color:var(--text3);font-family:'DM Mono',monospace;font-size:12px;">${ri+1}</td>
+    <tr data-ri="${ri}" draggable="true"
+      ondragstart="srDragStart(event,'criteria',${ri})"
+      ondragover="srDragOver(event)"
+      ondragleave="srDragLeave(event)"
+      ondrop="srDragDrop(event,'criteria',${ri})"
+      ondragend="srDragEnd(event)">
+      <td style="width:36px;text-align:center;color:var(--text3);cursor:grab;">≡</td>
       ${CRITERIA_COLS.map(c=>`<td style="width:${CRITERIA_WIDTHS[c]||180}px;">
         <div class="ce-cell" contenteditable="true"
           onblur="updateCriteriaCE(this,${ri},'${c}')"
@@ -627,7 +633,7 @@ function renderCriteria(){
       </td>
     </tr>
     <tr class="rh-row">
-      <td colspan="6" onmousedown="startRowResize(event,'criteria-table',${ri})"></td>
+      <td colspan="5" onmousedown="startRowResize(event,'criteria-table',${ri})"></td>
     </tr>
   `).join('');
 }
@@ -686,7 +692,13 @@ function renderTable(){
 
     const tbody=rows.map(({row,ri})=>{
       const rh=rhs[ri]||80;
-      return `<tr data-ri="${ri}">
+      return `<tr data-ri="${ri}" draggable="true"
+        ondragstart="srDragStart(event,'review',${ri})"
+        ondragover="srDragOver(event)"
+        ondragleave="srDragLeave(event)"
+        ondrop="srDragDrop(event,'review',${ri})"
+        ondragend="srDragEnd(event)"
+        style="cursor:grab;">
         <td data-col="날짜" style="width:${cw['날짜']||COL_DEF['날짜']}px;height:${rh}px;vertical-align:middle;border:2px solid var(--border2);">
           <input type="date" value="${row.date}" onchange="updateDate(${ri},this.value)">
         </td>
@@ -720,6 +732,35 @@ function renderTable(){
   }).join('');
 
   setTimeout(function(){if(window.initAllTopScrolls)window.initAllTopScrolls();},50);
+}
+
+
+/* ── 행 드래그 순서변경 엔진 ─────────────────────────────── */
+let _srSrc=null,_srType=null;
+function srDragStart(e,type,ri){
+  _srSrc=ri;_srType=type;
+  e.dataTransfer.effectAllowed='move';
+  e.currentTarget.style.opacity='0.5';
+}
+function srDragEnd(e){e.currentTarget.style.opacity='';}
+function srDragOver(e){e.preventDefault();e.currentTarget.style.background='rgba(251,191,36,0.08)';}
+function srDragLeave(e){e.currentTarget.style.background='';}
+function srDragDrop(e,type,ri){
+  e.preventDefault();
+  e.currentTarget.style.background='';
+  if(_srSrc===null||_srSrc===ri||_srType!==type)return;
+  if(type==='criteria'){
+    const d=getCriteriaData();
+    const [moved]=d.rows.splice(_srSrc,1);
+    d.rows.splice(ri,0,moved);
+    saveCriteriaData(d);renderCriteria();
+  }else if(type==='review'){
+    const d=getData();
+    const [moved]=d.rows.splice(_srSrc,1);
+    d.rows.splice(ri,0,moved);
+    saveData(d);renderTable();
+  }
+  _srSrc=null;_srType=null;
 }
 
 function showTab(t){

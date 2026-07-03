@@ -174,6 +174,33 @@ tr:hover .ex-table td{background:rgba(255,255,255,0.015);}
   <div class="tab on" id="tab-btn-stock" onclick="switchTab('stock')">종목 복기</div>
   <div class="tab" id="tab-btn-search" onclick="switchTab('search')">검색식 복기</div>
 </div>
+<!-- 복기기준 테이블 최상단 고정 -->
+<div id="ss-criteria-section" style="padding:12px 20px 0;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+    <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--stock);letter-spacing:0.08em;">📋 복기 기준</div>
+    <div style="display:flex;gap:6px;">
+      <button class="btn" onclick="addSSCriteriaRow()" style="font-size:12px;padding:4px 10px;">+ 행 추가</button>
+      <button class="btn" id="ss-criteria-toggle-btn" onclick="toggleSSCriteria()" style="font-size:12px;padding:4px 10px;">접기</button>
+    </div>
+  </div>
+  <div id="ss-criteria-wrap" style="overflow-x:auto;margin-bottom:4px;">
+    <table id="ss-criteria-table" style="border-collapse:collapse;font-size:14px;width:max-content;min-width:100%;">
+      <thead>
+        <tr>
+          <th style="width:36px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:8px 10px;border:2px solid var(--border2);background:var(--bg2);">No.</th>
+          <th style="width:280px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:8px 10px;border:2px solid var(--border2);background:var(--bg2);">시황</th>
+          <th style="width:240px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:8px 10px;border:2px solid var(--border2);background:var(--bg2);">주도섹터</th>
+          <th style="width:200px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:8px 10px;border:2px solid var(--border2);background:var(--bg2);">거래대금</th>
+          <th style="width:200px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:8px 10px;border:2px solid var(--border2);background:var(--bg2);">상승률</th>
+          <th style="width:36px;border:2px solid var(--border2);background:var(--bg2);"></th>
+        </tr>
+      </thead>
+      <tbody id="ss-criteria-tbody"></tbody>
+    </table>
+  </div>
+  <div id="ss-criteria-empty" style="display:none;text-align:center;padding:10px;color:var(--text3);font-family:'DM Mono',monospace;font-size:13px;">기준을 추가해보세요</div>
+</div>
+<div style="height:1px;background:var(--border);margin:8px 0 0;"></div>
 <div class="toolbar">
   <button class="btn primary" id="btn-add-row" onclick="addRow()">+ 행 추가</button>
   <button class="btn" id="btn-add-col" onclick="addCol()">+ 열 추가</button>
@@ -366,6 +393,88 @@ function startResize(e, col){
   document.addEventListener('mouseup', mu);
 }
 
+
+/* ── 검색식복기 복기기준 테이블 ─────────────────────────── */
+const SS_CRITERIA_KEY='ss_criteria_data';
+const SS_COLS=['시황','주도섹터','거래대금','상승률'];
+const SS_WIDTHS={'시황':280,'주도섹터':240,'거래대금':200,'상승률':200};
+
+function getSSCriteriaData(){
+  const raw=localStorage.getItem(SS_CRITERIA_KEY);
+  if(raw){try{return JSON.parse(raw);}catch(e){}}
+  return {rows:[{cells:{
+    '시황':'1. 코스피/나스닥 방향성은?\n2. 현재 지수 스테이지는?\n3. 거시경제 이슈가 있는가?\n4. 전일 미국시장 흐름은?',
+    '주도섹터':'1. 오늘 주도 섹터/테마는?\n2. 섹터 내 선도주는?\n3. 수급이 몰리는 곳은?\n4. 소외 섹터는?',
+    '거래대금':'1. 전체 시장 거래대금 수준은?\n2. 평균 대비 많은가 적은가?\n3. 거래대금 상위 종목은?\n4. 거래대금 급증 종목은?',
+    '상승률':'1. 상한가 종목 수는?\n2. 상승률 상위 공통점은?\n3. 하락률 상위 원인은?\n4. 내 종목 상대강도는?'
+  }}]};
+}
+function saveSSCriteriaData(d){localStorage.setItem(SS_CRITERIA_KEY,JSON.stringify(d));}
+
+function updateSSCriteriaCE(el,ri,col){
+  const d=getSSCriteriaData();
+  if(!d.rows[ri])return;
+  if(!d.rows[ri].cells)d.rows[ri].cells={};
+  d.rows[ri].cells[col]=el.innerHTML;
+  saveSSCriteriaData(d);
+}
+function addSSCriteriaRow(){
+  const d=getSSCriteriaData();
+  d.rows.push({cells:{'시황':'','주도섹터':'','거래대금':'','상승률':''}});
+  saveSSCriteriaData(d);renderSSCriteria();
+}
+function deleteSSCriteriaRow(ri){
+  const d=getSSCriteriaData();d.rows.splice(ri,1);saveSSCriteriaData(d);renderSSCriteria();
+}
+function toggleSSCriteria(){
+  const wrap=document.getElementById('ss-criteria-wrap');
+  const btn=document.getElementById('ss-criteria-toggle-btn');
+  const hidden=wrap.style.display==='none';
+  wrap.style.display=hidden?'':'none';
+  btn.textContent=hidden?'접기':'펼치기';
+}
+
+let _ssCritSrc=null;
+function ssCritDragStart(e,ri){_ssCritSrc=ri;e.currentTarget.style.opacity='0.5';}
+function ssCritDragEnd(e){e.currentTarget.style.opacity='';}
+function ssCritDragOver(e){e.preventDefault();e.currentTarget.style.background='rgba(251,191,36,0.08)';}
+function ssCritDragLeave(e){e.currentTarget.style.background='';}
+function ssCritDragDrop(e,ri){
+  e.preventDefault();e.currentTarget.style.background='';
+  if(_ssCritSrc===null||_ssCritSrc===ri)return;
+  const d=getSSCriteriaData();
+  const [moved]=d.rows.splice(_ssCritSrc,1);
+  d.rows.splice(ri,0,moved);
+  saveSSCriteriaData(d);renderSSCriteria();
+  _ssCritSrc=null;
+}
+
+function renderSSCriteria(){
+  const d=getSSCriteriaData();
+  const tbody=document.getElementById('ss-criteria-tbody');
+  const empty=document.getElementById('ss-criteria-empty');
+  if(!d.rows.length){tbody.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  tbody.innerHTML=d.rows.map((row,ri)=>`
+    <tr data-ri="${ri}" draggable="true"
+      ondragstart="ssCritDragStart(event,${ri})"
+      ondragover="ssCritDragOver(event)"
+      ondragleave="ssCritDragLeave(event)"
+      ondrop="ssCritDragDrop(event,${ri})"
+      ondragend="ssCritDragEnd(event)">
+      <td style="width:36px;text-align:center;color:var(--text3);cursor:grab;border:2px solid var(--border2);padding:6px;">≡</td>
+      ${SS_COLS.map(col=>`<td style="width:${SS_WIDTHS[col]}px;border:2px solid var(--border2);padding:0;">
+        <div contenteditable="true"
+          style="min-height:60px;padding:8px;outline:none;color:var(--text);font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;"
+          onblur="updateSSCriteriaCE(this,${ri},'${col}')">${(row.cells&&row.cells[col])||''}</div>
+      </td>`).join('')}
+      <td style="width:36px;text-align:center;border:2px solid var(--border2);">
+        <span onclick="deleteSSCriteriaRow(${ri})" style="cursor:pointer;color:var(--text3);">✕</span>
+      </td>
+    </tr>
+  `).join('');
+}
+
 function render(){
   const data = getData();
   const cw = data.colWidths || {};
@@ -492,6 +601,7 @@ function switchTab(tab){
 }
 
 // 1) localStorage 데이터 즉시 표시
+renderSSCriteria();
 render();
 // 2) Firebase sync 후 재렌더 (최신 데이터 반영)
 /* [수정] localStorage 먼저 렌더 → Firebase 재렌더 */
