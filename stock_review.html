@@ -226,6 +226,7 @@ tr:hover .ex-table td{background:rgba(255,255,255,0.015);}
     <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--stock);letter-spacing:0.08em;">📋 복기 기준 체크리스트</div>
     <div style="display:flex;gap:6px;">
       <button class="btn" onclick="addCriteriaRow()" style="font-size:12px;padding:4px 10px;">+ 행 추가</button>
+      <button class="btn" onclick="if(confirm('복기기준을 기본값으로 초기화할까요?')){localStorage.removeItem(CRITERIA_KEY);renderCriteria();}" style="font-size:12px;padding:4px 10px;color:var(--neg);">↺ 초기화</button>
       <button class="btn" onclick="toggleCriteria()" id="criteria-toggle-btn" style="font-size:12px;padding:4px 10px;">접기</button>
     </div>
   </div>
@@ -607,16 +608,10 @@ function toggleCriteria(){
 
 function renderCriteria(){
   const d=getCriteriaData();
-  /* colWidths 복원 */
-  if(d.colWidths){Object.entries(d.colWidths).forEach(([col,w])=>{document.querySelectorAll('#criteria-table [data-col="'+col+'"]').forEach(el=>el.style.width=w+'px');});}
   const tbody=document.getElementById('criteria-tbody');
   const empty=document.getElementById('criteria-empty');
-  if(!d.rows.length){
-    tbody.innerHTML='';
-    empty.classList.remove('hidden');
-    return;
-  }
-  empty.classList.add('hidden');
+  if(!d.rows.length){tbody.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
   tbody.innerHTML=d.rows.map((row,ri)=>`
     <tr data-ri="${ri}" draggable="true"
       ondragstart="srDragStart(event,'criteria',${ri})"
@@ -624,18 +619,15 @@ function renderCriteria(){
       ondragleave="srDragLeave(event)"
       ondrop="srDragDrop(event,'criteria',${ri})"
       ondragend="srDragEnd(event)">
-      <td style="width:36px;text-align:center;color:var(--text3);cursor:grab;">≡</td>
-      ${CRITERIA_COLS.map(c=>`<td style="width:${CRITERIA_WIDTHS[c]||180}px;">
-        <div class="ce-cell" contenteditable="true"
-          onblur="updateCriteriaCE(this,${ri},'${c}')"
-          placeholder="${c}...">${(row.cells&&row.cells[c])||''}</div>
+      <td style="width:36px;text-align:center;color:var(--text3);cursor:grab;border:2px solid var(--border2);padding:6px;">≡</td>
+      ${CRITERIA_COLS.map(col=>`<td data-col="${col}" style="width:${CRITERIA_WIDTHS[col]||220}px;border:2px solid var(--border2);padding:0;">
+        <div contenteditable="true"
+          style="min-height:60px;padding:8px;outline:none;color:var(--text);font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;"
+          onblur="updateCriteriaCE(this,${ri},'${col}')">${(row.cells&&row.cells[col])||''}</div>
       </td>`).join('')}
-      <td style="width:40px;text-align:center;">
-        <span onclick="deleteCriteriaRow(${ri})" style="cursor:pointer;color:var(--text3);font-size:13px;">✕</span>
+      <td style="width:36px;text-align:center;border:2px solid var(--border2);">
+        <span onclick="deleteCriteriaRow(${ri})" style="cursor:pointer;color:var(--text3);">✕</span>
       </td>
-    </tr>
-    <tr class="rh-row">
-      <td colspan="5" onmousedown="startRowResize(event,'criteria-table',${ri})"></td>
     </tr>
   `).join('');
 }
