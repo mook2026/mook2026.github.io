@@ -338,12 +338,18 @@ function render(){
                   <thead><tr>
                     <th style="width:28px;">↕</th>
                     <th data-col="날짜" style="width:${cw['날짜']||110}px;">날짜<div class="col-rz" onmousedown="startColResize(event,'yt-tbl-${month}','날짜')"></div></th>
-                    ${cols.filter(c=>c!=='날짜').map(c=>`<th data-col="${c}" style="width:${cw[c]||DEFAULT_W}px;">
-                      <input style="background:transparent;border:none;color:var(--text2);font-family:'DM Mono',monospace;font-size:12px;outline:none;width:calc(100% - 22px);cursor:text;"
-                        value="${c.replace(/"/g,'&quot;')}" onblur="renameCol('${c}',this.value)" onclick="event.stopPropagation()"/>
-                      <span onclick="deleteCol('${c}')" style="cursor:pointer;color:var(--text3);font-size:11px;position:absolute;right:18px;top:50%;transform:translateY(-50%);">✕</span>
-                      <div class="col-rz" onmousedown="startColResize(event,'yt-tbl-${month}','${c}')"></div>
-                    </th>`).join('')}
+                     ${cols.filter(c=>c!=='날짜').map(c=>`<th data-col="${c}" style="width:${cw[c]||DEFAULT_W}px;position:relative;cursor:grab;"
+                       draggable="true"
+                       ondragstart="ytColDragStart(event,'${c}')"
+                       ondragover="ytColDragOver(event)"
+                       ondragleave="ytColDragLeave(event)"
+                       ondrop="ytColDragDrop(event,'${c}')"
+                       ondragend="ytColDragEnd(event)">
+                       <input style="background:transparent;border:none;color:var(--text2);font-family:'DM Mono',monospace;font-size:12px;outline:none;width:calc(100% - 22px);cursor:text;"
+                         value="${c.replace(/"/g,'&quot;')}" onblur="renameCol('${c}',this.value)" onclick="event.stopPropagation()"/>
+                       <span onclick="deleteCol('${c}')" style="cursor:pointer;color:var(--text3);font-size:11px;position:absolute;right:18px;top:50%;transform:translateY(-50%);">✕</span>
+                       <div class="col-rz" onmousedown="startColResize(event,'yt-tbl-${month}','${c}')"></div>
+                     </th>`).join('')}
                     <th style="width:52px;"></th>
                   </tr></thead>
                   <tbody>${trs}</tbody>

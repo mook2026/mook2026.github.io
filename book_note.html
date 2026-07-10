@@ -73,23 +73,24 @@ async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get
     <div class="section-label">
       <span style="color:var(--job);">📋 독서 복기 질문</span>
       <div style="display:flex;align-items:center;gap:8px;">
-        <button class="btn" onclick="addQRow()" style="font-size:12px;padding:4px 10px;">+ 행 추가</button>
-        <button class="btn" id="q-toggle-btn" onclick="toggleQ()" style="font-size:12px;padding:4px 10px;">접기</button>
+        <button class="btn" onclick="addBNQRow()" style="font-size:12px;padding:4px 10px;">+ 행 추가</button>
+      <button class="btn" onclick="if(confirm('복기질문을 기본값으로 초기화할까요?')){localStorage.removeItem('bn_q_data');renderBNQ();}" style="font-size:12px;padding:4px 10px;color:var(--neg);">↺ 초기화</button>
+        <button class="btn" id="bn-q-toggle-btn" onclick="toggleBNQ()" style="font-size:12px;padding:4px 10px;">접기</button>
         <div class="section-line"></div>
       </div>
     </div>
-    <div id="q-wrap" class="tbl-wrap">
-      <table class="ex-table" id="q-table">
+    <div id="bn-q-wrap" class="tbl-wrap">
+      <table class="ex-table" id="bn-q-table">
         <thead><tr>
           <th style="width:36px;">≡</th>
-          <th data-col="핵심/주장" style="width:220px;position:relative;">핵심/주장<div class="col-rz" onmousedown="startQColRz(event,'핵심/주장')"></div></th>
-          <th data-col="인상/발견" style="width:220px;position:relative;">인상/발견<div class="col-rz" onmousedown="startQColRz(event,'인상/발견')"></div></th>
-          <th data-col="적용/실천" style="width:220px;position:relative;">적용/실천<div class="col-rz" onmousedown="startQColRz(event,'적용/실천')"></div></th>
-          <th data-col="연결/다음" style="width:220px;position:relative;">연결/다음<div class="col-rz" onmousedown="startQColRz(event,'연결/다음')"></div></th>
+          <th data-col="핵심/주장" style="width:220px;position:relative;">핵심/주장<div class="col-rz" onmousedown="startBNQColRz(event,'핵심/주장')"></div></th>
+          <th data-col="인상/발견" style="width:220px;position:relative;">인상/발견<div class="col-rz" onmousedown="startBNQColRz(event,'인상/발견')"></div></th>
+          <th data-col="적용/실천" style="width:220px;position:relative;">적용/실천<div class="col-rz" onmousedown="startBNQColRz(event,'적용/실천')"></div></th>
+          <th data-col="연결/다음" style="width:220px;position:relative;">연결/다음<div class="col-rz" onmousedown="startBNQColRz(event,'연결/다음')"></div></th>
           <th style="width:36px;"></th>
         </tr></thead>
     </div>
-    <div id="q-empty" class="empty-msg hidden" style="padding:10px;">질문을 추가해보세요</div>
+    <div id="bn-q-empty" class="empty-msg hidden" style="padding:10px;">질문을 추가해보세요</div>
   </div>
 </div>
 
@@ -113,118 +114,102 @@ function showConfirm(msg){const el=document.getElementById('confirm-bar');el.tex
 
 /* ── 데이터 ──────────────────────────────────────────────── */
 const BOOK_KEY='book_note_data';
-const Q_KEY='book_note_questions';
+const BN_Q_KEY='bn_q_data';
+const BN_Q_COLS=['핵심/주장','인상/발견','적용/실천','연결/다음'];
+const BN_Q_WIDTHS={'핵심/주장':220,'인상/발견':220,'적용/실천':220,'연결/다음':220};
 
-const DEFAULT_COLS=['날짜','책 제목','저자','핵심 내용','인상 깊은 구절','적용할 점','평점'];
-const COL_W={'날짜':100,'책 제목':160,'저자':100,'핵심 내용':220,'인상 깊은 구절':220,'적용할 점':200,'평점':70};
-
-function getBookData(){
-  const raw=ls(BOOK_KEY);
-  if(raw){try{const d=JSON.parse(raw);if(!d.cols)d.cols=[...DEFAULT_COLS];if(!d.colWidths)d.colWidths={};if(!d.rowHeights)d.rowHeights={};return d;}catch(e){}}
-  return {cols:[...DEFAULT_COLS],rows:[],colWidths:{},rowHeights:{}};
-}
-function saveBookData(d){lss(BOOK_KEY,JSON.stringify(d));}
-
-const DEFAULT_Q=[
-  {cells:{
-    '핵심/주장':'1. 이 책의 핵심 주장은 무엇인가?\n2. 저자가 가장 강조하는 메시지는?\n3. 이 책을 한 문장으로 요약하면?\n4. 책을 읽기 전과 후, 내 생각이 어떻게 달라졌는가?\n5. 저자의 주장에 동의하지 않는 부분은? 근거는?\n6. 이 책을 읽어야 할 사람은 누구인가?',
-    '인상/발견':'1. 가장 인상 깊었던 구절/내용은?\n2. 왜 인상 깊었는가?\n3. 이 책에서 새롭게 알게 된 사실은?\n4. 저자가 제시한 근거 중 가장 설득력 있는 것은?\n5. 이 책의 한계나 약점은?\n6. 다른 책/경험과 연결되는 내용이 있는가?',
-    '적용/실천':'1. 내 삶/일에 구체적으로 적용할 수 있는 것은?\n2. 지금 당장 실천할 수 있는 것 1가지는?\n3. 이 책을 읽고 바꾸고 싶은 습관/행동은?\n4. 3개월 후 이 책의 영향으로 달라진 점은 무엇이길 바라는가?\n5. 주변에 이 책을 추천할 수 있는가? 이유는?\n6. 이 책의 핵심을 10분 안에 다른 사람에게 설명할 수 있는가?',
-    '연결/다음':'1. 이 책에서 연결되는 키워드/주제는?\n2. 다음에 읽을 책은?\n3. 이 책과 함께 읽으면 좋을 책은?\n4. 저자의 다른 책도 읽고 싶은가?\n5. 이 책을 읽게 된 계기는?\n6. 다시 읽는다면 어떤 관점으로 읽겠는가?'
-  }},
-];
-function getQData(){
-  const raw=ls(Q_KEY);
+function getBNQData(){
+  const raw=localStorage.getItem(BN_Q_KEY);
   if(raw){try{return JSON.parse(raw);}catch(e){}}
-  return {rows:[...DEFAULT_Q.map(r=>({cells:{...r.cells}}))],colWidths:{}};
+  return {rows:[{cells:{'핵심/주장':'1. 이 책의 핵심 주장은 무엇인가?\n2. 저자가 가장 강조하는 메시지는?\n3. 이 책을 한 문장으로 요약하면?\n4. 책을 읽기 전과 후 내 생각이 어떻게 달라졌는가?\n5. 저자의 주장에 동의하지 않는 부분은?\n6. 이 책을 읽어야 할 사람은 누구인가?','인상/발견':'1. 가장 인상 깊었던 구절/내용은?\n2. 왜 인상 깊었는가?\n3. 이 책에서 새롭게 알게 된 사실은?\n4. 저자가 제시한 근거 중 가장 설득력 있는 것은?\n5. 이 책의 한계나 약점은?\n6. 다른 책/경험과 연결되는 내용이 있는가?','적용/실천':'1. 내 삶/일에 구체적으로 적용할 수 있는 것은?\n2. 지금 당장 실천할 수 있는 것 1가지는?\n3. 바꾸고 싶은 습관/행동은?\n4. 3개월 후 이 책의 영향으로 달라진 점은?\n5. 주변에 이 책을 추천할 수 있는가?\n6. 핵심을 10분 안에 설명할 수 있는가?','연결/다음':'1. 이 책에서 연결되는 키워드/주제는?\n2. 다음에 읽을 책은?\n3. 이 책과 함께 읽으면 좋을 책은?\n4. 저자의 다른 책도 읽고 싶은가?\n5. 이 책을 읽게 된 계기는?\n6. 다시 읽는다면 어떤 관점으로 읽겠는가?'}}]};
 }
-function saveQData(d){lss(Q_KEY,JSON.stringify(d));}
+function saveBNQData(d){localStorage.setItem(BN_Q_KEY,JSON.stringify(d));}
 
-/* ── 복기질문 테이블 ─────────────────────────────────────── */
-function updateQCE(el,ri,col){
-  const d=getQData();
+function updateBNQCE(el,ri,col){
+  const d=getBNQData();
   if(!d.rows[ri])return;
+  if(!d.rows[ri].cells)d.rows[ri].cells={};
   d.rows[ri].cells[col]=el.innerHTML;
-  saveQData(d);
+  saveBNQData(d);
 }
-function addQRow(){
-  const d=getQData();
-  d.rows.push({cells:{'질문 항목':'','답변 가이드':''}});
-  saveQData(d);renderQ();
+function addBNQRow(){
+  const d=getBNQData();
+  d.rows.push({cells:{'시황':'','주도섹터':'','거래대금':'','상승률':''}});
+  saveBNQData(d);renderBNQ();
 }
-function deleteQRow(ri){
-  const d=getQData();d.rows.splice(ri,1);saveQData(d);renderQ();
+function deleteBNQRow(ri){
+  const d=getBNQData();d.rows.splice(ri,1);saveBNQData(d);renderBNQ();
 }
-function toggleQ(){
-  const wrap=document.getElementById('q-wrap');
-  const btn=document.getElementById('q-toggle-btn');
+function toggleBNQ(){
+  const wrap=document.getElementById('bn-q-wrap');
+  const btn=document.getElementById('bn-q-toggle-btn');
   const hidden=wrap.style.display==='none';
   wrap.style.display=hidden?'':'none';
   btn.textContent=hidden?'접기':'펼치기';
 }
-function renderQ(){
-  const d=getQData();
-  const tbody=document.getElementById('q-tbody');
-  const empty=document.getElementById('q-empty');
-  const qCols=['핵심/주장','인상/발견','적용/실천','연결/다음'];
-  const qW={'핵심/주장':220,'인상/발견':220,'적용/실천':220,'연결/다음':220};
-  if(!d.rows.length){tbody.innerHTML='';empty.classList.remove('hidden');return;}
-  empty.classList.add('hidden');
-  /* colWidths 복원 */
-  if(d.colWidths){Object.entries(d.colWidths).forEach(([col,w])=>{document.querySelectorAll('#q-table [data-col="'+col+'"]').forEach(el=>el.style.width=w+'px');});}
+
+let _ssCritSrc=null;
+function bnQDragStart(e,ri){_ssCritSrc=ri;e.currentTarget.style.opacity='0.5';}
+function bnQDragEnd(e){e.currentTarget.style.opacity='';}
+function bnQDragOver(e){e.preventDefault();e.currentTarget.style.background='rgba(251,191,36,0.08)';}
+function bnQDragLeave(e){e.currentTarget.style.background='';}
+function bnQDragDrop(e,ri){
+  e.preventDefault();e.currentTarget.style.background='';
+  if(_ssCritSrc===null||_ssCritSrc===ri)return;
+  const d=getBNQData();
+  const [moved]=d.rows.splice(_ssCritSrc,1);
+  d.rows.splice(ri,0,moved);
+  saveBNQData(d);renderBNQ();
+  _ssCritSrc=null;
+}
+
+function renderBNQ(){
+  const d=getBNQData();
+  const tbody=document.getElementById('bn-q-tbody');
+  const empty=document.getElementById('bn-q-empty');
+  if(!d.rows.length){tbody.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
   tbody.innerHTML=d.rows.map((row,ri)=>`
     <tr data-ri="${ri}" draggable="true"
-      ondragstart="qDragStart(event,${ri})"
-      ondragover="qDragOver(event)"
-      ondragleave="qDragLeave(event)"
-      ondrop="qDragDrop(event,${ri})"
-      ondragend="qDragEnd(event)">
-      <td style="width:36px;text-align:center;color:var(--text3);cursor:grab;">≡</td>
-      ${qCols.map(c=>`<td data-col="${c}" style="width:${(d.colWidths&&d.colWidths[c])||qW[c]}px;">
-        <div class="ce-cell" contenteditable="true" onblur="updateQCE(this,${ri},'${c}')" placeholder="${c}...">${(row.cells&&row.cells[c])||''}</div>
+      ondragstart="bnQDragStart(event,${ri})"
+      ondragover="bnQDragOver(event)"
+      ondragleave="bnQDragLeave(event)"
+      ondrop="bnQDragDrop(event,${ri})"
+      ondragend="bnQDragEnd(event)">
+      <td style="width:36px;text-align:center;color:var(--text3);cursor:grab;border:2px solid var(--border2);padding:6px;">≡</td>
+      ${BN_Q_COLS.map(col=>`<td data-col="${col}" style="width:${BN_Q_WIDTHS[col]}px;border:2px solid var(--border2);padding:0;">
+        <div contenteditable="true"
+          style="min-height:60px;padding:8px;outline:none;color:var(--text);font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;"
+          onblur="updateBNQCE(this,${ri},'${col}')">${(row.cells&&row.cells[col])||''}</div>
       </td>`).join('')}
-      <td style="width:36px;text-align:center;"><span onclick="deleteQRow(${ri})" style="cursor:pointer;color:var(--text3);">✕</span></td>
+      <td style="width:36px;text-align:center;border:2px solid var(--border2);">
+        <span onclick="deleteBNQRow(${ri})" style="cursor:pointer;color:var(--text3);">✕</span>
+      </td>
     </tr>
-    <tr class="rh-row"><td colspan="5" onmousedown="startRowRz(event,'q-tbody',${ri})"></td></tr>
   `).join('');
 }
 
-/* q 테이블 드래그 순서변경 */
-let _qDragSrc=null;
-function qDragStart(e,ri){_qDragSrc=ri;e.currentTarget.style.opacity='0.5';}
-function qDragEnd(e){e.currentTarget.style.opacity='';}
-function qDragOver(e){e.preventDefault();e.currentTarget.style.background='rgba(251,191,36,0.08)';}
-function qDragLeave(e){e.currentTarget.style.background='';}
-function qDragDrop(e,ri){
-  e.preventDefault();e.currentTarget.style.background='';
-  if(_qDragSrc===null||_qDragSrc===ri)return;
-  const d=getQData();
-  const [moved]=d.rows.splice(_qDragSrc,1);
-  d.rows.splice(ri,0,moved);
-  saveQData(d);renderQ();
-  _qDragSrc=null;
-}
 
-/* q 테이블 열너비 드래그 */
-let _qColName=null,_qColStartX=0,_qColStartW=0;
-function startQColRz(e,colName){
+/* bn-q 열너비 드래그 */
+let _ssColName=null,_ssColStartX=0,_ssColStartW=0;
+function startBNQColRz(e,colName){
   e.preventDefault();
-  _qColName=colName;_qColStartX=e.clientX;
-  const th=document.querySelector('#q-table th[data-col="'+colName+'"]');
-  _qColStartW=th?th.offsetWidth:160;
+  _ssColName=colName;_ssColStartX=e.clientX;
+  const th=document.querySelector('#bn-q-table th[data-col="'+colName+'"]');
+  _ssColStartW=th?th.offsetWidth:160;
   const mm=ev=>{
-    const w=Math.max(60,_qColStartW+(ev.clientX-_qColStartX));
-    document.querySelectorAll('#q-table [data-col="'+_qColName+'"]').forEach(el=>el.style.width=w+'px');
+    const w=Math.max(60,_ssColStartW+(ev.clientX-_ssColStartX));
+    document.querySelectorAll('#bn-q-table [data-col="'+_ssColName+'"]').forEach(el=>el.style.width=w+'px');
   };
   const mu=()=>{
-    document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);
-    const th2=document.querySelector('#q-table th[data-col="'+_qColName+'"]');
-    if(th2){const d=getQData();if(!d.colWidths)d.colWidths={};d.colWidths[_qColName]=th2.offsetWidth;saveQData(d);}
+    document.removeEventListener('mousemove',mm);
+    document.removeEventListener('mouseup',mu);
+    const th2=document.querySelector('#bn-q-table th[data-col="'+_ssColName+'"]');
+    if(th2){const d=getBNQData();if(!d.colWidths)d.colWidths={};d.colWidths[_ssColName]=th2.offsetWidth;saveBNQData(d);}
   };
   document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
 }
 
-/* ── 독서 누적 테이블 ────────────────────────────────────── */
 function updateBookCE(el,ri,col){
   const d=getBookData();
   if(!d.rows[ri])return;
@@ -414,11 +399,11 @@ function exportExcel(){
 const _d=new Date();
 document.getElementById('nav-date').textContent=_d.getFullYear()+'.'+pad(_d.getMonth()+1)+'.'+pad(_d.getDate())+' '+DAYS[_d.getDay()];
 
-renderQ();
+renderBNQ();
 renderBook();
 fbSync(()=>{
   if(window._editing)return;
-  renderQ();
+  renderBNQ();
   renderBook();
   setTimeout(()=>{if(window.initAllTopScrolls)window.initAllTopScrolls();},100);
 });
