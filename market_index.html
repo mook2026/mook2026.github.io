@@ -217,12 +217,11 @@ function setCache(sym,range,data){
 async function fetchViaProxy(targetUrl,timeoutMs){
   const encoded=encodeURIComponent(targetUrl);
   const proxies=[
-    /* allorigins raw - 직접 텍스트 반환 */
+    /* Cloudflare Workers - Ian 소유, CORS 완전 허용 */
+    {url:`https://byahoo-proxy.cudylove.workers.dev/?url=${encoded}`,isRaw:true},
+    /* fallback */
     {url:`https://api.allorigins.win/raw?url=${encoded}`,isRaw:true},
-    /* allorigins get - JSON 래퍼 반환 */
     {url:`https://api.allorigins.win/get?url=${encoded}`,isRaw:false},
-    /* codetabs - 직접 텍스트 반환 */
-    {url:`https://api.codetabs.com/v1/proxy/?quest=${encoded}`,isRaw:true},
   ];
   for(let i=0;i<proxies.length;i++){
     try{
