@@ -429,6 +429,69 @@ function renameColSR(oldName, newName){
   if(data.colWidths?.[oldName]){data.colWidths[newName.trim()]=data.colWidths[oldName];delete data.colWidths[oldName];}
   saveData(data);renderTable();
 }
+function renderTable(){
+  const data=getData();
+  const empty=document.getElementById('review-empty');
+  const tbody=document.getElementById('review-tbody');
+  if(!tbody)return;
+  if(!data.rows||!data.rows.length){
+    tbody.innerHTML='';
+    if(empty)empty.classList.remove('hidden');
+    setTimeout(function(){if(window.initAllTopScrolls)window.initAllTopScrolls();},50);
+    return;
+  }
+  if(empty)empty.classList.add('hidden');
+  const cw=data.colWidths||{};
+  const rhs=data.rowHeights||{};
+
+  /* 연도/월별 그룹 */
+  const groups={};
+  data.rows.forEach(function(row,ri){
+    const key=(row.date||'').slice(0,7)||'기타';
+    if(!groups[key])groups[key]=[];
+    groups[key].push({row,ri});
+  });
+  const sortedKeys=Object.keys(groups).sort().reverse();
+
+  tbody.innerHTML=sortedKeys.map(function(key){
+    const parts=key.split('-');
+    const label=parts[0]&&parts[1]?parts[0]+'년 '+parseInt(parts[1])+'월':'기타';
+    const grpRows=groups[key];
+    const groupRows=grpRows.map(function(item){
+      const ri=item.ri,row=item.row,rh=rhs[ri]||80;
+      const dateCols=data.cols.map(function(col){
+        const val=row.cells&&row.cells[col]?row.cells[col]:'';
+        return `<td style="width:${cw[col]||COL_DEF[col]||180}px;height:${rh}px;border:2px solid var(--border2);padding:0;vertical-align:top;"><div contenteditable="true" style="min-height:${rh}px;padding:8px;outline:none;color:var(--text);font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;" onblur="updateCell(${ri},'${col}',this.innerHTML)">${val}</div></td>`;
+      }).join('');
+      return `<tr data-ri="${ri}" draggable="true" ondragstart="reviewDragStart(event,${ri})" ondragover="reviewDragOver(event)" ondragleave="reviewDragLeave(event)" ondrop="reviewDragDrop(event,${ri})" ondragend="reviewDragEnd(event)">
+        <td style="width:${cw['날짜']||120}px;height:${rh}px;border:2px solid var(--border2);padding:4px;vertical-align:middle;"><input type="date" value="${row.date||''}" onchange="updateDate(${ri},this.value)" style="background:transparent;border:none;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;width:100%;cursor:pointer;"></td>
+        <td id="week-${ri}" style="width:${cw['주차']||90}px;height:${rh}px;border:2px solid var(--border2);padding:6px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);text-align:center;vertical-align:middle;">${row.week||getWeekLabel(row.date||'')}</td>
+        ${dateCols}
+        <td style="width:52px;height:${rh}px;border:2px solid var(--border2);text-align:center;vertical-align:middle;padding:4px;"><button class="del-btn" onclick="deleteRow(${ri})">삭제</button></td>
+      </tr>`;
+    }).join('');
+    return `<tr><td colspan="${data.cols.length+3}" style="background:var(--bg3);padding:6px 12px;font-family:'DM Mono',monospace;font-size:12px;color:var(--stock);border:1px solid var(--border);">${label} <span style="color:var(--text3);font-size:11px;">${grpRows.length}개</span></td></tr>${groupRows}`;
+  }).join('');
+
+  setTimeout(function(){if(window.initAllTopScrolls)window.initAllTopScrolls();},50);
+}
+
+let _reviewDragSrc=null;
+function reviewDragStart(e,ri){_reviewDragSrc=ri;e.currentTarget.style.opacity='0.5';e.dataTransfer.effectAllowed='move';}
+function reviewDragEnd(e){e.currentTarget.style.opacity='';}
+function reviewDragOver(e){e.preventDefault();e.currentTarget.style.background='rgba(251,191,36,0.08)';}
+function reviewDragLeave(e){e.currentTarget.style.background='';}
+function reviewDragDrop(e,ri){
+  e.preventDefault();e.currentTarget.style.background='';
+  if(_reviewDragSrc===null||_reviewDragSrc===ri)return;
+  const data=getData();
+  const [moved]=data.rows.splice(_reviewDragSrc,1);
+  data.rows.splice(ri,0,moved);
+  saveData(data);renderTable();
+  _reviewDragSrc=null;
+}
+
+/* 누적 테이블 행 드래그 순서변경 */
 function addRow(){
   const data=getData();
   const d=new Date();
@@ -633,21 +696,21 @@ function renderSRCriteria(){
 
 
 /* sr-criteria 열너비 드래그 */
-let _ssColName=null,_ssColStartX=0,_ssColStartW=0;
+let _srColName=null,_srColStartX=0,_srColStartW=0;
 function startSRColRz(e,colName){
   e.preventDefault();
-  _ssColName=colName;_ssColStartX=e.clientX;
+  _srColName=colName;_srColStartX=e.clientX;
   const th=document.querySelector('#sr-criteria-table th[data-col="'+colName+'"]');
-  _ssColStartW=th?th.offsetWidth:160;
+  _srColStartW=th?th.offsetWidth:160;
   const mm=ev=>{
-    const w=Math.max(60,_ssColStartW+(ev.clientX-_ssColStartX));
-    document.querySelectorAll('#sr-criteria-table [data-col="'+_ssColName+'"]').forEach(el=>el.style.width=w+'px');
+    const w=Math.max(60,_srColStartW+(ev.clientX-_srColStartX));
+    document.querySelectorAll('#sr-criteria-table [data-col="'+_srColName+'"]').forEach(el=>el.style.width=w+'px');
   };
   const mu=()=>{
     document.removeEventListener('mousemove',mm);
     document.removeEventListener('mouseup',mu);
-    const th2=document.querySelector('#sr-criteria-table th[data-col="'+_ssColName+'"]');
-    if(th2){const d=getSRCriteriaData();if(!d.colWidths)d.colWidths={};d.colWidths[_ssColName]=th2.offsetWidth;saveSRCriteriaData(d);}
+    const th2=document.querySelector('#sr-criteria-table th[data-col="'+_srColName+'"]');
+    if(th2){const d=getSRCriteriaData();if(!d.colWidths)d.colWidths={};d.colWidths[_srColName]=th2.offsetWidth;saveSRCriteriaData(d);}
   };
   document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
 }
