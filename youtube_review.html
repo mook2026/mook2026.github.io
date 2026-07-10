@@ -224,6 +224,22 @@ function addYoutuber(){
   saveData(data);render();showConfirm(name.trim()+' 추가됨');
 }
 
+
+let _ytColSrc=null;
+function ytColDragStart(e,col){_ytColSrc=col;e.currentTarget.style.opacity='0.5';e.dataTransfer.effectAllowed='move';}
+function ytColDragEnd(e){e.currentTarget.style.opacity='';}
+function ytColDragOver(e){e.preventDefault();e.currentTarget.style.background='rgba(251,191,36,0.15)';}
+function ytColDragLeave(e){e.currentTarget.style.background='';}
+function ytColDragDrop(e,targetCol){
+  e.preventDefault();e.currentTarget.style.background='';
+  if(!_ytColSrc||_ytColSrc===targetCol)return;
+  const data=getData();
+  const si=data.cols.indexOf(_ytColSrc),ti=data.cols.indexOf(targetCol);
+  if(si<0||ti<0)return;
+  data.cols.splice(si,1);data.cols.splice(ti,0,_ytColSrc);
+  saveData(data);render();_ytColSrc=null;
+}
+
 function renameCol(col,newName){
   if(!newName?.trim()||newName===col)return;
   if(FIXED_COLS.includes(col))return;

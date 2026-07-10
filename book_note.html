@@ -89,6 +89,8 @@ async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get
           <th data-col="연결/다음" style="width:220px;position:relative;">연결/다음<div class="col-rz" onmousedown="startBNQColRz(event,'연결/다음')"></div></th>
           <th style="width:36px;"></th>
         </tr></thead>
+        <tbody id="bn-q-tbody"></tbody>
+      </table>
     </div>
     <div id="bn-q-empty" class="empty-msg hidden" style="padding:10px;">질문을 추가해보세요</div>
   </div>
@@ -191,21 +193,21 @@ function renderBNQ(){
 
 
 /* bn-q 열너비 드래그 */
-let _ssColName=null,_ssColStartX=0,_ssColStartW=0;
+let _bnColName=null,_bnColStartX=0,_bnColStartW=0;
 function startBNQColRz(e,colName){
   e.preventDefault();
-  _ssColName=colName;_ssColStartX=e.clientX;
+  _bnColName=colName;_bnColStartX=e.clientX;
   const th=document.querySelector('#bn-q-table th[data-col="'+colName+'"]');
-  _ssColStartW=th?th.offsetWidth:160;
+  _bnColStartW=th?th.offsetWidth:160;
   const mm=ev=>{
-    const w=Math.max(60,_ssColStartW+(ev.clientX-_ssColStartX));
-    document.querySelectorAll('#bn-q-table [data-col="'+_ssColName+'"]').forEach(el=>el.style.width=w+'px');
+    const w=Math.max(60,_bnColStartW+(ev.clientX-_bnColStartX));
+    document.querySelectorAll('#bn-q-table [data-col="'+_bnColName+'"]').forEach(el=>el.style.width=w+'px');
   };
   const mu=()=>{
     document.removeEventListener('mousemove',mm);
     document.removeEventListener('mouseup',mu);
-    const th2=document.querySelector('#bn-q-table th[data-col="'+_ssColName+'"]');
-    if(th2){const d=getBNQData();if(!d.colWidths)d.colWidths={};d.colWidths[_ssColName]=th2.offsetWidth;saveBNQData(d);}
+    const th2=document.querySelector('#bn-q-table th[data-col="'+_bnColName+'"]');
+    if(th2){const d=getBNQData();if(!d.colWidths)d.colWidths={};d.colWidths[_bnColName]=th2.offsetWidth;saveBNQData(d);}
   };
   document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
 }
