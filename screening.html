@@ -191,10 +191,10 @@ tr.drag-over td{border-top:2px solid var(--stock)!important;}
     </div>
     <div class="chart-sub-wrap" id="chart-wrap-ribbon" style="height:30px;margin-top:0;border-top:1px solid var(--border);"><canvas id="ribbon-chart"></canvas></div>
     <div class="chart-sub-wrap" id="chart-wrap-macd" style="margin-top:0;border-top:1px solid var(--border);"><canvas id="macd-chart"></canvas></div>
+    <div class="chart-sub-label">삼선전환도 (x축은 독립 · 초록색=아직 안 깨진 진행중 라인)</div>
+    <div class="chart-sub-wrap" id="chart-wrap-tlb" style="height:180px;"><canvas id="tlb-chart"></canvas></div>
     <div class="chart-sub-label">하이킨아시 (메인차트와 동기화됨)</div>
     <div class="chart-sub-wrap" id="chart-wrap-ha" style="height:180px;"><canvas id="ha-chart"></canvas></div>
-    <div class="chart-sub-label">삼선전환도 (x축은 독립 · 노란색=아직 안 깨진 진행중 라인)</div>
-    <div class="chart-sub-wrap" id="chart-wrap-tlb" style="height:180px;"><canvas id="tlb-chart"></canvas></div>
   </div>
   <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);margin-top:6px;">
     차트를 좌우로 드래그(팬)하면 화면 오른쪽 끝 날짜 기준으로 스냅샷·삼선전환도가 자동으로 갱신돼요 · 특정 날짜를 정확히 보려면 클릭하세요 · 리본(가운데 띠)은 매수/매도구간 성립 구간이에요 (색상은 위 범례 참고)
@@ -225,14 +225,15 @@ const DEFAULT_W={'종목명':150,'코드':100,'스테이지':130,'선발대':90,
 let chartObj=null,macdChartObj=null,ribbonChartObj=null,haChartObj=null,tlbChartObj=null;
 let _syncedCharts=[];
 let _syncingZoom=false;
-let _asOfRAF=null;
+let _asOfTimer=null;
 function scheduleAsOfUpdate(idx){
-  if(_asOfRAF)cancelAnimationFrame(_asOfRAF);
-  _asOfRAF=requestAnimationFrame(function(){
-    _asOfRAF=null;
-    if(typeof showSnapshot==='function')showSnapshot(idx);
+  if(_asOfTimer)clearTimeout(_asOfTimer);
+  /* 팬 중에는 스냅샷 날짜만 즉시 갱신(가벼움), 삼선전환도(차트 재생성, 무거움)는 멈췄을 때만 */
+  if(typeof showSnapshot==='function')showSnapshot(idx);
+  _asOfTimer=setTimeout(function(){
+    _asOfTimer=null;
     if(typeof renderTLBChart==='function')renderTLBChart(idx);
-  });
+  },200);
 }
 function syncChartsXRange(sourceChart){
   if(_syncingZoom)return;
@@ -1086,6 +1087,7 @@ function renderTLBChart(uptoIdx){
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
       interaction:{mode:'index',intersect:false},
+      layout:{padding:{left:4,right:14,top:4}},
       plugins:{
         legend:{display:!!provisional,labels:{color:'#22c55e',font:{size:10},boxWidth:12,generateLabels:function(){return provisional?[{text:'● 진행중(미확정)',fillStyle:'#22c55e',strokeStyle:'#22c55e'}]:[];}}},
         tooltip:{
@@ -1101,7 +1103,7 @@ function renderTLBChart(uptoIdx){
         zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'},pan:{enabled:true,mode:'x'}}
       },
       scales:{
-        x:{type:'category',ticks:{color:'#888',font:{size:9},maxRotation:0,autoSkip:true,maxTicksLimit:10},grid:{color:'rgba(255,255,255,0.04)'}},
+        x:{type:'category',offset:true,ticks:{color:'#888',font:{size:9},maxRotation:0,autoSkip:true,maxTicksLimit:10},grid:{color:'rgba(255,255,255,0.04)'}},
         y:{ticks:{color:'#888',font:{size:9},callback:function(v){return fmtPrice(v);}},grid:{color:'rgba(255,255,255,0.05)'}}
       }
     }
@@ -1236,6 +1238,7 @@ async function renderChart(){
     },
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
+      layout:{padding:{left:4,right:14,top:4}},
       interaction:{mode:'index',intersect:false},
       onClick:function(evt,elements,chart){
         const pts=chart.getElementsAtEventForMode(evt,'index',{intersect:false},true);
@@ -1260,7 +1263,12 @@ async function renderChart(){
         zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x',onZoom:function(ctx){syncChartsXRange(ctx.chart);}},pan:{enabled:true,mode:'x',onPan:function(ctx){syncChartsXRange(ctx.chart);}}}
       },
       scales:{
-        x:{type:'category',ticks:{display:false},grid:{color:'rgba(255,255,255,0.04)'}},
+        x:{
+          type:'category',offset:true,
+          afterBuildTicks:function(scale){scale.ticks=scale.ticks.filter(t=>tickLabels[t.value]&&tickLabels[t.value]!=='');},
+          ticks:{color:'#888',font:{size:9},maxRotation:0,autoSkip:false,callback:function(value){return tickLabels[value]||null;}},
+          grid:{color:'rgba(255,255,255,0.04)'}
+        },
         y:{ticks:{color:'#888',font:{size:10},callback:function(v){return fmtPrice(v);}},grid:{color:'rgba(255,255,255,0.05)'}}
       }
     }
@@ -1304,9 +1312,10 @@ async function renderChart(){
     data:{labels:tickLabels,datasets:[{data:closes.map(()=>0),borderWidth:0,pointRadius:0}]},
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
+      layout:{padding:{left:4,right:14}},
       plugins:{legend:{display:false},tooltip:{enabled:false}},
       scales:{
-        x:{type:'category',display:false},
+        x:{type:'category',offset:true,display:false},
         y:{display:false,min:-1,max:1}
       }
     }
@@ -1357,6 +1366,7 @@ async function renderChart(){
     },
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
+      layout:{padding:{left:4,right:14}},
       interaction:{mode:'index',intersect:false},
       plugins:{
         legend:{display:true,labels:{color:'#ccc',font:{size:10},boxWidth:16}},
@@ -1368,7 +1378,7 @@ async function renderChart(){
       },
       scales:{
         x:{
-          type:'category',
+          type:'category',offset:true,
           afterBuildTicks:function(scale){scale.ticks=scale.ticks.filter(t=>tickLabels[t.value]&&tickLabels[t.value]!=='');},
           ticks:{color:'#888',font:{size:9},maxRotation:0,autoSkip:false,callback:function(value){return tickLabels[value]||null;}},
           grid:{color:'rgba(255,255,255,0.04)'}
@@ -1397,6 +1407,7 @@ async function renderChart(){
     },
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
+      layout:{padding:{left:4,right:14}},
       interaction:{mode:'index',intersect:false},
       plugins:{
         legend:{display:false},
@@ -1412,7 +1423,12 @@ async function renderChart(){
         zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x',onZoom:function(ctx){syncChartsXRange(ctx.chart);}},pan:{enabled:true,mode:'x',onPan:function(ctx){syncChartsXRange(ctx.chart);}}}
       },
       scales:{
-        x:{type:'category',ticks:{display:false},grid:{color:'rgba(255,255,255,0.04)'}},
+        x:{
+          type:'category',offset:true,
+          afterBuildTicks:function(scale){scale.ticks=scale.ticks.filter(t=>tickLabels[t.value]&&tickLabels[t.value]!=='');},
+          ticks:{color:'#888',font:{size:9},maxRotation:0,autoSkip:false,callback:function(value){return tickLabels[value]||null;}},
+          grid:{color:'rgba(255,255,255,0.04)'}
+        },
         y:{ticks:{color:'#888',font:{size:9},callback:function(v){return fmtPrice(v);}},grid:{color:'rgba(255,255,255,0.05)'}}
       }
     }
