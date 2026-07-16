@@ -1091,19 +1091,20 @@ function renderTLBChart(uptoIdx){
       plugins:{
         legend:{display:!!provisional,labels:{color:'#22c55e',font:{size:10},boxWidth:12,generateLabels:function(){return provisional?[{text:'● 진행중(미확정)',fillStyle:'#22c55e',strokeStyle:'#22c55e'}]:[];}}},
         tooltip:{
-          filter:function(item){return !item.dataset.label.startsWith('_');},
+          filter:function(item){return item.dataset.label==='_high';},
           callbacks:{
           title:function(items){const idx=items[0]?.dataIndex;return idx!=null?tlbLabels[idx]:'';},
           label:function(ctx){
             const idx=ctx.dataIndex;const b=ohlc[idx];if(!b)return '';
             const tag=(provisional&&idx===confirmedCount)?'[미확정] ':'';
-            return tag+(b.c>=b.o?'상승라인 ':'하락라인 ')+fmtPrice(b.o)+' → '+fmtPrice(b.c);
+            const pct=b.o?((b.c-b.o)/b.o*100):null;
+            return tag+(b.c>=b.o?'상승라인 ':'하락라인 ')+fmtPrice(b.o)+' → '+fmtPrice(b.c)+(pct!=null?' ('+(pct>=0?'+':'')+pct.toFixed(2)+'%)':'');
           }
         }},
         zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'},pan:{enabled:true,mode:'x'}}
       },
       scales:{
-        x:{type:'category',offset:true,ticks:{color:'#888',font:{size:9},maxRotation:0,autoSkip:true,maxTicksLimit:10},grid:{color:'rgba(255,255,255,0.04)'}},
+        x:{type:'category',offset:true,ticks:{color:'#888',font:{size:9},maxRotation:0,autoSkip:true,maxTicksLimit:10,callback:function(value){return tlbLabels[value]||null;}},grid:{color:'rgba(255,255,255,0.04)'}},
         y:{ticks:{color:'#888',font:{size:9},callback:function(v){return fmtPrice(v);}},grid:{color:'rgba(255,255,255,0.05)'}}
       }
     }
@@ -1254,7 +1255,8 @@ async function renderChart(){
             const idx=items[0]?.dataIndex;
             if(idx==null||!bars[idx])return '';
             const b=bars[idx];
-            return '시가 '+fmtPrice(b.o)+' 고가 '+fmtPrice(b.h)+' 저가 '+fmtPrice(b.l)+' 종가 '+fmtPrice(b.c);
+            const pct=b.o?((b.c-b.o)/b.o*100):null;
+            return '시가 '+fmtPrice(b.o)+' 고가 '+fmtPrice(b.h)+' 저가 '+fmtPrice(b.l)+' 종가 '+fmtPrice(b.c)+(pct!=null?' ('+(pct>=0?'+':'')+pct.toFixed(2)+'%)':'');
           },
           label:function(ctx){
             return ctx.dataset.label+': '+(ctx.parsed.y!=null?fmtPrice(ctx.parsed.y):'-');
@@ -1412,12 +1414,13 @@ async function renderChart(){
       plugins:{
         legend:{display:false},
         tooltip:{
-          filter:function(item){return !item.dataset.label.startsWith('_');},
+          filter:function(item){return item.dataset.label==='_high';},
           callbacks:{
           title:function(items){const idx=items[0]?.dataIndex;return idx!=null?allLabels[idx]:'';},
           label:function(ctx){
             const idx=ctx.dataIndex;const b=haBars[idx];if(!b)return '';
-            return '시가 '+fmtPrice(b.o)+' 고가 '+fmtPrice(b.h)+' 저가 '+fmtPrice(b.l)+' 종가 '+fmtPrice(b.c);
+            const pct=b.o?((b.c-b.o)/b.o*100):null;
+            return '시가 '+fmtPrice(b.o)+' 고가 '+fmtPrice(b.h)+' 저가 '+fmtPrice(b.l)+' 종가 '+fmtPrice(b.c)+(pct!=null?' ('+(pct>=0?'+':'')+pct.toFixed(2)+'%)':'');
           }
         }},
         zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x',onZoom:function(ctx){syncChartsXRange(ctx.chart);}},pan:{enabled:true,mode:'x',onPan:function(ctx){syncChartsXRange(ctx.chart);}}}
