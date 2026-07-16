@@ -27,7 +27,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.1/dist/chartjs-chart-financial.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.1/dist/chartjs-chart-financial.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script>
@@ -1004,9 +1004,14 @@ function showSnapshot(idx){
 }
 function resetSnapshotToLatest(){showSnapshot(_chartBars.length-1);}
 
+function candlestickAvailable(){
+  try{return !!(window.Chart&&Chart.registry&&Chart.registry.controllers.get('candlestick'));}
+  catch(e){return false;}
+}
 function recreateCanvas(wrapId,canvasId){
   const wrap=document.getElementById(wrapId);
   wrap.querySelector('canvas')?.remove();
+  wrap.querySelector('.chart-fallback-msg')?.remove();
   const c=document.createElement('canvas');
   c.id=canvasId;
   wrap.appendChild(c);
@@ -1015,11 +1020,16 @@ function recreateCanvas(wrapId,canvasId){
 
 function renderTLBChart(uptoIdx){
   if(!_chartBars.length)return;
+  if(tlbChartObj){tlbChartObj.destroy();tlbChartObj=null;}
+  if(!candlestickAvailable()){
+    const tlbWrap=document.getElementById('chart-wrap-tlb');
+    if(tlbWrap)tlbWrap.innerHTML='<div class="chart-fallback-msg" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-family:\'DM Mono\',monospace;font-size:12px;">캔들스틱 플러그인을 못 불러와서 표시할 수 없어요</div>';
+    return;
+  }
   const clamped=Math.max(1,Math.min(_chartBars.length-1,uptoIdx));
   const{lines,provisional}=calcThreeLineBreak(_chartBars,3,clamped);
   const allEntries=provisional?lines.concat([provisional]):lines;
   const tlbLabels=allEntries.map(l=>{const d=new Date(l.t);return String(d.getFullYear()).slice(2)+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate());});
-  if(tlbChartObj){tlbChartObj.destroy();tlbChartObj=null;}
   const tlbCtx=recreateCanvas('chart-wrap-tlb','tlb-chart');
   const confirmedCount=lines.length;
   const datasets=[{label:'삼선전환도(확정)',data:lines.map((l,i)=>({x:i,o:l.open,h:Math.max(l.open,l.close),l:Math.min(l.open,l.close),c:l.close})),
@@ -1116,6 +1126,8 @@ async function renderChart(){
   /* ---- 메인 차트: 스테이지 배경 + 매수구간 테두리 ---- */
   if(chartObj){chartObj.destroy();chartObj=null;}
   const ctx=recreateCanvas('chart-wrap-main','stage-chart');
+  const CANDLE_OK=candlestickAvailable();
+  if(!CANDLE_OK)console.warn('캔들스틱 플러그인 로드 실패 - 라인차트로 대체합니다');
 
   const stageBgPlugin={
     id:'stageBg',
@@ -1165,15 +1177,18 @@ async function renderChart(){
     if(tfBtns)tfBtns.appendChild(resetBtn);
   }
 
+  try{
   chartObj=new Chart(ctx,{
-    type:'candlestick',
+    type:CANDLE_OK?'candlestick':'line',
     plugins:[stageBgPlugin],
     data:{
       labels:tickLabels,
       datasets:[
-        {label:'가격',type:'candlestick',data:bars.map((b,i)=>({x:i,o:b.o,h:b.h,l:b.l,c:b.c})),
-          color:{up:'rgba(34,197,94,0.9)',down:'rgba(239,68,68,0.9)',unchanged:'rgba(148,163,184,0.9)'},
-          borderColor:{up:'rgba(34,197,94,1)',down:'rgba(239,68,68,1)',unchanged:'rgba(148,163,184,1)'}},
+        CANDLE_OK
+          ?{label:'가격',type:'candlestick',data:bars.map((b,i)=>({x:i,o:b.o,h:b.h,l:b.l,c:b.c})),
+              color:{up:'rgba(34,197,94,0.9)',down:'rgba(239,68,68,0.9)',unchanged:'rgba(148,163,184,0.9)'},
+              borderColor:{up:'rgba(34,197,94,1)',down:'rgba(239,68,68,1)',unchanged:'rgba(148,163,184,1)'}}
+          :{label:'종가',type:'line',data:closes,borderColor:'rgba(229,231,235,0.8)',borderWidth:1.5,pointRadius:0,fill:false,tension:0.1},
         {label:'EMA5',type:'line',data:ema5,borderColor:'#f472b6',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
         {label:'EMA20',type:'line',data:ema20,borderColor:'#ca8a04',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
         {label:'EMA40',type:'line',data:ema40,borderColor:'#3b82f6',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
@@ -1207,6 +1222,7 @@ async function renderChart(){
       }
     }
   });
+  }catch(e){console.error('메인 차트 생성 실패:',e);}
 
   /* ---- 매수/매도구간 리본: 스테이지 배경과 안 겹치게 별도 얇은 띠에 표시 (전체 구간 스캔, 최근값만이 아님) ---- */
   if(ribbonChartObj){ribbonChartObj.destroy();ribbonChartObj=null;}
@@ -1238,6 +1254,7 @@ async function renderChart(){
       c.restore();
     }
   };
+  try{
   ribbonChartObj=new Chart(ribbonCtx,{
     type:'line',
     plugins:[ribbonBgPlugin],
@@ -1251,6 +1268,7 @@ async function renderChart(){
       }
     }
   });
+  }catch(e){console.error('리본 차트 생성 실패:',e);}
 
   /* ---- MACD 3종 서브패널: 전부상승(초록)/전부하락(빨강) 음영 ---- */
   if(macdChartObj){macdChartObj.destroy();macdChartObj=null;}
@@ -1282,6 +1300,7 @@ async function renderChart(){
       c.restore();
     }
   };
+  try{
   macdChartObj=new Chart(macdCtx,{
     type:'line',
     plugins:[macdBgPlugin],
@@ -1315,11 +1334,17 @@ async function renderChart(){
       }
     }
   });
+  }catch(e){console.error('MACD 차트 생성 실패:',e);}
 
   /* ---- 하이킨아시 패널: 메인차트와 동일 x축(인덱스) → 동기화 대상 ---- */
   if(haChartObj){haChartObj.destroy();haChartObj=null;}
+  if(!CANDLE_OK){
+    const haWrap=document.getElementById('chart-wrap-ha');
+    if(haWrap)haWrap.innerHTML='<div class="chart-fallback-msg" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-family:\'DM Mono\',monospace;font-size:12px;">캔들스틱 플러그인을 못 불러와서 표시할 수 없어요</div>';
+  }else{
   const haBars=calcHeikinAshi(bars);
   const haCtx=recreateCanvas('chart-wrap-ha','ha-chart');
+  try{
   haChartObj=new Chart(haCtx,{
     type:'candlestick',
     data:{
@@ -1345,9 +1370,11 @@ async function renderChart(){
       }
     }
   });
+  }catch(e){console.error('하이킨아시 차트 생성 실패:',e);}
+  }
 
   /* ---- 삼선전환도 패널: 봉수가 달라 독립적인 x축 (동기화 제외, 대신 as-of 갱신) ---- */
-  renderTLBChart(bars.length-1);
+  try{renderTLBChart(bars.length-1);}catch(e){console.error('삼선전환도 생성 실패:',e);}
 
   /* 동기화 대상 등록 (삼선전환도는 봉수가 달라 제외) */
   _syncedCharts=[chartObj,ribbonChartObj,macdChartObj,haChartObj];
