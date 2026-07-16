@@ -12,6 +12,10 @@
   v3. 매도 3단계 추가(매도선발대S1/조기매도S2/본격매도S3, MACD3종 1일 우하향) - 테이블 열/리본/스냅샷 반영
       매수·매도 티어별 색상 구분(선발대 하늘색/조기매수 보라/매수 금색/매도선발대 주황/조기매도 연빨강/본격매도 빨강)
       슈팅선 테이블/스냅샷 표기를 O(위)/X(아래) + 이격률(%)로 변경
+  v4. 메인/리본/MACD/하이킨아시 패널 줌·팬 전체 동기화(_syncedCharts) - 삼선전환도는 봉수가 달라 동기화 제외
+      매수(초록계열)/매도(빨강계열) 색상 뚜렷하게 재조정, 신호 6종을 최근발생일(과거전체 스캔) 기준으로 표기
+      가격/이평선 정수+천단위 콤마 포맷, 차트 영역 user-select:none(드래그중 텍스트 회색 하이라이트 버그 방지)
+      메인차트 캔들스틱 전환(chartjs-chart-financial), 하이킨아시 패널·삼선전환도 패널 신규 추가
   [주의] market_index.html은 이 작업으로 수정하지 않음(별도 페이지로 분리)
   [주의] 캐시 키(mstage_ 접두사)는 Firebase 저장 제외 규칙 유지
 -->
@@ -23,6 +27,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.1/dist/chartjs-chart-financial.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script>
@@ -96,6 +101,8 @@ tr.drag-over td{border-top:2px solid var(--stock)!important;}
 
 /* 차트 패널 */
 .chart-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-top:16px;display:none;}
+.chart-wrap,.chart-sub-wrap{user-select:none;-webkit-user-select:none;}
+.chart-wrap canvas,.chart-sub-wrap canvas{touch-action:none;}
 .chart-panel.open{display:block;}
 .chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
 .chart-title{font-size:16px;font-weight:600;color:var(--text);}
@@ -140,12 +147,12 @@ tr.drag-over td{border-top:2px solid var(--stock)!important;}
     <div class="legend-item"><div class="legend-dot" style="background:var(--s4)"></div>스테이지4 (40&gt;20&gt;5 최약세)</div>
     <div class="legend-item"><div class="legend-dot" style="background:var(--s5)"></div>스테이지5 (40&gt;5&gt;20 반등시작)</div>
     <div class="legend-item"><div class="legend-dot" style="background:var(--s6)"></div>스테이지6 (5&gt;40&gt;20 전환)</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#38bdf8"></div>선발대(S4, MACD3종 우상향)</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#a78bfa"></div>조기매수(S5, MACD3종 우상향)</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div>매수(S6, MACD3종 우상향)</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#fb923c"></div>매도선발대(S1, MACD3종 우하향)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#86efac"></div>선발대(S4, MACD3종 우상향)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div>조기매수(S5, MACD3종 우상향)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div>매수(S6, MACD3종 우상향)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fca5a5"></div>매도선발대(S1, MACD3종 우하향)</div>
     <div class="legend-item"><div class="legend-dot" style="background:#f87171"></div>조기매도(S2, MACD3종 우하향)</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>본격매도(S3, MACD3종 우하향)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div>본격매도(S3, MACD3종 우하향)</div>
     <div class="legend-item">슈팅선: O=주가가 슈팅선 위 / X=주가가 슈팅선 아래 (괄호 안 %는 이격 크기)</div>
   </div>
 
@@ -181,9 +188,13 @@ tr.drag-over td{border-top:2px solid var(--stock)!important;}
     </div>
     <div class="chart-sub-wrap" id="chart-wrap-ribbon" style="height:30px;margin-top:0;border-top:1px solid var(--border);"><canvas id="ribbon-chart"></canvas></div>
     <div class="chart-sub-wrap" id="chart-wrap-macd" style="margin-top:0;border-top:1px solid var(--border);"><canvas id="macd-chart"></canvas></div>
+    <div class="chart-sub-label">하이킨아시 (메인차트와 동기화됨)</div>
+    <div class="chart-sub-wrap" id="chart-wrap-ha" style="height:180px;"><canvas id="ha-chart"></canvas></div>
+    <div class="chart-sub-label">삼선전환도 (x축은 독립 · 노란색=아직 안 깨진 진행중 라인)</div>
+    <div class="chart-sub-wrap" id="chart-wrap-tlb" style="height:180px;"><canvas id="tlb-chart"></canvas></div>
   </div>
   <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);margin-top:6px;">
-    차트를 클릭하면 해당 날짜 기준 지표로 위 스냅샷이 바뀌어요 · 리본(가운데 띠)은 매수/매도구간 성립 구간이에요 (색상은 위 범례 참고)
+    차트를 좌우로 드래그(팬)하면 화면 오른쪽 끝 날짜 기준으로 스냅샷·삼선전환도가 자동으로 갱신돼요 · 특정 날짜를 정확히 보려면 클릭하세요 · 리본(가운데 띠)은 매수/매도구간 성립 구간이에요 (색상은 위 범례 참고)
   </div>
 </div>
 
@@ -208,7 +219,39 @@ const DAYS=['일','월','화','수','목','금','토'];
 const FIXED_COLS=['종목명','코드','스테이지','매수구간'];
 const DEFAULT_W={'종목명':150,'코드':100,'스테이지':130,'선발대':90,'조기매수':90,'매수':90,'매도선발대':100,'조기매도':90,'본격매도':90,'슈팅선':130,'5일이격':100,'20일이격':100,'5-20이격':100,'스프레드':100};
 
-let chartObj=null,macdChartObj=null,ribbonChartObj=null;
+let chartObj=null,macdChartObj=null,ribbonChartObj=null,haChartObj=null,tlbChartObj=null;
+let _syncedCharts=[];
+let _syncingZoom=false;
+let _asOfRAF=null;
+function scheduleAsOfUpdate(idx){
+  if(_asOfRAF)cancelAnimationFrame(_asOfRAF);
+  _asOfRAF=requestAnimationFrame(function(){
+    _asOfRAF=null;
+    if(typeof showSnapshot==='function')showSnapshot(idx);
+    if(typeof renderTLBChart==='function')renderTLBChart(idx);
+  });
+}
+function syncChartsXRange(sourceChart){
+  if(_syncingZoom)return;
+  _syncingZoom=true;
+  try{
+    const xs=sourceChart.scales.x;
+    const min=xs.min,max=xs.max;
+    _syncedCharts.forEach(ch=>{
+      if(!ch||ch===sourceChart)return;
+      ch.zoomScale?.('x',{min,max},'none');
+      if(!ch.zoomScale){ch.options.scales.x.min=min;ch.options.scales.x.max=max;ch.update('none');}
+    });
+    if(max!=null&&_chartBars.length){
+      const rightIdx=Math.max(0,Math.min(_chartBars.length-1,Math.round(max)));
+      scheduleAsOfUpdate(rightIdx);
+    }
+  }finally{_syncingZoom=false;}
+}
+function resetAllZoom(){
+  _syncedCharts.forEach(ch=>{if(ch&&ch.resetZoom)ch.resetZoom();});
+  if(_chartBars.length)scheduleAsOfUpdate(_chartBars.length-1);
+}
 let _chartBars=[],_chartCloses=[],_chartE5=[],_chartE20=[],_chartE40=[],_chartMacd1=[],_chartMacd2=[],_chartMacd3=[],_chartShoot=[],_chartStageFilled=[],_chartBuyZoneArr=[],_chartSellZoneArr=[],_chartAllLabels=[];
 let currentChartSym=null,currentChartName=null,currentChartTF='d';
 let dragSrc=-1;
@@ -379,12 +422,74 @@ function calcShootingLine(bars){
 }
 
 /* ============================================================
+   하이킨아시: HA_close=(O+H+L+C)/4, HA_open=(전HA_open+전HA_close)/2,
+   HA_high=max(H,HA_open,HA_close), HA_low=min(L,HA_open,HA_close)
+   ============================================================ */
+function calcHeikinAshi(bars){
+  const out=[];
+  for(let i=0;i<bars.length;i++){
+    const b=bars[i];
+    const c=(b.o+b.h+b.l+b.c)/4;
+    const o=i===0?(b.o+b.c)/2:(out[i-1].o+out[i-1].c)/2;
+    const h=Math.max(b.h,o,c);
+    const l=Math.min(b.l,o,c);
+    out.push({t:b.t,o,h,l,c});
+  }
+  return out;
+}
+
+/* ============================================================
+   삼선전환도(Three-Line Break, 3라인 기준): 종가가 직전 라인들의 고점/저점을
+   돌파할 때만 새 라인(확정) 생성. uptoIdx까지만 계산(과거 시점 재구성용).
+   마지막 봉이 아직 못 깼으면 provisional(미확정) 라인 하나 별도 반환.
+   ============================================================ */
+function calcThreeLineBreak(bars,numLines,uptoIdx){
+  const N=numLines||3;
+  const endIdx=(uptoIdx==null)?bars.length-1:uptoIdx;
+  if(!bars||endIdx<1)return{lines:[],provisional:null};
+  const closes=bars.map(b=>b.c);
+  const lines=[]; // {dir:'up'/'down', open, close, t}
+  lines.push({dir:closes[1]>=closes[0]?'up':'down',open:closes[0],close:closes[1],t:bars[1].t});
+  let lastConfirmedIdx=1;
+  for(let i=2;i<=endIdx;i++){
+    const c=closes[i];
+    const recent=lines.slice(-N);
+    const lastLine=lines[lines.length-1];
+    let pushed=false;
+    if(lastLine.dir==='up'){
+      if(c>lastLine.close){
+        lines.push({dir:'up',open:lastLine.close,close:c,t:bars[i].t});pushed=true;
+      }else{
+        const minClose=Math.min(...recent.map(l=>Math.min(l.open,l.close)));
+        if(c<minClose){lines.push({dir:'down',open:lastLine.close,close:c,t:bars[i].t});pushed=true;}
+      }
+    }else{
+      if(c<lastLine.close){
+        lines.push({dir:'down',open:lastLine.close,close:c,t:bars[i].t});pushed=true;
+      }else{
+        const maxClose=Math.max(...recent.map(l=>Math.max(l.open,l.close)));
+        if(c>maxClose){lines.push({dir:'up',open:lastLine.close,close:c,t:bars[i].t});pushed=true;}
+      }
+    }
+    if(pushed)lastConfirmedIdx=i;
+  }
+  let provisional=null;
+  if(lastConfirmedIdx!==endIdx){
+    const lastLine=lines[lines.length-1];
+    const c=closes[endIdx];
+    provisional={dir:c>=lastLine.close?'up':'down',open:lastLine.close,close:c,t:bars[endIdx].t};
+  }
+  return{lines,provisional};
+}
+
+
+/* ============================================================
    매수구간 판정: 스테이지4=선발대/5=조기매수/6=매수 + MACD3종 1일 우상향(오늘>어제)
    매도구간 판정: 스테이지1=매도선발대/2=조기매도/3=본격매도 + MACD3종 1일 우하향(오늘<어제)
    ============================================================ */
 const BUYZONE_LABELS={4:'선발대',5:'조기매수',6:'매수'};
 const SELLZONE_LABELS={1:'매도선발대',2:'조기매도',3:'본격매도'};
-const TIER_COLORS={'선발대':'#38bdf8','조기매수':'#a78bfa','매수':'#fbbf24','매도선발대':'#fb923c','조기매도':'#f87171','본격매도':'#ef4444'};
+const TIER_COLORS={'선발대':'#86efac','조기매수':'#4ade80','매수':'#16a34a','매도선발대':'#fca5a5','조기매도':'#f87171','본격매도':'#dc2626'};
 function calcBuyZoneArr(stagesFilled,macd1,macd2,macd3){
   return stagesFilled.map((s,i)=>{
     if(i<1)return null;
@@ -436,6 +541,13 @@ function calcScreening(bars){
   const activeBuyLabel=buyZoneArr[lastIdx]||null;
   const activeSellLabel=sellZoneArr[lastIdx]||null;
 
+  const fmtYMD=t=>{const d=new Date(t);return d.getFullYear().toString().slice(2)+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate());};
+  const lastOccurrence=(zoneArr,label)=>{
+    for(let i=zoneArr.length-1;i>=0;i--){if(zoneArr[i]===label)return fmtYMD(bars[i].t);}
+    return null;
+  };
+  const lastBarDate=fmtYMD(bars[lastIdx].t);
+
   const shootArr=calcShootingLine(bars);
   const price=closes[lastIdx];
   const lastE5=e5[lastIdx],lastE20=e20[lastIdx],lastE40=e40[lastIdx];
@@ -458,14 +570,15 @@ function calcScreening(bars){
     stage:currentStage,
     entryDate:entryDate.getFullYear().toString().slice(2)+'/'+pad(entryDate.getMonth()+1)+'/'+pad(entryDate.getDate()),
     daysElapsed:daysElapsed,
+    lastBarDate:lastBarDate,
     buyZone:activeBuyLabel,
-    tier4:activeBuyLabel==='선발대',
-    tier5:activeBuyLabel==='조기매수',
-    tier6:activeBuyLabel==='매수',
+    tier4:lastOccurrence(buyZoneArr,'선발대'),
+    tier5:lastOccurrence(buyZoneArr,'조기매수'),
+    tier6:lastOccurrence(buyZoneArr,'매수'),
     sellZone:activeSellLabel,
-    stier1:activeSellLabel==='매도선발대',
-    stier2:activeSellLabel==='조기매도',
-    stier3:activeSellLabel==='본격매도',
+    stier1:lastOccurrence(sellZoneArr,'매도선발대'),
+    stier2:lastOccurrence(sellZoneArr,'조기매도'),
+    stier3:lastOccurrence(sellZoneArr,'본격매도'),
     shootLast:shootLast,shootPct:shootPct,
     gap5:gap5,gap20:gap20,gap5_20:gap5_20,gapSpread:gapSpread
   };
@@ -485,11 +598,15 @@ function renderStageCell(info){
 }
 function renderTierCell(info,flag,tierName){
   if(!info)return '<span class="stage-loading">-</span>';
-  if(!info[flag])return '<span class="bz-none">-</span>';
+  const dateStr=info[flag];
+  if(!dateStr)return '<span class="bz-none">-</span>';
   const color=TIER_COLORS[tierName]||'#fbbf24';
-  return `<span class="bz-badge" style="background:${color}22;color:${color};border-color:${color}66;">🟡 충족</span>`;
+  const isNow=dateStr===info.lastBarDate;
+  if(isNow)return `<span class="bz-badge" style="background:${color}33;color:${color};border-color:${color}88;">🟢 ${dateStr}</span>`;
+  return `<span class="bz-badge" style="background:transparent;color:${color};border-color:${color}44;opacity:0.75;">${dateStr}</span>`;
 }
 function fmtNum(v,digits){return v==null?'-':v.toFixed(digits==null?2:digits);}
+function fmtPrice(v){return v==null?'-':Math.round(v).toLocaleString('ko-KR');}
 function fmtPct(v){
   if(v==null)return '<span class="bz-none">-</span>';
   const cls=v<0?'gap-pos':(v>0?'gap-neg':'');
@@ -896,6 +1013,49 @@ function recreateCanvas(wrapId,canvasId){
   return c.getContext('2d');
 }
 
+function renderTLBChart(uptoIdx){
+  if(!_chartBars.length)return;
+  const clamped=Math.max(1,Math.min(_chartBars.length-1,uptoIdx));
+  const{lines,provisional}=calcThreeLineBreak(_chartBars,3,clamped);
+  const allEntries=provisional?lines.concat([provisional]):lines;
+  const tlbLabels=allEntries.map(l=>{const d=new Date(l.t);return String(d.getFullYear()).slice(2)+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate());});
+  if(tlbChartObj){tlbChartObj.destroy();tlbChartObj=null;}
+  const tlbCtx=recreateCanvas('chart-wrap-tlb','tlb-chart');
+  const confirmedCount=lines.length;
+  const datasets=[{label:'삼선전환도(확정)',data:lines.map((l,i)=>({x:i,o:l.open,h:Math.max(l.open,l.close),l:Math.min(l.open,l.close),c:l.close})),
+    color:{up:'rgba(34,197,94,0.9)',down:'rgba(239,68,68,0.9)',unchanged:'rgba(148,163,184,0.9)'},
+    borderColor:{up:'rgba(34,197,94,1)',down:'rgba(239,68,68,1)',unchanged:'rgba(148,163,184,1)'}}];
+  if(provisional){
+    datasets.push({label:'진행중(미확정)',data:[{x:confirmedCount,o:provisional.open,h:Math.max(provisional.open,provisional.close),l:Math.min(provisional.open,provisional.close),c:provisional.close}],
+      color:{up:'rgba(250,204,21,0.5)',down:'rgba(250,204,21,0.5)',unchanged:'rgba(250,204,21,0.5)'},
+      borderColor:{up:'rgba(250,204,21,0.95)',down:'rgba(250,204,21,0.95)',unchanged:'rgba(250,204,21,0.95)'}});
+  }
+  tlbChartObj=new Chart(tlbCtx,{
+    type:'candlestick',
+    data:{labels:tlbLabels,datasets:datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,animation:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:!!provisional,labels:{color:'#ccc',font:{size:10},boxWidth:12,filter:function(item){return item.text==='진행중(미확정)';}}},
+        tooltip:{callbacks:{
+          title:function(items){const idx=items[0]?.dataIndex;return idx!=null?tlbLabels[idx]:'';},
+          label:function(ctx){
+            const r=ctx.raw;
+            const tag=ctx.dataset.label==='진행중(미확정)'?'[미확정] ':'';
+            return tag+(r.c>=r.o?'상승라인 ':'하락라인 ')+fmtPrice(r.o)+' → '+fmtPrice(r.c);
+          }
+        }},
+        zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'},pan:{enabled:true,mode:'x'}}
+      },
+      scales:{
+        x:{type:'category',ticks:{color:'#888',font:{size:9},maxRotation:0,autoSkip:true,maxTicksLimit:10},grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{ticks:{color:'#888',font:{size:9},callback:function(v){return fmtPrice(v);}},grid:{color:'rgba(255,255,255,0.05)'}}
+      }
+    }
+  });
+}
+
 async function renderChart(){
   if(!currentChartSym)return;
   const loadingEl=document.getElementById('chart-loading');
@@ -1006,16 +1166,18 @@ async function renderChart(){
   }
 
   chartObj=new Chart(ctx,{
-    type:'line',
+    type:'candlestick',
     plugins:[stageBgPlugin],
     data:{
       labels:tickLabels,
       datasets:[
-        {label:'종가',data:closes,borderColor:'rgba(229,231,235,0.8)',borderWidth:1.5,pointRadius:0,fill:false,tension:0.1},
-        {label:'EMA5',data:ema5,borderColor:'#f472b6',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
-        {label:'EMA20',data:ema20,borderColor:'#ca8a04',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
-        {label:'EMA40',data:ema40,borderColor:'#3b82f6',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
-        {label:'슈팅선',data:shootArr,borderColor:'#fb923c',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,spanGaps:true,tension:0}
+        {label:'가격',type:'candlestick',data:bars.map((b,i)=>({x:i,o:b.o,h:b.h,l:b.l,c:b.c})),
+          color:{up:'rgba(34,197,94,0.9)',down:'rgba(239,68,68,0.9)',unchanged:'rgba(148,163,184,0.9)'},
+          borderColor:{up:'rgba(34,197,94,1)',down:'rgba(239,68,68,1)',unchanged:'rgba(148,163,184,1)'}},
+        {label:'EMA5',type:'line',data:ema5,borderColor:'#f472b6',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
+        {label:'EMA20',type:'line',data:ema20,borderColor:'#ca8a04',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
+        {label:'EMA40',type:'line',data:ema40,borderColor:'#3b82f6',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
+        {label:'슈팅선',type:'line',data:shootArr,borderColor:'#fb923c',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,spanGaps:true,tension:0}
       ]
     },
     options:{
@@ -1023,19 +1185,25 @@ async function renderChart(){
       interaction:{mode:'index',intersect:false},
       onClick:function(evt,elements,chart){
         const pts=chart.getElementsAtEventForMode(evt,'index',{intersect:false},true);
-        if(pts&&pts.length)showSnapshot(pts[0].index);
+        if(pts&&pts.length){showSnapshot(pts[0].index);renderTLBChart(pts[0].index);}
       },
       plugins:{
         legend:{display:true,labels:{color:'#ccc',font:{size:11},boxWidth:20}},
         tooltip:{callbacks:{
           title:function(items){const idx=items[0]?.dataIndex;return idx!=null?allLabels[idx]:'';},
-          label:function(ctx){return ctx.dataset.label+': '+(ctx.parsed.y!=null?ctx.parsed.y.toFixed(2):'-');}
+          label:function(ctx){
+            if(ctx.dataset.type==='candlestick'){
+              const r=ctx.raw;
+              return '시가 '+fmtPrice(r.o)+' 고가 '+fmtPrice(r.h)+' 저가 '+fmtPrice(r.l)+' 종가 '+fmtPrice(r.c);
+            }
+            return ctx.dataset.label+': '+(ctx.parsed.y!=null?fmtPrice(ctx.parsed.y):'-');
+          }
         }},
-        zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'},pan:{enabled:true,mode:'x'}}
+        zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x',onZoom:function(ctx){syncChartsXRange(ctx.chart);}},pan:{enabled:true,mode:'x',onPan:function(ctx){syncChartsXRange(ctx.chart);}}}
       },
       scales:{
-        x:{ticks:{display:false},grid:{color:'rgba(255,255,255,0.04)'}},
-        y:{ticks:{color:'#888',font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}}
+        x:{type:'category',ticks:{display:false},grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{ticks:{color:'#888',font:{size:10},callback:function(v){return fmtPrice(v);}},grid:{color:'rgba(255,255,255,0.05)'}}
       }
     }
   });
@@ -1078,7 +1246,7 @@ async function renderChart(){
       responsive:true,maintainAspectRatio:false,animation:false,
       plugins:{legend:{display:false},tooltip:{enabled:false}},
       scales:{
-        x:{display:false},
+        x:{type:'category',display:false},
         y:{display:false,min:-1,max:1}
       }
     }
@@ -1133,10 +1301,12 @@ async function renderChart(){
         tooltip:{callbacks:{
           title:function(items){const idx=items[0]?.dataIndex;return idx!=null?allLabels[idx]:'';},
           label:function(ctx){return ctx.dataset.label+': '+(ctx.parsed.y!=null?ctx.parsed.y.toFixed(2):'-');}
-        }}
+        }},
+        zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x',onZoom:function(ctx){syncChartsXRange(ctx.chart);}},pan:{enabled:true,mode:'x',onPan:function(ctx){syncChartsXRange(ctx.chart);}}}
       },
       scales:{
         x:{
+          type:'category',
           afterBuildTicks:function(scale){scale.ticks=scale.ticks.filter(t=>tickLabels[t.value]&&tickLabels[t.value]!=='');},
           ticks:{color:'#888',font:{size:9},maxRotation:0,autoSkip:false,callback:function(value){return tickLabels[value]||null;}},
           grid:{color:'rgba(255,255,255,0.04)'}
@@ -1145,6 +1315,45 @@ async function renderChart(){
       }
     }
   });
+
+  /* ---- 하이킨아시 패널: 메인차트와 동일 x축(인덱스) → 동기화 대상 ---- */
+  if(haChartObj){haChartObj.destroy();haChartObj=null;}
+  const haBars=calcHeikinAshi(bars);
+  const haCtx=recreateCanvas('chart-wrap-ha','ha-chart');
+  haChartObj=new Chart(haCtx,{
+    type:'candlestick',
+    data:{
+      labels:tickLabels,
+      datasets:[{label:'하이킨아시',data:haBars.map((b,i)=>({x:i,o:b.o,h:b.h,l:b.l,c:b.c})),
+        color:{up:'rgba(34,197,94,0.9)',down:'rgba(239,68,68,0.9)',unchanged:'rgba(148,163,184,0.9)'},
+        borderColor:{up:'rgba(34,197,94,1)',down:'rgba(239,68,68,1)',unchanged:'rgba(148,163,184,1)'}}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,animation:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{
+          title:function(items){const idx=items[0]?.dataIndex;return idx!=null?allLabels[idx]:'';},
+          label:function(ctx){const r=ctx.raw;return '시가 '+fmtPrice(r.o)+' 고가 '+fmtPrice(r.h)+' 저가 '+fmtPrice(r.l)+' 종가 '+fmtPrice(r.c);}
+        }},
+        zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x',onZoom:function(ctx){syncChartsXRange(ctx.chart);}},pan:{enabled:true,mode:'x',onPan:function(ctx){syncChartsXRange(ctx.chart);}}}
+      },
+      scales:{
+        x:{type:'category',ticks:{display:false},grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{ticks:{color:'#888',font:{size:9},callback:function(v){return fmtPrice(v);}},grid:{color:'rgba(255,255,255,0.05)'}}
+      }
+    }
+  });
+
+  /* ---- 삼선전환도 패널: 봉수가 달라 독립적인 x축 (동기화 제외, 대신 as-of 갱신) ---- */
+  renderTLBChart(bars.length-1);
+
+  /* 동기화 대상 등록 (삼선전환도는 봉수가 달라 제외) */
+  _syncedCharts=[chartObj,ribbonChartObj,macdChartObj,haChartObj];
+
+  let resetBtn2=document.getElementById('chart-zoom-reset');
+  if(resetBtn2)resetBtn2.onclick=resetAllZoom;
 }
 </script>
 <script>
