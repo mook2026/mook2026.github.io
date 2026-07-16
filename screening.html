@@ -16,6 +16,10 @@
       매수(초록계열)/매도(빨강계열) 색상 뚜렷하게 재조정, 신호 6종을 최근발생일(과거전체 스캔) 기준으로 표기
       가격/이평선 정수+천단위 콤마 포맷, 차트 영역 user-select:none(드래그중 텍스트 회색 하이라이트 버그 방지)
       메인차트 캔들스틱 전환(chartjs-chart-financial), 하이킨아시 패널·삼선전환도 패널 신규 추가
+  v5. chartjs-chart-financial 라이브러리 완전 제거 - category축/날짜인덱싱 어긋남+렌더 실패 문제로
+      캔들을 Chart.js 플러그인으로 캔버스에 직접 그리는 방식으로 전환(makeCandlestickPlugin).
+      색상 한국 증시 관례로 변경: 양봉=빨강, 음봉=파랑. 삼선전환도 진행중(미확정) 라인=초록.
+      삼선전환도 캔들 간격을 슬롯너비 기준으로 재계산(갭 축소)
   [주의] market_index.html은 이 작업으로 수정하지 않음(별도 페이지로 분리)
   [주의] 캐시 키(mstage_ 접두사)는 Firebase 저장 제외 규칙 유지
 -->
@@ -27,7 +31,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.1/dist/chartjs-chart-financial.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script>
@@ -1004,9 +1007,44 @@ function showSnapshot(idx){
 }
 function resetSnapshotToLatest(){showSnapshot(_chartBars.length-1);}
 
-function candlestickAvailable(){
-  try{return !!(window.Chart&&Chart.registry&&Chart.registry.controllers.get('candlestick'));}
-  catch(e){return false;}
+/* ============================================================
+   캔들 직접 그리기 플러그인 - 외부 라이브러리 없이 캔버스에 몸통+꼬리 직접 렌더
+   ohlcArr: [{o,h,l,c}...] 인덱스가 x축 카테고리 인덱스와 정확히 일치해야 함
+   ============================================================ */
+function makeCandlestickPlugin(ohlcArr,opts){
+  opts=opts||{};
+  const upColor=opts.upColor||'#ef4444';    /* 한국 증시 관례: 양봉(상승)=빨강 */
+  const downColor=opts.downColor||'#3b82f6'; /* 음봉(하락)=파랑 */
+  const widthRatio=opts.widthRatio!=null?opts.widthRatio:0.62;
+  const onlyIndex=opts.onlyIndex; /* 특정 인덱스 하나만 그릴 때(삼선전환도 미확정 라인용) */
+  return {
+    id:'candles_'+Math.random().toString(36).slice(2),
+    afterDatasetsDraw(chart){
+      const area=chart.chartArea;
+      const x=chart.scales.x,y=chart.scales.y;
+      if(!area||!x||!y)return;
+      const c=chart.ctx;
+      c.save();
+      const n=ohlcArr.length;
+      const slot=n>1?Math.abs(x.getPixelForValue(1)-x.getPixelForValue(0)):Math.max(4,area.width/Math.max(1,n));
+      const bw=Math.max(1,slot*widthRatio);
+      for(let i=0;i<n;i++){
+        if(onlyIndex!=null&&i!==onlyIndex)continue;
+        const bar=ohlcArr[i];
+        if(!bar||bar.o==null||bar.c==null)continue;
+        const xp=x.getPixelForValue(i);
+        if(xp<area.left-bw||xp>area.right+bw)continue; /* 보이는 범위만 그려 성능 확보 */
+        const yO=y.getPixelForValue(bar.o),yH=y.getPixelForValue(bar.h),yL=y.getPixelForValue(bar.l),yC=y.getPixelForValue(bar.c);
+        const up=bar.c>=bar.o;
+        const color=up?upColor:downColor;
+        c.strokeStyle=color;c.fillStyle=color;c.lineWidth=1;
+        c.beginPath();c.moveTo(xp,yH);c.lineTo(xp,yL);c.stroke();
+        const top=Math.min(yO,yC),h=Math.max(1,Math.abs(yC-yO));
+        c.fillRect(xp-bw/2,top,bw,h);
+      }
+      c.restore();
+    }
+  };
 }
 function recreateCanvas(wrapId,canvasId){
   const wrap=document.getElementById(wrapId);
@@ -1021,39 +1059,43 @@ function recreateCanvas(wrapId,canvasId){
 function renderTLBChart(uptoIdx){
   if(!_chartBars.length)return;
   if(tlbChartObj){tlbChartObj.destroy();tlbChartObj=null;}
-  if(!candlestickAvailable()){
-    const tlbWrap=document.getElementById('chart-wrap-tlb');
-    if(tlbWrap)tlbWrap.innerHTML='<div class="chart-fallback-msg" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-family:\'DM Mono\',monospace;font-size:12px;">캔들스틱 플러그인을 못 불러와서 표시할 수 없어요</div>';
-    return;
-  }
   const clamped=Math.max(1,Math.min(_chartBars.length-1,uptoIdx));
   const{lines,provisional}=calcThreeLineBreak(_chartBars,3,clamped);
   const allEntries=provisional?lines.concat([provisional]):lines;
   const tlbLabels=allEntries.map(l=>{const d=new Date(l.t);return String(d.getFullYear()).slice(2)+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate());});
   const tlbCtx=recreateCanvas('chart-wrap-tlb','tlb-chart');
   const confirmedCount=lines.length;
-  const datasets=[{label:'삼선전환도(확정)',data:lines.map((l,i)=>({x:i,o:l.open,h:Math.max(l.open,l.close),l:Math.min(l.open,l.close),c:l.close})),
-    color:{up:'rgba(34,197,94,0.9)',down:'rgba(239,68,68,0.9)',unchanged:'rgba(148,163,184,0.9)'},
-    borderColor:{up:'rgba(34,197,94,1)',down:'rgba(239,68,68,1)',unchanged:'rgba(148,163,184,1)'}}];
+  const ohlc=allEntries.map(l=>({o:l.open,h:Math.max(l.open,l.close),l:Math.min(l.open,l.close),c:l.close}));
+  const confirmedPlugin=makeCandlestickPlugin(ohlc,{upColor:'#ef4444',downColor:'#3b82f6',widthRatio:0.7});
+  const plugins=[confirmedPlugin];
   if(provisional){
-    datasets.push({label:'진행중(미확정)',data:[{x:confirmedCount,o:provisional.open,h:Math.max(provisional.open,provisional.close),l:Math.min(provisional.open,provisional.close),c:provisional.close}],
-      color:{up:'rgba(250,204,21,0.5)',down:'rgba(250,204,21,0.5)',unchanged:'rgba(250,204,21,0.5)'},
-      borderColor:{up:'rgba(250,204,21,0.95)',down:'rgba(250,204,21,0.95)',unchanged:'rgba(250,204,21,0.95)'}});
+    /* 진행중(미확정) 라인만 초록 계열로 별도 표시 */
+    plugins.push(makeCandlestickPlugin(ohlc,{upColor:'rgba(34,197,94,0.85)',downColor:'rgba(34,197,94,0.85)',widthRatio:0.7,onlyIndex:confirmedCount}));
   }
+  const allVals=ohlc.flatMap(b=>[b.h,b.l]);
   tlbChartObj=new Chart(tlbCtx,{
-    type:'candlestick',
-    data:{labels:tlbLabels,datasets:datasets},
+    type:'line',
+    plugins:plugins,
+    data:{
+      labels:tlbLabels,
+      datasets:[
+        {label:'_high',data:ohlc.map(b=>b.h),borderWidth:0,pointRadius:0,fill:false,showLine:false},
+        {label:'_low',data:ohlc.map(b=>b.l),borderWidth:0,pointRadius:0,fill:false,showLine:false}
+      ]
+    },
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
       interaction:{mode:'index',intersect:false},
       plugins:{
-        legend:{display:!!provisional,labels:{color:'#ccc',font:{size:10},boxWidth:12,filter:function(item){return item.text==='진행중(미확정)';}}},
-        tooltip:{callbacks:{
+        legend:{display:!!provisional,labels:{color:'#22c55e',font:{size:10},boxWidth:12,generateLabels:function(){return provisional?[{text:'● 진행중(미확정)',fillStyle:'#22c55e',strokeStyle:'#22c55e'}]:[];}}},
+        tooltip:{
+          filter:function(item){return !item.dataset.label.startsWith('_');},
+          callbacks:{
           title:function(items){const idx=items[0]?.dataIndex;return idx!=null?tlbLabels[idx]:'';},
           label:function(ctx){
-            const r=ctx.raw;
-            const tag=ctx.dataset.label==='진행중(미확정)'?'[미확정] ':'';
-            return tag+(r.c>=r.o?'상승라인 ':'하락라인 ')+fmtPrice(r.o)+' → '+fmtPrice(r.c);
+            const idx=ctx.dataIndex;const b=ohlc[idx];if(!b)return '';
+            const tag=(provisional&&idx===confirmedCount)?'[미확정] ':'';
+            return tag+(b.c>=b.o?'상승라인 ':'하락라인 ')+fmtPrice(b.o)+' → '+fmtPrice(b.c);
           }
         }},
         zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'},pan:{enabled:true,mode:'x'}}
@@ -1126,8 +1168,6 @@ async function renderChart(){
   /* ---- 메인 차트: 스테이지 배경 + 매수구간 테두리 ---- */
   if(chartObj){chartObj.destroy();chartObj=null;}
   const ctx=recreateCanvas('chart-wrap-main','stage-chart');
-  const CANDLE_OK=candlestickAvailable();
-  if(!CANDLE_OK)console.warn('캔들스틱 플러그인 로드 실패 - 라인차트로 대체합니다');
 
   const stageBgPlugin={
     id:'stageBg',
@@ -1177,18 +1217,17 @@ async function renderChart(){
     if(tfBtns)tfBtns.appendChild(resetBtn);
   }
 
+  const priceCandlePlugin=makeCandlestickPlugin(bars,{upColor:'#ef4444',downColor:'#3b82f6',widthRatio:0.62});
+
   try{
   chartObj=new Chart(ctx,{
-    type:CANDLE_OK?'candlestick':'line',
-    plugins:[stageBgPlugin],
+    type:'line',
+    plugins:[stageBgPlugin,priceCandlePlugin],
     data:{
       labels:tickLabels,
       datasets:[
-        CANDLE_OK
-          ?{label:'가격',type:'candlestick',data:bars.map((b,i)=>({x:i,o:b.o,h:b.h,l:b.l,c:b.c})),
-              color:{up:'rgba(34,197,94,0.9)',down:'rgba(239,68,68,0.9)',unchanged:'rgba(148,163,184,0.9)'},
-              borderColor:{up:'rgba(34,197,94,1)',down:'rgba(239,68,68,1)',unchanged:'rgba(148,163,184,1)'}}
-          :{label:'종가',type:'line',data:closes,borderColor:'rgba(229,231,235,0.8)',borderWidth:1.5,pointRadius:0,fill:false,tension:0.1},
+        {label:'_high',data:bars.map(b=>b.h),borderWidth:0,pointRadius:0,fill:false,showLine:false},
+        {label:'_low',data:bars.map(b=>b.l),borderWidth:0,pointRadius:0,fill:false,showLine:false},
         {label:'EMA5',type:'line',data:ema5,borderColor:'#f472b6',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
         {label:'EMA20',type:'line',data:ema20,borderColor:'#ca8a04',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
         {label:'EMA40',type:'line',data:ema40,borderColor:'#3b82f6',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
@@ -1203,14 +1242,18 @@ async function renderChart(){
         if(pts&&pts.length){showSnapshot(pts[0].index);renderTLBChart(pts[0].index);}
       },
       plugins:{
-        legend:{display:true,labels:{color:'#ccc',font:{size:11},boxWidth:20}},
-        tooltip:{callbacks:{
+        legend:{display:true,labels:{color:'#ccc',font:{size:11},boxWidth:20,filter:function(item){return !item.text.startsWith('_');}}},
+        tooltip:{
+          filter:function(item){return !item.dataset.label.startsWith('_');},
+          callbacks:{
           title:function(items){const idx=items[0]?.dataIndex;return idx!=null?allLabels[idx]:'';},
+          beforeBody:function(items){
+            const idx=items[0]?.dataIndex;
+            if(idx==null||!bars[idx])return '';
+            const b=bars[idx];
+            return '시가 '+fmtPrice(b.o)+' 고가 '+fmtPrice(b.h)+' 저가 '+fmtPrice(b.l)+' 종가 '+fmtPrice(b.c);
+          },
           label:function(ctx){
-            if(ctx.dataset.type==='candlestick'){
-              const r=ctx.raw;
-              return '시가 '+fmtPrice(r.o)+' 고가 '+fmtPrice(r.h)+' 저가 '+fmtPrice(r.l)+' 종가 '+fmtPrice(r.c);
-            }
             return ctx.dataset.label+': '+(ctx.parsed.y!=null?fmtPrice(ctx.parsed.y):'-');
           }
         }},
@@ -1338,29 +1381,33 @@ async function renderChart(){
 
   /* ---- 하이킨아시 패널: 메인차트와 동일 x축(인덱스) → 동기화 대상 ---- */
   if(haChartObj){haChartObj.destroy();haChartObj=null;}
-  if(!CANDLE_OK){
-    const haWrap=document.getElementById('chart-wrap-ha');
-    if(haWrap)haWrap.innerHTML='<div class="chart-fallback-msg" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-family:\'DM Mono\',monospace;font-size:12px;">캔들스틱 플러그인을 못 불러와서 표시할 수 없어요</div>';
-  }else{
   const haBars=calcHeikinAshi(bars);
   const haCtx=recreateCanvas('chart-wrap-ha','ha-chart');
+  const haCandlePlugin=makeCandlestickPlugin(haBars,{upColor:'#ef4444',downColor:'#3b82f6',widthRatio:0.62});
   try{
   haChartObj=new Chart(haCtx,{
-    type:'candlestick',
+    type:'line',
+    plugins:[haCandlePlugin],
     data:{
       labels:tickLabels,
-      datasets:[{label:'하이킨아시',data:haBars.map((b,i)=>({x:i,o:b.o,h:b.h,l:b.l,c:b.c})),
-        color:{up:'rgba(34,197,94,0.9)',down:'rgba(239,68,68,0.9)',unchanged:'rgba(148,163,184,0.9)'},
-        borderColor:{up:'rgba(34,197,94,1)',down:'rgba(239,68,68,1)',unchanged:'rgba(148,163,184,1)'}}]
+      datasets:[
+        {label:'_high',data:haBars.map(b=>b.h),borderWidth:0,pointRadius:0,fill:false,showLine:false},
+        {label:'_low',data:haBars.map(b=>b.l),borderWidth:0,pointRadius:0,fill:false,showLine:false}
+      ]
     },
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
       interaction:{mode:'index',intersect:false},
       plugins:{
         legend:{display:false},
-        tooltip:{callbacks:{
+        tooltip:{
+          filter:function(item){return !item.dataset.label.startsWith('_');},
+          callbacks:{
           title:function(items){const idx=items[0]?.dataIndex;return idx!=null?allLabels[idx]:'';},
-          label:function(ctx){const r=ctx.raw;return '시가 '+fmtPrice(r.o)+' 고가 '+fmtPrice(r.h)+' 저가 '+fmtPrice(r.l)+' 종가 '+fmtPrice(r.c);}
+          label:function(ctx){
+            const idx=ctx.dataIndex;const b=haBars[idx];if(!b)return '';
+            return '시가 '+fmtPrice(b.o)+' 고가 '+fmtPrice(b.h)+' 저가 '+fmtPrice(b.l)+' 종가 '+fmtPrice(b.c);
+          }
         }},
         zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x',onZoom:function(ctx){syncChartsXRange(ctx.chart);}},pan:{enabled:true,mode:'x',onPan:function(ctx){syncChartsXRange(ctx.chart);}}}
       },
@@ -1371,7 +1418,6 @@ async function renderChart(){
     }
   });
   }catch(e){console.error('하이킨아시 차트 생성 실패:',e);}
-  }
 
   /* ---- 삼선전환도 패널: 봉수가 달라 독립적인 x축 (동기화 제외, 대신 as-of 갱신) ---- */
   try{renderTLBChart(bars.length-1);}catch(e){console.error('삼선전환도 생성 실패:',e);}
