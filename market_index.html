@@ -441,7 +441,7 @@ function renderTable(){
         <input class="name-input" value="${stock.name.replace(/"/g,'&quot;')}" onblur="updateStockName('${stock.sym}',this.value)" onclick="event.stopPropagation()"/>
       </td>
       <td class="stock-sym-cell" style="width:${wOf('코드')}px;${rhStyle}">
-        <input class="name-input sym-input" value="${stock.sym.replace(/"/g,'&quot;')}" onblur="updateStockSym('${stock.sym}',this.value)" onclick="event.stopPropagation()" ${stock.fixed?'readonly':''}/>
+        <input class="name-input sym-input" value="${stock.sym.replace(/"/g,'&quot;')}" onblur="updateStockSym('${stock.sym}',this.value)" onclick="event.stopPropagation()"/>
       </td>
       <td id="stage-d-${cssSafe(stock.sym)}" style="width:${wOf('일봉')}px;${rhStyle}">${renderStageCell(cached?cached.d:null)}</td>
       <td id="stage-w-${cssSafe(stock.sym)}" style="width:${wOf('주봉')}px;${rhStyle}">${renderStageCell(cached?cached.w:null)}</td>
@@ -548,7 +548,7 @@ function updateStockSym(oldSym,newSym){
   if(!newSym||!newSym.trim()||newSym.trim()===oldSym)return;
   const data=getData();
   const s=data.stocks.find(x=>x.sym===oldSym);
-  if(!s||s.fixed)return;
+  if(!s)return;
   const newSymTrim=newSym.trim();
   if(data.stocks.find(x=>x.sym===newSymTrim)){showConfirm('이미 있는 종목코드');renderTable();return;}
   s.sym=newSymTrim;

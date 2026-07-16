@@ -97,6 +97,13 @@ tr.drag-over td{border-top:2px solid var(--stock)!important;}
 .chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
 .chart-title{font-size:16px;font-weight:600;color:var(--text);}
 .chart-bz-badge{margin-top:6px;font-family:'DM Mono',monospace;font-size:12px;padding:4px 10px;border-radius:5px;display:inline-block;}
+.snap-panel{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:10px;}
+.snap-date{font-family:'DM Mono',monospace;font-size:12px;color:var(--stock);font-weight:700;white-space:nowrap;}
+.snap-chips{display:flex;gap:8px;flex-wrap:wrap;flex:1;}
+.snap-chip{font-family:'DM Mono',monospace;font-size:11px;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,0.05);color:var(--text2);white-space:nowrap;}
+.snap-chip.on{background:rgba(251,191,36,0.18);color:var(--stock);font-weight:700;}
+.snap-chip.gap-pos{color:var(--pos);}
+.snap-chip.gap-neg{color:var(--neg);}
 .tf-btns{display:flex;gap:6px;}
 .tf-btn{font-family:'DM Mono',monospace;font-size:12px;padding:5px 12px;border-radius:5px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;}
 .tf-btn:hover{border-color:var(--stock);color:var(--stock);}
@@ -144,7 +151,6 @@ tr.drag-over td{border-top:2px solid var(--stock)!important;}
     <div class="chart-header">
       <div>
         <div class="chart-title" id="chart-panel-title">차트</div>
-        <div class="chart-bz-badge" id="chart-bz-badge">-</div>
       </div>
       <div style="display:flex;align-items:center;gap:12px;">
         <div class="tf-btns">
@@ -155,11 +161,20 @@ tr.drag-over td{border-top:2px solid var(--stock)!important;}
         <span class="close-panel" onclick="closeChartPanel()">✕ 닫기</span>
       </div>
     </div>
+    <div class="snap-panel" id="snap-panel">
+      <span class="snap-date" id="snap-date">-</span>
+      <div class="snap-chips" id="snap-chips"></div>
+      <button class="btn" id="snap-reset-btn" onclick="resetSnapshotToLatest()" style="display:none;font-size:11px;padding:4px 10px;">최신값으로</button>
+    </div>
     <div class="chart-wrap" id="chart-wrap-main">
       <div class="loading-overlay" id="chart-loading" style="display:none;">불러오는 중...</div>
       <canvas id="stage-chart"></canvas>
     </div>
+    <div class="chart-sub-wrap" id="chart-wrap-ribbon" style="height:30px;margin-top:0;border-top:1px solid var(--border);"><canvas id="ribbon-chart"></canvas></div>
     <div class="chart-sub-wrap" id="chart-wrap-macd" style="margin-top:0;border-top:1px solid var(--border);"><canvas id="macd-chart"></canvas></div>
+  </div>
+  <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);margin-top:6px;">
+    차트를 클릭하면 해당 날짜 기준 지표로 위 스냅샷이 바뀌어요 · 리본(가운데 띠)은 매수구간(선발대/조기매수/매수) 성립 구간이에요
   </div>
 </div>
 
@@ -178,13 +193,14 @@ const FIXED_STOCKS=[
 
 const STORAGE_KEY='screening_data';
 const CACHE_PREFIX='mstage_cache_';           /* market_index.html과 동일 OHLC 캐시 공유 */
-const RESULT_PREFIX='mstage_result_scr_';      /* 스크리닝 전용 결과 캐시 (mstage_ 접두사 유지 → Firebase 제외) */
+const RESULT_PREFIX='mstage_result_scr2_';     /* v2: 매수3단계/슈팅선/이격도 필드 추가 - 구캐시 자동무효화 위해 버전업 */
 const CACHE_TTL=6*60*60*1000;
 const DAYS=['일','월','화','수','목','금','토'];
 const FIXED_COLS=['종목명','코드','스테이지','매수구간'];
 const DEFAULT_W={'종목명':150,'코드':100,'스테이지':130,'선발대':90,'조기매수':90,'매수':90,'슈팅선':90,'5일이격':100,'20일이격':100,'5-20이격':100,'스프레드':100};
 
-let chartObj=null,macdChartObj=null;
+let chartObj=null,macdChartObj=null,ribbonChartObj=null;
+let _chartBars=[],_chartCloses=[],_chartE5=[],_chartE20=[],_chartE40=[],_chartMacd1=[],_chartMacd2=[],_chartMacd3=[],_chartShoot=[],_chartStageFilled=[],_chartBuyZoneArr=[],_chartAllLabels=[];
 let currentChartSym=null,currentChartName=null,currentChartTF='d';
 let dragSrc=-1;
 
@@ -506,7 +522,7 @@ function renderTable(){
         <input class="name-input" value="${stock.name.replace(/"/g,'&quot;')}" onblur="updateStockName('${stock.sym}',this.value)" onclick="event.stopPropagation()"/>
       </td>
       <td class="stock-sym-cell" style="width:${wOf('코드')}px;${rhStyle}">
-        <input class="name-input sym-input" value="${stock.sym.replace(/"/g,'&quot;')}" onblur="updateStockSym('${stock.sym}',this.value)" onclick="event.stopPropagation()" ${stock.fixed?'readonly':''}/>
+        <input class="name-input sym-input" value="${stock.sym.replace(/"/g,'&quot;')}" onblur="updateStockSym('${stock.sym}',this.value)" onclick="event.stopPropagation()"/>
       </td>
       <td id="scr-d-${cssSafe(stock.sym)}" style="width:${wOf('스테이지')}px;${rhStyle}">${renderStageCell(cached)}</td>
       <td id="scr-t4-${cssSafe(stock.sym)}" style="width:${wOf('선발대')}px;${rhStyle}">${renderTierCell(cached,'tier4')}</td>
@@ -537,7 +553,7 @@ function updateStockSym(oldSym,newSym){
   if(!newSym||!newSym.trim()||newSym.trim()===oldSym)return;
   const data=getData();
   const s=data.stocks.find(x=>x.sym===oldSym);
-  if(!s||s.fixed)return;
+  if(!s)return;
   if(data.stocks.find(x=>x.sym===newSym.trim())){showConfirm('이미 있는 종목코드');renderTable();return;}
   const newSymTrim=newSym.trim();
   s.sym=newSymTrim;
@@ -769,6 +785,7 @@ function closeChartPanel(){
   document.getElementById('chart-panel').classList.remove('open');
   if(chartObj){chartObj.destroy();chartObj=null;}
   if(macdChartObj){macdChartObj.destroy();macdChartObj=null;}
+  if(ribbonChartObj){ribbonChartObj.destroy();ribbonChartObj=null;}
 }
 
 function setChartTF(tf){
@@ -778,17 +795,45 @@ function setChartTF(tf){
   renderChart();
 }
 
-function updateBuyZoneBadge(label){
-  const el=document.getElementById('chart-bz-badge');
-  if(!el)return;
-  if(label){
-    el.textContent='🟡 '+label+' 매수구간';
-    el.style.background='rgba(251,191,36,0.15)';el.style.color='#fbbf24';el.style.border='1px solid rgba(251,191,36,0.4)';
-  }else{
-    el.textContent='매수구간 아님';
-    el.style.background='rgba(255,255,255,0.05)';el.style.color='#888';el.style.border='1px solid rgba(255,255,255,0.15)';
+/* ============================================================
+   스냅샷 패널 - 클릭한 날짜(디폴트=최신) 기준 지표 표시
+   ============================================================ */
+function snapshotAt(idx){
+  if(idx<0||idx>=_chartBars.length)return null;
+  const price=_chartCloses[idx];
+  const lastE5=_chartE5[idx],lastE20=_chartE20[idx],lastE40=_chartE40[idx];
+  const gap5=(lastE5!=null&&price)?((lastE5-price)/price*100):null;
+  const gap20=(lastE20!=null&&price)?((lastE20-price)/price*100):null;
+  const gap5_20=(lastE5!=null&&lastE20!=null)?((lastE20-lastE5)/lastE5*100):null;
+  let gapSpread=null;
+  if(lastE5!=null&&lastE20!=null&&lastE40!=null){
+    const mx=Math.max(lastE5,lastE20,lastE40),mn=Math.min(lastE5,lastE20,lastE40);
+    gapSpread=(mx-mn)/lastE5*100;
   }
+  return{
+    idx,date:_chartAllLabels[idx],stage:_chartStageFilled[idx],buyZone:_chartBuyZoneArr[idx]||null,
+    shoot:_chartShoot[idx],gap5,gap20,gap5_20,gapSpread
+  };
 }
+function fmtChip(label,v){
+  if(v==null)return `<span class="snap-chip">${label} -</span>`;
+  const cls=v<0?'gap-pos':(v>0?'gap-neg':'');
+  return `<span class="snap-chip ${cls}">${label} ${v>0?'+':''}${v.toFixed(2)}%</span>`;
+}
+function showSnapshot(idx){
+  const s=snapshotAt(idx);
+  if(!s)return;
+  document.getElementById('snap-date').textContent=s.date;
+  const tierChip=(name,on)=>`<span class="snap-chip${on?' on':''}">${name}${on?' ✓':''}</span>`;
+  document.getElementById('snap-chips').innerHTML=
+    `<span class="snap-chip">스테이지 ${s.stage||'-'}</span>`+
+    tierChip('선발대',s.buyZone==='선발대')+tierChip('조기매수',s.buyZone==='조기매수')+tierChip('매수',s.buyZone==='매수')+
+    `<span class="snap-chip">슈팅선 ${s.shoot==null?'-':s.shoot.toFixed(2)}</span>`+
+    fmtChip('5일선',s.gap5)+fmtChip('20일선',s.gap20)+fmtChip('5/20',s.gap5_20)+fmtChip('5/20/40',s.gapSpread);
+  const resetBtn=document.getElementById('snap-reset-btn');
+  if(resetBtn)resetBtn.style.display=(idx===_chartBars.length-1)?'none':'inline-block';
+}
+function resetSnapshotToLatest(){showSnapshot(_chartBars.length-1);}
 
 function recreateCanvas(wrapId,canvasId){
   const wrap=document.getElementById(wrapId);
@@ -826,7 +871,6 @@ async function renderChart(){
   let lastS=null;
   const stageFilled=stageRaw.map(s=>{if(s!==null)lastS=s;return lastS;});
   const buyZoneArr=calcBuyZoneArr(stageFilled,macd1,macd2,macd3);
-  updateBuyZoneBadge(buyZoneArr[buyZoneArr.length-1]||null);
 
   function fmtDate(b){const d=new Date(b.t);return String(d.getFullYear()).slice(2)+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0');}
   const allLabels=bars.map(b=>fmtDate(b));
@@ -849,6 +893,12 @@ async function renderChart(){
     if(da===1||monthChanged)return String(mo).padStart(2,'0')+'/'+String(da).padStart(2,'0');
     return '';
   });
+
+  /* 스냅샷/클릭용 전역 데이터 저장 */
+  _chartBars=bars;_chartCloses=closes;_chartE5=ema5;_chartE20=ema20;_chartE40=ema40;
+  _chartMacd1=macd1;_chartMacd2=macd2;_chartMacd3=macd3;_chartShoot=shootArr;
+  _chartStageFilled=stageFilled;_chartBuyZoneArr=buyZoneArr;_chartAllLabels=allLabels;
+  showSnapshot(bars.length-1);
 
   /* ---- 메인 차트: 스테이지 배경 + 매수구간 테두리 ---- */
   if(chartObj){chartObj.destroy();chartObj=null;}
@@ -891,28 +941,6 @@ async function renderChart(){
     }
   };
 
-  const buyZoneBgPlugin={
-    id:'buyZoneBg',
-    afterDatasetsDraw(chart){
-      const{ctx:c,chartArea:{top,bottom,right},scales:{x}}=chart;
-      if(!x)return;
-      c.save();
-      c.strokeStyle='#fbbf24';c.lineWidth=2;
-      let runStart=null;
-      for(let i=0;i<=buyZoneArr.length;i++){
-        const active=i<buyZoneArr.length?!!buyZoneArr[i]:false;
-        if(active&&runStart===null)runStart=i;
-        if(!active&&runStart!==null){
-          const x0=x.getPixelForValue(runStart);
-          const x1=i<buyZoneArr.length?x.getPixelForValue(i):right;
-          c.strokeRect(x0+1,top+1,Math.max(1,x1-x0-2),bottom-top-2);
-          runStart=null;
-        }
-      }
-      c.restore();
-    }
-  };
-
   let resetBtn=document.getElementById('chart-zoom-reset');
   if(!resetBtn){
     resetBtn=document.createElement('button');
@@ -926,7 +954,7 @@ async function renderChart(){
 
   chartObj=new Chart(ctx,{
     type:'line',
-    plugins:[stageBgPlugin,buyZoneBgPlugin],
+    plugins:[stageBgPlugin],
     data:{
       labels:tickLabels,
       datasets:[
@@ -940,6 +968,10 @@ async function renderChart(){
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
       interaction:{mode:'index',intersect:false},
+      onClick:function(evt,elements,chart){
+        const pts=chart.getElementsAtEventForMode(evt,'index',{intersect:false},true);
+        if(pts&&pts.length)showSnapshot(pts[0].index);
+      },
       plugins:{
         legend:{display:true,labels:{color:'#ccc',font:{size:11},boxWidth:20}},
         tooltip:{callbacks:{
@@ -949,8 +981,51 @@ async function renderChart(){
         zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'},pan:{enabled:true,mode:'x'}}
       },
       scales:{
-        x:{ticks:{color:'#888',font:{size:10},maxRotation:0,callback:function(val,idx){return tickLabels[idx]||null;}},grid:{color:'rgba(255,255,255,0.04)'}},
+        x:{ticks:{display:false},grid:{color:'rgba(255,255,255,0.04)'}},
         y:{ticks:{color:'#888',font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}}
+      }
+    }
+  });
+
+  /* ---- 매수구간 리본: 스테이지 배경과 안 겹치게 별도 얇은 띠에 표시 (전체 구간 스캔, 최근값만이 아님) ---- */
+  if(ribbonChartObj){ribbonChartObj.destroy();ribbonChartObj=null;}
+  const ribbonCtx=recreateCanvas('chart-wrap-ribbon','ribbon-chart');
+  const ribbonBgPlugin={
+    id:'ribbonBg',
+    beforeDatasetsDraw(chart){
+      const{ctx:c,chartArea:{top,bottom,right},scales:{x}}=chart;
+      if(!x)return;
+      c.save();
+      let prev=null,gs=0;
+      const flush=(s,e,label)=>{
+        if(!label)return;
+        const x0=x.getPixelForValue(s),x1=e<buyZoneArr.length?x.getPixelForValue(e):right;
+        c.fillStyle='rgba(251,191,36,0.55)';
+        c.fillRect(x0,top,Math.max(1,x1-x0),bottom-top);
+        if(x1-x0>=26){
+          c.fillStyle='#0c0c0e';
+          c.font='bold 9px DM Mono,monospace';
+          c.textAlign='center';
+          c.fillText(label,x0+(x1-x0)/2,top+(bottom-top)/2+3);
+        }
+      };
+      for(let i=0;i<=buyZoneArr.length;i++){
+        const s=i<buyZoneArr.length?(buyZoneArr[i]||null):null;
+        if(s!==prev){if(prev!==null)flush(gs,i,prev);gs=i;prev=s;}
+      }
+      c.restore();
+    }
+  };
+  ribbonChartObj=new Chart(ribbonCtx,{
+    type:'line',
+    plugins:[ribbonBgPlugin],
+    data:{labels:tickLabels,datasets:[{data:closes.map(()=>0),borderWidth:0,pointRadius:0}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,animation:false,
+      plugins:{legend:{display:false},tooltip:{enabled:false}},
+      scales:{
+        x:{display:false},
+        y:{display:false,min:-1,max:1}
       }
     }
   });
@@ -1007,7 +1082,11 @@ async function renderChart(){
         }}
       },
       scales:{
-        x:{ticks:{color:'#888',font:{size:9},maxRotation:0,callback:function(val,idx){return tickLabels[idx]||null;}},grid:{color:'rgba(255,255,255,0.04)'}},
+        x:{
+          afterBuildTicks:function(scale){scale.ticks=scale.ticks.filter(t=>tickLabels[t.value]&&tickLabels[t.value]!=='');},
+          ticks:{color:'#888',font:{size:9},maxRotation:0,autoSkip:false,callback:function(value){return tickLabels[value]||null;}},
+          grid:{color:'rgba(255,255,255,0.04)'}
+        },
         y:{ticks:{color:'#888',font:{size:9}},grid:{color:'rgba(255,255,255,0.05)'}}
       }
     }
