@@ -12,6 +12,9 @@
       행 클릭시 차트 패널(일/주/월봉 전환, EMA 5/20/40 오버레이)
       캐싱 강화(localStorage 6시간 캐시) + 병렬 fetch로 속도 개선
   [주의] fbSync 전 loadFromCache() 반드시 유지 / 스테이지 계산은 calcStage() 함수 사용
+  v6. EXCEL RESIZE ENGINE v2 이식 (stock_search.html 기준) - 열 이름변경(메모열 input),
+      행 드래그 순서변경(⠿ 핸들), 행높이/열너비 드래그(rh-row, col-rz), colWidths/rowHeights 저장
+  v7. 종목명/코드 인라인 편집 가능(input) - 차트보기는 📈 아이콘으로 분리(클릭 편집과 충돌 방지)
 -->
 <head>
 <meta charset="UTF-8">
@@ -57,9 +60,13 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 table.stage-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:14px;}
 table.stage-table th{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);letter-spacing:.04em;padding:10px 14px;border:1px solid var(--border);background:var(--bg2);text-align:center;white-space:nowrap;position:sticky;top:0;z-index:5;}
 table.stage-table td{padding:8px 10px;border:1px solid var(--border);color:var(--text2);text-align:center;vertical-align:middle;}
-.stock-name-cell{font-weight:500;color:var(--text);cursor:pointer;text-align:left!important;min-width:140px;}
-.stock-name-cell:hover{color:var(--stock);}
+.stock-name-cell{font-weight:500;color:var(--text);text-align:left!important;min-width:140px;}
 .stock-sym-cell{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);min-width:90px;}
+.name-input{width:calc(100% - 24px);background:transparent;border:none;color:var(--text);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;padding:8px 4px;cursor:text;}
+.name-input:focus{background:rgba(251,191,36,0.05);}
+.sym-input{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);width:100%;text-align:center;}
+.chart-open-icon{cursor:pointer;font-size:13px;padding:0 2px;vertical-align:middle;}
+.chart-open-icon:hover{filter:brightness(1.3);}
 .stage-cell{min-width:110px;border-radius:6px;padding:6px 8px;cursor:default;}
 .stage-num{font-weight:700;font-size:14px;}
 .stage-date{font-family:'DM Mono',monospace;font-size:11px;opacity:0.85;margin-top:2px;}
@@ -71,6 +78,18 @@ table.stage-table td{padding:8px 10px;border:1px solid var(--border);color:var(-
 .del-row-btn:hover{color:var(--neg);}
 .col-del-btn{cursor:pointer;color:var(--text3);font-size:11px;margin-left:4px;}
 .col-del-btn:hover{color:var(--neg);}
+.th-input{background:transparent;border:none;color:var(--text3);font-family:'DM Mono',monospace;font-size:12px;outline:none;width:calc(100% - 18px);text-align:center;cursor:text;}
+.th-input:focus{color:var(--text);border-bottom:1px solid var(--stock);}
+.th-input[readonly]{cursor:default;}
+.col-rz{position:absolute;right:0;top:0;width:5px;height:100%;cursor:col-resize;z-index:2;}
+.col-rz:hover,.col-rz.rz-active{background:var(--stock);}
+.drag-handle{cursor:grab;color:var(--text3);font-size:14px;user-select:none;display:block;text-align:center;padding:4px;}
+.drag-handle:active{cursor:grabbing;}
+tr.dragging{opacity:0.4;}
+tr.drag-over td{border-top:2px solid var(--stock)!important;}
+.rh-row td{padding:0!important;height:5px!important;border-top:none!important;background:transparent!important;cursor:row-resize;position:relative;}
+.rh-row td::after{content:'';position:absolute;bottom:1px;left:10%;right:10%;height:2px;background:rgba(255,255,255,0.15);border-radius:1px;transition:background .1s;}
+.rh-row:hover td::after{background:var(--stock);}
 
 /* 차트 패널 */
 .chart-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-top:16px;display:none;}
@@ -114,6 +133,7 @@ table.stage-table td{padding:8px 10px;border:1px solid var(--border);color:var(-
   <div class="tbl-outer" id="tbl-outer-stage">
     <table class="stage-table" id="stage-table">
       <thead><tr id="stage-thead-row">
+        <th style="width:28px;">↕</th>
         <th style="text-align:left;">종목명</th>
         <th>코드</th>
         <th>일봉</th>
@@ -162,11 +182,13 @@ const STORAGE_KEY='market_stage_data';
 const CACHE_PREFIX='mstage_cache_';
 const CACHE_TTL=6*60*60*1000; /* 6시간 캐시 */
 const DAYS=['일','월','화','수','목','금','토'];
+const DEFAULT_W={'종목명':150,'코드':100,'일봉':130,'주봉':130,'월봉':130};
 
 let chartObj=null;
 let currentChartSym=null;
 let currentChartName=null;
 let currentChartTF='d';
+let dragSrc=-1;
 
 function pad(n){return String(n).padStart(2,'0');}
 function ls(k){return localStorage.getItem(k);}
@@ -184,11 +206,13 @@ function getData(){
     if(!d.stocks)d.stocks=[...FIXED_STOCKS];
     if(!d.memoCols)d.memoCols=[];
     if(!d.memos)d.memos={};
+    if(!d.colWidths)d.colWidths={};
+    if(!d.rowHeights)d.rowHeights={};
     return d;
   }catch(e){}}
-  return {stocks:[...FIXED_STOCKS],memoCols:[],memos:{}};
+  return {stocks:[...FIXED_STOCKS],memoCols:[],memos:{},colWidths:{},rowHeights:{}};
 }
-function saveData(d){lss(STORAGE_KEY,JSON.stringify(d));}
+function saveData(d){if(!d.colWidths)d.colWidths={};if(!d.rowHeights)d.rowHeights={};lss(STORAGE_KEY,JSON.stringify(d));}
 
 /* ============================================================
    캐시: 종목별 OHLC 데이터를 localStorage에 6시간 캐싱
@@ -375,31 +399,131 @@ function renderStageCell(info){
    ============================================================ */
 function renderTable(){
   const data=getData();
-  /* 헤더 - 메모 열 추가 */
-  const theadRow=document.getElementById('stage-thead-row');
-  theadRow.innerHTML=`
-    <th style="text-align:left;">종목명</th>
-    <th>코드</th>
-    <th>일봉</th>
-    <th>주봉</th>
-    <th>월봉</th>
-    ${data.memoCols.map(col=>`<th>${col.label}<span class="col-del-btn" onclick="deleteMemoCol('${col.key}')">✕</span></th>`).join('')}
-    <th style="width:40px;"></th>
-  `;
+  const cw=data.colWidths||{};
 
+  /* 헤더 - 드래그핸들 열 + 고정열(너비조정) + 메모열(이름변경/삭제/너비조정) */
+  const theadRow=document.getElementById('stage-thead-row');
+  const fixedTh=['종목명','코드','일봉','주봉','월봉'].map(c=>{
+    const w=cw[c]||DEFAULT_W[c]||120;
+    return `<th data-col="${c}" style="width:${w}px;${c==='종목명'?'text-align:left;':''}">${c}<div class="col-rz" onmousedown="startColResize(event,'${c}')"></div></th>`;
+  }).join('');
+  const memoTh=data.memoCols.map(col=>{
+    const w=cw[col.key]||160;
+    const labelE=col.label.replace(/"/g,'&quot;');
+    return `<th data-col="${col.key}" style="width:${w}px;">
+      <input class="th-input" value="${labelE}" onblur="renameMemoCol('${col.key}',this.value)" onclick="event.stopPropagation()"/>
+      <span class="col-del-btn" onclick="deleteMemoCol('${col.key}')">✕</span>
+      <div class="col-rz" onmousedown="startColResize(event,'${col.key}')"></div>
+    </th>`;
+  }).join('');
+  theadRow.innerHTML=`<th style="width:28px;">↕</th>${fixedTh}${memoTh}<th style="width:40px;"></th>`;
+
+  const totalCols=1+5+data.memoCols.length+1;
   const tbody=document.getElementById('stage-tbody');
   tbody.innerHTML=data.stocks.map((stock,idx)=>{
     const cached=getStageCache(stock.sym);
-    return `<tr data-sym="${stock.sym}">
-      <td class="stock-name-cell" onclick="openChartPanel('${stock.sym}','${stock.name.replace(/'/g,"\\'")}')">${stock.name}</td>
-      <td class="stock-sym-cell">${stock.sym}</td>
-      <td id="stage-d-${cssSafe(stock.sym)}">${renderStageCell(cached?cached.d:null)}</td>
-      <td id="stage-w-${cssSafe(stock.sym)}">${renderStageCell(cached?cached.w:null)}</td>
-      <td id="stage-m-${cssSafe(stock.sym)}">${renderStageCell(cached?cached.m:null)}</td>
-      ${data.memoCols.map(col=>`<td><div class="ce-cell ce-memo" contenteditable="true" data-sym="${stock.sym}" data-col="${col.key}" onblur="updateMemo(this)">${(data.memos[stock.sym]&&data.memos[stock.sym][col.key])||''}</div></td>`).join('')}
-      <td>${stock.fixed?'':`<span class="del-row-btn" onclick="deleteStockRow('${stock.sym}')">✕</span>`}</td>
-    </tr>`;
+    const rh=(data.rowHeights||{})[idx]||null;
+    const rhStyle=rh?`height:${rh}px;`:'';
+    const wOf=c=>cw[c]||DEFAULT_W[c]||120;
+    const memoTds=data.memoCols.map(col=>{
+      const w=cw[col.key]||160;
+      const val=(data.memos[stock.sym]&&data.memos[stock.sym][col.key])||'';
+      return `<td style="width:${w}px;${rhStyle}"><div class="ce-cell ce-memo" contenteditable="true" data-sym="${stock.sym}" data-col="${col.key}" onblur="updateMemo(this)">${val}</div></td>`;
+    }).join('');
+    return `<tr data-ri="${idx}" data-sym="${stock.sym}" draggable="true"
+      ondragstart="rowDragStart(event,${idx})"
+      ondragover="rowDragOver(event)"
+      ondragleave="rowDragLeave(event)"
+      ondrop="rowDragDrop(event,${idx})">
+      <td style="width:28px;${rhStyle}"><span class="drag-handle">⠿</span></td>
+      <td class="stock-name-cell" style="width:${wOf('종목명')}px;${rhStyle}">
+        <span class="chart-open-icon" onclick="openChartPanel('${stock.sym}','${stock.name.replace(/'/g,"\\'")}')" title="차트 보기">📈</span>
+        <input class="name-input" value="${stock.name.replace(/"/g,'&quot;')}" onblur="updateStockName('${stock.sym}',this.value)" onclick="event.stopPropagation()"/>
+      </td>
+      <td class="stock-sym-cell" style="width:${wOf('코드')}px;${rhStyle}">
+        <input class="name-input sym-input" value="${stock.sym.replace(/"/g,'&quot;')}" onblur="updateStockSym('${stock.sym}',this.value)" onclick="event.stopPropagation()" ${stock.fixed?'readonly':''}/>
+      </td>
+      <td id="stage-d-${cssSafe(stock.sym)}" style="width:${wOf('일봉')}px;${rhStyle}">${renderStageCell(cached?cached.d:null)}</td>
+      <td id="stage-w-${cssSafe(stock.sym)}" style="width:${wOf('주봉')}px;${rhStyle}">${renderStageCell(cached?cached.w:null)}</td>
+      <td id="stage-m-${cssSafe(stock.sym)}" style="width:${wOf('월봉')}px;${rhStyle}">${renderStageCell(cached?cached.m:null)}</td>
+      ${memoTds}
+      <td style="width:40px;${rhStyle}">${stock.fixed?'':`<span class="del-row-btn" onclick="deleteStockRow('${stock.sym}')">✕</span>`}</td>
+    </tr>
+    <tr class="rh-row"><td colspan="${totalCols}" onmousedown="startRowResize(event,${idx})"></td></tr>`;
   }).join('');
+  setTimeout(function(){if(window.initAllTopScrolls)window.initAllTopScrolls();},50);
+}
+
+/* ---- 행 드래그 순서변경 ---- */
+function rowDragStart(e,ri){dragSrc=ri;e.currentTarget.classList.add('dragging');}
+function rowDragOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over');}
+function rowDragLeave(e){e.currentTarget.classList.remove('drag-over');}
+function rowDragDrop(e,ri){
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if(dragSrc===ri||dragSrc<0){dragSrc=-1;return;}
+  const data=getData();
+  const moved=data.stocks.splice(dragSrc,1)[0];
+  data.stocks.splice(ri,0,moved);
+  saveData(data);
+  renderTable();
+  dragSrc=-1;
+}
+
+/* ---- 열 너비 드래그 ---- */
+let _CZ_col='',_CZ_startX=0,_CZ_startW=0,_CZ_el=null;
+function startColResize(e,col){
+  e.preventDefault();e.stopPropagation();
+  _CZ_col=col;_CZ_startX=e.clientX;_CZ_el=e.target;
+  const th=document.querySelector('#stage-table th[data-col="'+col+'"]');
+  _CZ_startW=th?th.offsetWidth:120;
+  _CZ_el.classList.add('rz-active');
+  const mm=ev=>{
+    const nw=Math.max(40,_CZ_startW+(ev.clientX-_CZ_startX));
+    document.querySelectorAll('#stage-table [data-col="'+_CZ_col+'"]').forEach(el=>{el.style.width=nw+'px';});
+  };
+  const mu=()=>{
+    _CZ_el.classList.remove('rz-active');
+    document.removeEventListener('mousemove',mm);
+    document.removeEventListener('mouseup',mu);
+    const th2=document.querySelector('#stage-table th[data-col="'+_CZ_col+'"]');
+    if(!th2)return;
+    const data=getData();if(!data.colWidths)data.colWidths={};
+    data.colWidths[_CZ_col]=th2.offsetWidth;
+    saveData(data);
+  };
+  document.addEventListener('mousemove',mm);
+  document.addEventListener('mouseup',mu);
+}
+
+/* ---- 행 높이 드래그 ---- */
+let _RZ_rowIdx=-1,_RZ_startY=0,_RZ_startH=0;
+function startRowResize(e,rowIdx){
+  e.preventDefault();
+  _RZ_rowIdx=rowIdx;_RZ_startY=e.clientY;
+  const tbl=document.getElementById('stage-table');
+  const dataTr=tbl?tbl.querySelector('tr[data-ri="'+rowIdx+'"]'):null;
+  const firstTd=dataTr?dataTr.querySelector('td'):null;
+  _RZ_startH=firstTd?firstTd.offsetHeight:44;
+  const mm=ev=>{
+    const newH=Math.max(28,_RZ_startH+(ev.clientY-_RZ_startY));
+    const t=document.getElementById('stage-table');
+    const tr=t?t.querySelector('tr[data-ri="'+_RZ_rowIdx+'"]'):null;
+    if(tr)tr.querySelectorAll('td').forEach(td=>{td.style.height=newH+'px';});
+  };
+  const mu=()=>{
+    document.removeEventListener('mousemove',mm);
+    document.removeEventListener('mouseup',mu);
+    const t=document.getElementById('stage-table');
+    const tr=t?t.querySelector('tr[data-ri="'+_RZ_rowIdx+'"]'):null;
+    const td=tr?tr.querySelector('td'):null;
+    if(!td)return;
+    const data=getData();if(!data.rowHeights)data.rowHeights={};
+    data.rowHeights[_RZ_rowIdx]=td.offsetHeight;
+    saveData(data);
+  };
+  document.addEventListener('mousemove',mm);
+  document.addEventListener('mouseup',mu);
 }
 
 function cssSafe(sym){return sym.replace(/[^a-zA-Z0-9]/g,'_');}
@@ -410,6 +534,29 @@ function updateMemo(el){
   if(!data.memos[sym])data.memos[sym]={};
   data.memos[sym][col]=el.innerHTML;
   saveData(data);
+}
+
+function updateStockName(sym,newName){
+  if(!newName||!newName.trim())return;
+  const data=getData();
+  const s=data.stocks.find(x=>x.sym===sym);
+  if(!s)return;
+  s.name=newName.trim();
+  saveData(data);
+}
+function updateStockSym(oldSym,newSym){
+  if(!newSym||!newSym.trim()||newSym.trim()===oldSym)return;
+  const data=getData();
+  const s=data.stocks.find(x=>x.sym===oldSym);
+  if(!s||s.fixed)return;
+  const newSymTrim=newSym.trim();
+  if(data.stocks.find(x=>x.sym===newSymTrim)){showConfirm('이미 있는 종목코드');renderTable();return;}
+  s.sym=newSymTrim;
+  if(data.memos[oldSym]){data.memos[newSymTrim]=data.memos[oldSym];delete data.memos[oldSym];}
+  saveData(data);
+  removeStageCache(oldSym);
+  renderTable();
+  fetchOneStage(newSymTrim);
 }
 
 function addStockRow(){
@@ -443,6 +590,15 @@ function addMemoCol(){
   data.memoCols.push({key,label:label.trim()});
   saveData(data);
   renderTable();
+}
+
+function renameMemoCol(key,newLabel){
+  if(!newLabel||!newLabel.trim())return;
+  const data=getData();
+  const col=data.memoCols.find(c=>c.key===key);
+  if(!col)return;
+  col.label=newLabel.trim();
+  saveData(data);
 }
 
 function deleteMemoCol(key){

@@ -5,7 +5,10 @@
   v1. 신규 생성 - market_index.html 기반(EMA5/20/40 스테이지+fetch/캐시 로직) +
       stock_search.html 기반(EXCEL RESIZE ENGINE v2: 열이름변경/행드래그/행높이·열너비 드래그) 결합
       추가기능: MACD 3종(EMA5-20/EMA5-40/EMA20-40), 슈팅선(SMA(HHV(High,20),60)),
-      매수구간(스테이지4=선발대/5=조기매수/6=기본 + MACD3종 1일 우상향) 판정 → 테두리+배지 표시
+      매수구간(스테이지4=선발대/5=조기매수/6=매수 + MACD3종 1일 우상향) 판정 → 테두리+배지 표시
+  v2. 슈팅선 메인차트로 통합(점선), MACD 패널 메인차트 바로 아래 밀착 배치 + 3개전부상승/전부하락 음영,
+      종목명/코드 인라인 편집 가능(차트보기는 📈 아이콘으로 분리), 매수구간 명칭 선발대/조기매수/매수로 정리,
+      테이블에 선발대/조기매수/매수/슈팅선/5일선-주가/20일선-주가/5·20선/5·20·40 이격도 열 추가
   [주의] market_index.html은 이 작업으로 수정하지 않음(별도 페이지로 분리)
   [주의] 캐시 키(mstage_ 접두사)는 Firebase 저장 제외 규칙 유지
 -->
@@ -63,6 +66,13 @@ table.stage-table td{padding:0;border:2px solid var(--border2);color:var(--text2
 .stage-loading{color:var(--text3);font-family:'DM Mono',monospace;font-size:12px;}
 .bz-badge{display:inline-block;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;padding:6px 10px;border-radius:6px;background:rgba(251,191,36,0.15);color:var(--stock);border:1px solid rgba(251,191,36,0.4);margin:4px;}
 .bz-none{color:var(--text3);font-family:'DM Mono',monospace;font-size:12px;}
+.gap-pos{color:var(--pos);font-family:'DM Mono',monospace;font-size:12px;}
+.gap-neg{color:var(--neg);font-family:'DM Mono',monospace;font-size:12px;}
+.name-input{width:calc(100% - 24px);background:transparent;border:none;color:var(--text);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;padding:8px 4px;cursor:text;}
+.name-input:focus{background:rgba(251,191,36,0.05);}
+.sym-input{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);width:100%;text-align:center;}
+.chart-open-icon{cursor:pointer;font-size:13px;padding:0 2px;vertical-align:middle;}
+.chart-open-icon:hover{filter:brightness(1.3);}
 .ce-cell{width:100%;min-height:60px;background:transparent;color:var(--text);font-size:14px;padding:8px 10px;font-family:'Noto Sans KR',sans-serif;line-height:1.6;box-sizing:border-box;outline:none;overflow-y:auto;word-break:break-word;white-space:pre-wrap;}
 .ce-cell:focus{background:rgba(251,191,36,0.04);}
 .th-input{background:transparent;border:none;color:var(--text2);font-family:'DM Mono',monospace;font-size:12px;outline:none;width:calc(100% - 22px);cursor:text;}
@@ -120,7 +130,7 @@ tr.drag-over td{border-top:2px solid var(--stock)!important;}
     <div class="legend-item"><div class="legend-dot" style="background:var(--s4)"></div>스테이지4 (40&gt;20&gt;5 최약세)</div>
     <div class="legend-item"><div class="legend-dot" style="background:var(--s5)"></div>스테이지5 (40&gt;5&gt;20 반등시작)</div>
     <div class="legend-item"><div class="legend-dot" style="background:var(--s6)"></div>스테이지6 (5&gt;40&gt;20 전환)</div>
-    <div class="legend-item"><div class="legend-dot" style="background:var(--stock)"></div>매수구간(선발대S4/조기매수S5/기본S6 + MACD3종 1일 우상향)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--stock)"></div>매수구간(선발대S4/조기매수S5/매수S6 + MACD3종 1일 우상향)</div>
   </div>
 
   <div class="tbl-outer" id="tbl-outer-scr">
@@ -149,10 +159,7 @@ tr.drag-over td{border-top:2px solid var(--stock)!important;}
       <div class="loading-overlay" id="chart-loading" style="display:none;">불러오는 중...</div>
       <canvas id="stage-chart"></canvas>
     </div>
-    <div class="chart-sub-label">MACD 3종 (EMA5-20 / EMA5-40 / EMA20-40)</div>
-    <div class="chart-sub-wrap" id="chart-wrap-macd"><canvas id="macd-chart"></canvas></div>
-    <div class="chart-sub-label">슈팅선 (SMA(HHV(High,20),60))</div>
-    <div class="chart-sub-wrap" id="chart-wrap-shoot"><canvas id="shoot-chart"></canvas></div>
+    <div class="chart-sub-wrap" id="chart-wrap-macd" style="margin-top:0;border-top:1px solid var(--border);"><canvas id="macd-chart"></canvas></div>
   </div>
 </div>
 
@@ -175,9 +182,9 @@ const RESULT_PREFIX='mstage_result_scr_';      /* 스크리닝 전용 결과 캐
 const CACHE_TTL=6*60*60*1000;
 const DAYS=['일','월','화','수','목','금','토'];
 const FIXED_COLS=['종목명','코드','스테이지','매수구간'];
-const DEFAULT_W={'종목명':150,'코드':100,'스테이지':130,'매수구간':140};
+const DEFAULT_W={'종목명':150,'코드':100,'스테이지':130,'선발대':90,'조기매수':90,'매수':90,'슈팅선':90,'5일이격':100,'20일이격':100,'5-20이격':100,'스프레드':100};
 
-let chartObj=null,macdChartObj=null,shootChartObj=null;
+let chartObj=null,macdChartObj=null;
 let currentChartSym=null,currentChartName=null,currentChartTF='d';
 let dragSrc=-1;
 
@@ -347,9 +354,9 @@ function calcShootingLine(bars){
 }
 
 /* ============================================================
-   매수구간 판정: 스테이지4=선발대/5=조기매수/6=기본 + MACD3종 1일 우상향(오늘>어제)
+   매수구간 판정: 스테이지4=선발대/5=조기매수/6=매수 + MACD3종 1일 우상향(오늘>어제)
    ============================================================ */
-const BUYZONE_LABELS={4:'선발대',5:'조기매수',6:'기본'};
+const BUYZONE_LABELS={4:'선발대',5:'조기매수',6:'매수'};
 function calcBuyZoneArr(stagesFilled,macd1,macd2,macd3){
   return stagesFilled.map((s,i)=>{
     if(i<1)return null;
@@ -385,12 +392,33 @@ function calcScreening(bars){
 
   const macd1=calcDiffArr(e5,e20),macd2=calcDiffArr(e5,e40),macd3=calcDiffArr(e20,e40);
   const buyZoneArr=calcBuyZoneArr(stagesFilled,macd1,macd2,macd3);
+  const activeLabel=buyZoneArr[lastIdx]||null;
+
+  const shootArr=calcShootingLine(bars);
+  const price=closes[lastIdx];
+  const lastE5=e5[lastIdx],lastE20=e20[lastIdx],lastE40=e40[lastIdx];
+  /* 이격도: (이평선-주가)/주가*100 → 주가가 이평선보다 높으면 음수(-) */
+  const gap5=(lastE5!=null&&price)?((lastE5-price)/price*100):null;
+  const gap20=(lastE20!=null&&price)?((lastE20-price)/price*100):null;
+  /* 5/20선 이격도: (EMA20-EMA5)/EMA5*100 → EMA5가 높으면 음수(-), 주가-이평선 부호규칙과 동일 */
+  const gap5_20=(lastE5!=null&&lastE20!=null)?((lastE20-lastE5)/lastE5*100):null;
+  /* 5/20/40 3개 이격도: 세 선의 최대-최소 범위(퍼짐/수렴 정도), EMA5 기준 % */
+  let gapSpread=null;
+  if(lastE5!=null&&lastE20!=null&&lastE40!=null){
+    const mx=Math.max(lastE5,lastE20,lastE40),mn=Math.min(lastE5,lastE20,lastE40);
+    gapSpread=(mx-mn)/lastE5*100;
+  }
 
   return {
     stage:currentStage,
     entryDate:entryDate.getFullYear().toString().slice(2)+'/'+pad(entryDate.getMonth()+1)+'/'+pad(entryDate.getDate()),
     daysElapsed:daysElapsed,
-    buyZone:buyZoneArr[lastIdx]||null
+    buyZone:activeLabel,
+    tier4:activeLabel==='선발대',
+    tier5:activeLabel==='조기매수',
+    tier6:activeLabel==='매수',
+    shootLast:shootArr[lastIdx],
+    gap5:gap5,gap20:gap20,gap5_20:gap5_20,gapSpread:gapSpread
   };
 }
 
@@ -406,10 +434,19 @@ function renderStageCell(info){
     <div class="stage-days">+${info.daysElapsed}일</div>
   </div>`;
 }
-function renderBuyZoneCell(info){
+function renderTierCell(info,flag){
   if(!info)return '<span class="stage-loading">-</span>';
-  if(info.buyZone)return `<span class="bz-badge">🟡 ${info.buyZone}</span>`;
-  return '<span class="bz-none">매수구간 아님</span>';
+  return info[flag]?'<span class="bz-badge">🟡 충족</span>':'<span class="bz-none">-</span>';
+}
+function fmtNum(v,digits){return v==null?'-':v.toFixed(digits==null?2:digits);}
+function fmtPct(v){
+  if(v==null)return '<span class="bz-none">-</span>';
+  const cls=v<0?'gap-pos':(v>0?'gap-neg':'');
+  return `<span class="${cls}">${v>0?'+':''}${v.toFixed(2)}%</span>`;
+}
+function renderShootCell(info){
+  if(!info)return '<span class="stage-loading">-</span>';
+  return info.shootLast==null?'<span class="bz-none">-</span>':`<span>${fmtNum(info.shootLast,2)}</span>`;
 }
 </script>
 <script>
@@ -429,22 +466,30 @@ function renderTable(){
       <div class="col-rz" onmousedown="startColResize(event,'${col.key}')"></div>
     </th>`;
   }).join('');
+  const FIXED_TH_LIST=[
+    ['스테이지','스테이지(일봉)'],['선발대','선발대(S4)'],['조기매수','조기매수(S5)'],['매수','매수(S6)'],
+    ['슈팅선','슈팅선'],['5일이격','5일선-주가'],['20일이격','20일선-주가'],['5-20이격','5/20선'],['스프레드','5/20/40']
+  ];
+  const fixedTh=FIXED_TH_LIST.map(([key,label])=>{
+    const w=cw[key]||DEFAULT_W[key]||110;
+    return `<th data-col="${key}" style="width:${w}px;">${label}<div class="col-rz" onmousedown="startColResize(event,'${key}')"></div></th>`;
+  }).join('');
   theadRow.innerHTML=`
     <th style="width:28px;">↕</th>
     <th data-col="종목명" style="width:${cw['종목명']||DEFAULT_W['종목명']}px;text-align:left;">종목명<div class="col-rz" onmousedown="startColResize(event,'종목명')"></div></th>
     <th data-col="코드" style="width:${cw['코드']||DEFAULT_W['코드']}px;">코드<div class="col-rz" onmousedown="startColResize(event,'코드')"></div></th>
-    <th data-col="스테이지" style="width:${cw['스테이지']||DEFAULT_W['스테이지']}px;">스테이지(일봉)<div class="col-rz" onmousedown="startColResize(event,'스테이지')"></div></th>
-    <th data-col="매수구간" style="width:${cw['매수구간']||DEFAULT_W['매수구간']}px;">매수구간<div class="col-rz" onmousedown="startColResize(event,'매수구간')"></div></th>
+    ${fixedTh}
     ${memoTh}
     <th style="width:40px;"></th>
   `;
 
-  const totalCols=5+data.memoCols.length+1;
+  const totalCols=3+FIXED_TH_LIST.length+data.memoCols.length+1;
   const tbody=document.getElementById('scr-tbody');
   tbody.innerHTML=data.stocks.map((stock,idx)=>{
     const cached=getResultCache(stock.sym);
     const rh=(data.rowHeights||{})[idx]||null;
     const rhStyle=rh?`height:${rh}px;`:'';
+    const wOf=k=>cw[k]||DEFAULT_W[k]||110;
     const memoTds=data.memoCols.map(col=>{
       const w=cw[col.key]||180;
       const val=(data.memos[stock.sym]&&data.memos[stock.sym][col.key])||'';
@@ -456,10 +501,22 @@ function renderTable(){
       ondragleave="rowDragLeave(event)"
       ondrop="rowDragDrop(event,${idx})">
       <td style="width:28px;${rhStyle}"><span class="drag-handle">⠿</span></td>
-      <td class="stock-name-cell" style="width:${cw['종목명']||DEFAULT_W['종목명']}px;${rhStyle}" onclick="openChartPanel('${stock.sym}','${stock.name.replace(/'/g,"\\'")}')">${stock.name}</td>
-      <td class="stock-sym-cell" style="width:${cw['코드']||DEFAULT_W['코드']}px;${rhStyle}">${stock.sym}</td>
-      <td id="scr-d-${cssSafe(stock.sym)}" style="width:${cw['스테이지']||DEFAULT_W['스테이지']}px;${rhStyle}">${renderStageCell(cached)}</td>
-      <td id="scr-bz-${cssSafe(stock.sym)}" style="width:${cw['매수구간']||DEFAULT_W['매수구간']}px;${rhStyle}">${renderBuyZoneCell(cached)}</td>
+      <td class="stock-name-cell" style="width:${wOf('종목명')}px;${rhStyle}">
+        <span class="chart-open-icon" onclick="openChartPanel('${stock.sym}','${stock.name.replace(/'/g,"\\'")}')" title="차트 보기">📈</span>
+        <input class="name-input" value="${stock.name.replace(/"/g,'&quot;')}" onblur="updateStockName('${stock.sym}',this.value)" onclick="event.stopPropagation()"/>
+      </td>
+      <td class="stock-sym-cell" style="width:${wOf('코드')}px;${rhStyle}">
+        <input class="name-input sym-input" value="${stock.sym.replace(/"/g,'&quot;')}" onblur="updateStockSym('${stock.sym}',this.value)" onclick="event.stopPropagation()" ${stock.fixed?'readonly':''}/>
+      </td>
+      <td id="scr-d-${cssSafe(stock.sym)}" style="width:${wOf('스테이지')}px;${rhStyle}">${renderStageCell(cached)}</td>
+      <td id="scr-t4-${cssSafe(stock.sym)}" style="width:${wOf('선발대')}px;${rhStyle}">${renderTierCell(cached,'tier4')}</td>
+      <td id="scr-t5-${cssSafe(stock.sym)}" style="width:${wOf('조기매수')}px;${rhStyle}">${renderTierCell(cached,'tier5')}</td>
+      <td id="scr-t6-${cssSafe(stock.sym)}" style="width:${wOf('매수')}px;${rhStyle}">${renderTierCell(cached,'tier6')}</td>
+      <td id="scr-shoot-${cssSafe(stock.sym)}" style="width:${wOf('슈팅선')}px;${rhStyle}">${renderShootCell(cached)}</td>
+      <td id="scr-g5-${cssSafe(stock.sym)}" style="width:${wOf('5일이격')}px;${rhStyle}">${cached?fmtPct(cached.gap5):'<span class="stage-loading">-</span>'}</td>
+      <td id="scr-g20-${cssSafe(stock.sym)}" style="width:${wOf('20일이격')}px;${rhStyle}">${cached?fmtPct(cached.gap20):'<span class="stage-loading">-</span>'}</td>
+      <td id="scr-g520-${cssSafe(stock.sym)}" style="width:${wOf('5-20이격')}px;${rhStyle}">${cached?fmtPct(cached.gap5_20):'<span class="stage-loading">-</span>'}</td>
+      <td id="scr-gsp-${cssSafe(stock.sym)}" style="width:${wOf('스프레드')}px;${rhStyle}">${cached?fmtPct(cached.gapSpread):'<span class="stage-loading">-</span>'}</td>
       ${memoTds}
       <td style="width:40px;${rhStyle}">${stock.fixed?'':`<span class="del-row-btn" onclick="deleteStockRow('${stock.sym}')">✕</span>`}</td>
     </tr>
@@ -467,6 +524,30 @@ function renderTable(){
   }).join('');
   setTimeout(function(){if(window.initAllTopScrolls)window.initAllTopScrolls();},50);
 }
+
+function updateStockName(sym,newName){
+  if(!newName||!newName.trim())return;
+  const data=getData();
+  const s=data.stocks.find(x=>x.sym===sym);
+  if(!s)return;
+  s.name=newName.trim();
+  saveData(data);
+}
+function updateStockSym(oldSym,newSym){
+  if(!newSym||!newSym.trim()||newSym.trim()===oldSym)return;
+  const data=getData();
+  const s=data.stocks.find(x=>x.sym===oldSym);
+  if(!s||s.fixed)return;
+  if(data.stocks.find(x=>x.sym===newSym.trim())){showConfirm('이미 있는 종목코드');renderTable();return;}
+  const newSymTrim=newSym.trim();
+  s.sym=newSymTrim;
+  if(data.memos[oldSym]){data.memos[newSymTrim]=data.memos[oldSym];delete data.memos[oldSym];}
+  saveData(data);
+  removeResultCache(oldSym);
+  renderTable();
+  fetchOneScreening(newSymTrim);
+}
+
 
 function updateMemo(el){
   const sym=el.dataset.sym,col=el.dataset.col;
@@ -603,24 +684,38 @@ function startRowResize(e,rowIdx){
 /* ============================================================
    전체 종목 스크리닝 fetch/캐시 오케스트레이션
    ============================================================ */
+function updateRowCells(sym,result){
+  const s=cssSafe(sym);
+  const set=(id,html)=>{const el=document.getElementById(id);if(el)el.innerHTML=html;};
+  if(!result){
+    set('scr-d-'+s,'<span class="stage-loading" style="color:var(--neg);">데이터 없음</span>');
+    ['scr-t4-','scr-t5-','scr-t6-','scr-shoot-','scr-g5-','scr-g20-','scr-g520-','scr-gsp-'].forEach(p=>set(p+s,'<span class="bz-none">-</span>'));
+    return;
+  }
+  set('scr-d-'+s,renderStageCell(result));
+  set('scr-t4-'+s,renderTierCell(result,'tier4'));
+  set('scr-t5-'+s,renderTierCell(result,'tier5'));
+  set('scr-t6-'+s,renderTierCell(result,'tier6'));
+  set('scr-shoot-'+s,renderShootCell(result));
+  set('scr-g5-'+s,fmtPct(result.gap5));
+  set('scr-g20-'+s,fmtPct(result.gap20));
+  set('scr-g520-'+s,fmtPct(result.gap5_20));
+  set('scr-gsp-'+s,fmtPct(result.gapSpread));
+}
+
 async function fetchOneScreening(sym){
   const dailyBars=await fetchDaily(sym);
-  const dEl=document.getElementById('scr-d-'+cssSafe(sym));
-  const bzEl=document.getElementById('scr-bz-'+cssSafe(sym));
   if(!dailyBars||!dailyBars.length){
-    if(dEl)dEl.innerHTML='<span class="stage-loading" style="color:var(--neg);">데이터 없음</span>';
-    if(bzEl)bzEl.innerHTML='<span class="bz-none">-</span>';
+    updateRowCells(sym,null);
     return null;
   }
   const result=calcScreening(dailyBars);
   if(!result){
-    if(dEl)dEl.innerHTML='<span class="stage-loading" style="color:var(--neg);">계산 불가</span>';
-    if(bzEl)bzEl.innerHTML='<span class="bz-none">-</span>';
+    updateRowCells(sym,null);
     return null;
   }
   setResultCache(sym,result);
-  if(dEl)dEl.innerHTML=renderStageCell(result);
-  if(bzEl)bzEl.innerHTML=renderBuyZoneCell(result);
+  updateRowCells(sym,result);
   return result;
 }
 
@@ -644,11 +739,7 @@ async function loadInitial(){
 
   const cached=data.stocks.filter(s=>getResultCache(s.sym));
   cached.forEach(stock=>{
-    const result=getResultCache(stock.sym);
-    const dEl=document.getElementById('scr-d-'+cssSafe(stock.sym));
-    const bzEl=document.getElementById('scr-bz-'+cssSafe(stock.sym));
-    if(dEl)dEl.innerHTML=renderStageCell(result);
-    if(bzEl)bzEl.innerHTML=renderBuyZoneCell(result);
+    updateRowCells(stock.sym,getResultCache(stock.sym));
   });
 
   const needFetch=data.stocks.filter(s=>!getResultCache(s.sym));
@@ -678,7 +769,6 @@ function closeChartPanel(){
   document.getElementById('chart-panel').classList.remove('open');
   if(chartObj){chartObj.destroy();chartObj=null;}
   if(macdChartObj){macdChartObj.destroy();macdChartObj=null;}
-  if(shootChartObj){shootChartObj.destroy();shootChartObj=null;}
 }
 
 function setChartTF(tf){
@@ -843,7 +933,8 @@ async function renderChart(){
         {label:'종가',data:closes,borderColor:'rgba(229,231,235,0.8)',borderWidth:1.5,pointRadius:0,fill:false,tension:0.1},
         {label:'EMA5',data:ema5,borderColor:'#f472b6',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
         {label:'EMA20',data:ema20,borderColor:'#ca8a04',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
-        {label:'EMA40',data:ema40,borderColor:'#3b82f6',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0}
+        {label:'EMA40',data:ema40,borderColor:'#3b82f6',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0},
+        {label:'슈팅선',data:shootArr,borderColor:'#fb923c',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,spanGaps:true,tension:0}
       ]
     },
     options:{
@@ -864,46 +955,45 @@ async function renderChart(){
     }
   });
 
-  /* ---- MACD 3종 서브패널 ---- */
+  /* ---- MACD 3종 서브패널: 전부상승(초록)/전부하락(빨강) 음영 ---- */
   if(macdChartObj){macdChartObj.destroy();macdChartObj=null;}
   const macdCtx=recreateCanvas('chart-wrap-macd','macd-chart');
+  const macdRising=macd1.map((_,i)=>{
+    if(i<1)return null;
+    if(macd1[i]==null||macd1[i-1]==null||macd2[i]==null||macd2[i-1]==null||macd3[i]==null||macd3[i-1]==null)return null;
+    const up=macd1[i]>macd1[i-1]&&macd2[i]>macd2[i-1]&&macd3[i]>macd3[i-1];
+    const down=macd1[i]<macd1[i-1]&&macd2[i]<macd2[i-1]&&macd3[i]<macd3[i-1];
+    return up?'up':(down?'down':null);
+  });
+  const macdBgPlugin={
+    id:'macdBg',
+    beforeDatasetsDraw(chart){
+      const{ctx:c,chartArea:{top,bottom,right},scales:{x}}=chart;
+      if(!x)return;
+      c.save();
+      let prev=null,gs=0;
+      const flush=(s,e,st)=>{
+        if(!st)return;
+        const x0=x.getPixelForValue(s),x1=e<macdRising.length?x.getPixelForValue(e):right;
+        c.fillStyle=st==='up'?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.12)';
+        c.fillRect(x0,top,x1-x0,bottom-top);
+      };
+      for(let i=0;i<=macdRising.length;i++){
+        const s=i<macdRising.length?macdRising[i]:null;
+        if(s!==prev){if(prev!==null)flush(gs,i,prev);gs=i;prev=s;}
+      }
+      c.restore();
+    }
+  };
   macdChartObj=new Chart(macdCtx,{
     type:'line',
+    plugins:[macdBgPlugin],
     data:{
       labels:tickLabels,
       datasets:[
         {label:'MACD(5-20)',data:macd1,borderColor:'#f472b6',borderWidth:1.3,pointRadius:0,fill:false,spanGaps:true,tension:0},
         {label:'MACD(5-40)',data:macd2,borderColor:'#38bdf8',borderWidth:1.3,pointRadius:0,fill:false,spanGaps:true,tension:0},
         {label:'MACD(20-40)',data:macd3,borderColor:'#a3e635',borderWidth:1.3,pointRadius:0,fill:false,spanGaps:true,tension:0}
-      ]
-    },
-    options:{
-      responsive:true,maintainAspectRatio:false,animation:false,
-      interaction:{mode:'index',intersect:false},
-      plugins:{
-        legend:{display:true,labels:{color:'#ccc',font:{size:10},boxWidth:16}},
-        tooltip:{callbacks:{
-          title:function(items){const idx=items[0]?.dataIndex;return idx!=null?allLabels[idx]:'';},
-          label:function(ctx){return ctx.dataset.label+': '+(ctx.parsed.y!=null?ctx.parsed.y.toFixed(2):'-');}
-        }}
-      },
-      scales:{
-        x:{ticks:{color:'#888',font:{size:9},maxRotation:0,callback:function(val,idx){return tickLabels[idx]||null;}},grid:{color:'rgba(255,255,255,0.04)'}},
-        y:{ticks:{color:'#888',font:{size:9}},grid:{color:'rgba(255,255,255,0.05)'}}
-      }
-    }
-  });
-
-  /* ---- 슈팅선 서브패널 ---- */
-  if(shootChartObj){shootChartObj.destroy();shootChartObj=null;}
-  const shootCtx=recreateCanvas('chart-wrap-shoot','shoot-chart');
-  shootChartObj=new Chart(shootCtx,{
-    type:'line',
-    data:{
-      labels:tickLabels,
-      datasets:[
-        {label:'종가',data:closes,borderColor:'rgba(229,231,235,0.5)',borderWidth:1,pointRadius:0,fill:false,tension:0.1},
-        {label:'슈팅선',data:shootArr,borderColor:'#fb923c',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true,tension:0}
       ]
     },
     options:{
