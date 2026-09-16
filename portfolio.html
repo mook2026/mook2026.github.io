@@ -17,13 +17,20 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script>
 const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ian-dashboard.firebaseapp.com",projectId:"ian-dashboard",storageBucket:"ian-dashboard.firebasestorage.app",messagingSenderId:"47067460467",appId:"1:47067460467:web:37906ad2ddb74133238b06"};
 if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
+/* AUTH GATE - 로그인 안 됐으면 home.html로 이동 */
+firebase.auth().onAuthStateChanged(function(user){if(!user)location.href='home.html';});
 const db=firebase.firestore();const UID='ian';
-async function fbSave(){try{const d={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&!k.startsWith('mstage_'))d[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(d,{merge:true});}catch(e){console.warn('FB:',e);}}
-async function fbSync(cb){try{const doc=await db.collection('data').doc(UID).get();if(doc.exists){Object.entries(doc.data()).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB:',e);}if(cb)cb();}
+const FB_DOC='ian_portfolio';
+const FB_KEYS=["portfolio_list", "portfolio_data"];
+const FB_PREFIXES=["portfolio_ind_"];
+function fbInScope(k){return FB_KEYS.includes(k)||FB_PREFIXES.some(p=>k.startsWith(p));}
+async function fbSave(){try{const d={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&!k.startsWith('mstage_')&&fbInScope(k))d[k]=localStorage.getItem(k);}await db.collection('data').doc(FB_DOC).set(d,{merge:true});}catch(e){console.warn('FB:',e);}}
+async function fbSync(cb){try{const doc=await db.collection('data').doc(FB_DOC).get();if(doc.exists){Object.entries(doc.data()).forEach(([k,v])=>localStorage.setItem(k,v));}}catch(e){console.warn('FB:',e);}if(cb)cb();}
 </script>
 <style>
 :root{--s1:#22c55e;--s2:#eab308;--s3:#f97316;--s4:#ef4444;--s5:#8b5cf6;--s6:#3b82f6;--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.2);--border2:rgba(255,255,255,0.3);--text:#f0f0f0;--text2:#ccc;--text3:#999;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--r:10px;--r-sm:6px;}
@@ -876,10 +883,10 @@ document.addEventListener('keydown',function(e){
       const active=document.activeElement;
       if(active&&active.classList&&active.classList.contains('ce-cell'))active.blur();
       const d={};
-      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&!k.startsWith('mstage_'))d[k]=localStorage.getItem(k);}
+      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&!k.startsWith('mstage_')&&fbInScope(k))d[k]=localStorage.getItem(k);}
       if(!Object.keys(d).length){setMsg('저장할 데이터 없음','#fb7185');return;}
       if(typeof db!=='undefined'&&typeof UID!=='undefined'){
-        await db.collection('data').doc(UID).set(d,{merge:true});
+        await db.collection('data').doc(FB_DOC).set(d,{merge:true});
         setMsg('✅ 저장됨 '+nowTime(),'#34d399');
       }else{
         setMsg('✅ 로컬 저장됨 '+nowTime(),'#fbbf24');

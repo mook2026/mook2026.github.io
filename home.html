@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ian's Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script>
+const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ian-dashboard.firebaseapp.com",projectId:"ian-dashboard",storageBucket:"ian-dashboard.firebasestorage.app",messagingSenderId:"47067460467",appId:"1:47067460467:web:37906ad2ddb74133238b06"};
+if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
+</script>
 <style>
 :root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.2);--border2:rgba(255,255,255,0.15);--text:#f0f0f0;--text2:#bbb;--text3:#888;--job:#a78bfa;--eng:#34d399;--stock:#fbbf24;--sport:#fb7185;--r:12px;--r-sm:8px;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -34,13 +40,32 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .card.milestone .card-badge{background:rgba(251,113,133,0.12);color:var(--sport);}
 .card.history .card-badge{background:rgba(96,165,250,0.12);color:#60a5fa;}
 .full{grid-column:1/-1;}
+.login-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;}
+.login-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:32px 28px;width:100%;max-width:320px;}
+.login-title{font-size:20px;font-weight:600;text-align:center;margin-bottom:22px;}
+.login-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 12px;color:var(--text);font-size:15px;margin-bottom:10px;outline:none;font-family:'Noto Sans KR',sans-serif;}
+.login-input:focus{border-color:var(--stock);}
+.login-btn{width:100%;background:var(--stock);color:#0c0c0e;border:none;border-radius:var(--r-sm);padding:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:6px;}
+.login-btn:hover{opacity:0.9;}
+.login-err{color:#fb7185;font-size:13px;text-align:center;margin-top:10px;min-height:16px;}
 </style>
 </head>
 <body>
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <div class="login-title">🔒 Ian's Dashboard</div>
+    <input type="email" id="login-email" class="login-input" placeholder="이메일" autocomplete="username">
+    <input type="password" id="login-pw" class="login-input" placeholder="비밀번호" autocomplete="current-password">
+    <button class="login-btn" onclick="doLogin()">로그인</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+<div id="dashboard-content" style="display:none;">
 <div class="header">
   <div class="header-badge">Ian's SMART Dashboard</div>
   <div class="header-name">어서와요, Ian 👋</div>
   <div class="header-date" id="today-str"></div>
+  <div style="margin-top:8px;"><span onclick="firebase.auth().signOut()" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);cursor:pointer;text-decoration:underline;">로그아웃</span></div>
 </div>
 <div class="section-label">매일 체크</div>
 <div class="grid">
@@ -80,6 +105,35 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <a class="card goals" href="goals.html"><div class="card-icon">🗺</div><div class="card-title">장기 목표</div><div class="card-desc">커리어 · 주식 · 영어 10년 로드맵</div><div class="card-badge">LONG-TERM</div></a>
   <a class="card milestone" href="milestone.html"><div class="card-icon">🏁</div><div class="card-title">2026 이정표</div><div class="card-desc">올해 달성할 11개 마일스톤</div><div class="card-badge">2026</div></a>
 </div>
+</div>
+<script>
+/* ============================================================
+   AUTH GATE - 로그인 안 됐으면 로그인화면만, 로그인되면 대시보드 표시
+   ============================================================ */
+firebase.auth().onAuthStateChanged(function(user){
+  const loginEl=document.getElementById('login-screen');
+  const dashEl=document.getElementById('dashboard-content');
+  if(user){
+    loginEl.style.display='none';
+    dashEl.style.display='block';
+  }else{
+    loginEl.style.display='flex';
+    dashEl.style.display='none';
+  }
+});
+window.doLogin=function(){
+  const email=document.getElementById('login-email').value.trim();
+  const pw=document.getElementById('login-pw').value;
+  const errEl=document.getElementById('login-err');
+  errEl.textContent='';
+  if(!email||!pw){errEl.textContent='이메일/비밀번호를 입력하세요';return;}
+  firebase.auth().signInWithEmailAndPassword(email,pw).catch(function(e){
+    errEl.textContent='로그인 실패: 이메일 또는 비밀번호가 틀렸어요';
+    console.error(e);
+  });
+};
+document.getElementById('login-pw').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+</script>
 <script>
 const d=new Date();
 const days=['일','월','화','수','목','금','토'];

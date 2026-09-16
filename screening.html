@@ -32,10 +32,13 @@
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script>
 const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ian-dashboard.firebaseapp.com",projectId:"ian-dashboard",storageBucket:"ian-dashboard.firebasestorage.app",messagingSenderId:"47067460467",appId:"1:47067460467:web:37906ad2ddb74133238b06"};
 if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
+/* AUTH GATE - 로그인 안 됐으면 home.html로 이동 */
+firebase.auth().onAuthStateChanged(function(user){if(!user)location.href='home.html';});
 const db=firebase.firestore();const UID='ian';
 window._editing=false;
 async function fbSave(){try{const d={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&!k.startsWith('mstage_'))d[k]=localStorage.getItem(k);}await db.collection('data').doc(UID).set(d,{merge:true});}catch(e){console.warn('FB:',e);}}
@@ -938,6 +941,8 @@ async function openChartPanel(sym,name){
   currentChartSym=sym;
   currentChartName=name;
   currentChartTF='d';
+  /* 차트 열 때는 그 종목만 캐시 무시하고 라이브로 새로 받아옴(6시간 캐시로 인한 오래된 값 방지) */
+  try{localStorage.removeItem(CACHE_PREFIX+sym+'_5y');}catch(e){}
   document.getElementById('chart-panel-title').textContent=name+' ('+sym+')';
   document.getElementById('chart-panel').classList.add('open');
   document.querySelectorAll('.tf-btn').forEach(b=>b.classList.remove('active'));
@@ -1255,8 +1260,9 @@ async function renderChart(){
             const idx=items[0]?.dataIndex;
             if(idx==null||!bars[idx])return '';
             const b=bars[idx];
-            const pct=b.o?((b.c-b.o)/b.o*100):null;
-            return '시가 '+fmtPrice(b.o)+' 고가 '+fmtPrice(b.h)+' 저가 '+fmtPrice(b.l)+' 종가 '+fmtPrice(b.c)+(pct!=null?' ('+(pct>=0?'+':'')+pct.toFixed(2)+'%)':'');
+            const prevC=idx>0?bars[idx-1].c:null;
+            const pct=(prevC!=null&&prevC)?((b.c-prevC)/prevC*100):null;
+            return '시가 '+fmtPrice(b.o)+' 고가 '+fmtPrice(b.h)+' 저가 '+fmtPrice(b.l)+' 종가 '+fmtPrice(b.c)+(pct!=null?' (전일比 '+(pct>=0?'+':'')+pct.toFixed(2)+'%)':'');
           },
           label:function(ctx){
             return ctx.dataset.label+': '+(ctx.parsed.y!=null?fmtPrice(ctx.parsed.y):'-');
@@ -1419,8 +1425,9 @@ async function renderChart(){
           title:function(items){const idx=items[0]?.dataIndex;return idx!=null?allLabels[idx]:'';},
           label:function(ctx){
             const idx=ctx.dataIndex;const b=haBars[idx];if(!b)return '';
-            const pct=b.o?((b.c-b.o)/b.o*100):null;
-            return '시가 '+fmtPrice(b.o)+' 고가 '+fmtPrice(b.h)+' 저가 '+fmtPrice(b.l)+' 종가 '+fmtPrice(b.c)+(pct!=null?' ('+(pct>=0?'+':'')+pct.toFixed(2)+'%)':'');
+            const prevC=(idx>0&&bars[idx-1])?bars[idx-1].c:null;
+            const pct=(prevC!=null&&prevC)?((b.c-prevC)/prevC*100):null;
+            return '시가 '+fmtPrice(b.o)+' 고가 '+fmtPrice(b.h)+' 저가 '+fmtPrice(b.l)+' 종가 '+fmtPrice(b.c)+(pct!=null?' (전일比 '+(pct>=0?'+':'')+pct.toFixed(2)+'%)':'');
           }
         }},
         zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x',onZoom:function(ctx){syncChartsXRange(ctx.chart);}},pan:{enabled:true,mode:'x',onPan:function(ctx){syncChartsXRange(ctx.chart);}}}

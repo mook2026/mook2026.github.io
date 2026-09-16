@@ -6,11 +6,41 @@
 <title>데이터 백업 / 복원</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script>
 const FB_CONFIG={apiKey:"AIzaSyBh9LtC02jCwyrURkl676UFxtHU2SdSkkI",authDomain:"ian-dashboard.firebaseapp.com",projectId:"ian-dashboard",storageBucket:"ian-dashboard.firebasestorage.app",messagingSenderId:"47067460467",appId:"1:47067460467:web:37906ad2ddb74133238b06"};
 if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
+/* AUTH GATE - 로그인 안 됐으면 home.html로 이동 */
+firebase.auth().onAuthStateChanged(function(user){if(!user)location.href='home.html';});
 const db=firebase.firestore();const UID='ian';
+/* 페이지별 문서 분리 구조 (2026-09 개편) - data/ian(구버전, 참고용으로만 남김) 대신
+   아래 문서들에 나눠 저장됨. 백업/복원/동기화는 이 목록 전부를 순회해야 함 */
+const DOC_MAP = {
+  ian_youtube:      { keys:['youtube_review'], prefixes:[] },
+  ian_english:      { keys:['english_notes','english_tags'], prefixes:[] },
+  ian_trade:        { keys:['trade_tbl'], prefixes:[] },
+  ian_stock_review: { keys:['stock_review_tbl','stock_review_v2','stock_review_criteria','stock_review_keys'], prefixes:['stock_review_2026-','stock_review_2027-'] },
+  ian_trade_manual: { keys:['trade_manual_v1'], prefixes:[] },
+  ian_onepick:      { keys:['onepick_data'], prefixes:[] },
+  ian_search:       { keys:['search_review','search_review_v2','sr_criteria_data','ss_criteria_data'], prefixes:[] },
+  ian_goals:        { keys:['goals_data'], prefixes:[] },
+  ian_daily:        { keys:['smart_history','smart_lecture','checklist_sections'], prefixes:['smart_day_'] },
+  ian_market_view:  { keys:['market_view_data'], prefixes:[] },
+  ian_hold:         { keys:['hold_tbl','hold_col_widths'], prefixes:['hold_tbl_','hold_col_w_'] },
+  ian_portfolio:    { keys:['portfolio_list','portfolio_data'], prefixes:['portfolio_ind_'] },
+  ian_book:         { keys:['book_note_questions','book_note_data'], prefixes:[] },
+  ian_screening:    { keys:['screening_data'], prefixes:[] },
+  ian_market_index: { keys:['market_stage_data'], prefixes:[] },
+  ian_milestone:    { keys:['milestone_2026'], prefixes:[] }
+};
+const ALL_DOC_IDS = Object.keys(DOC_MAP);
+function classifyKey(k){
+  for(const [docId,cfg] of Object.entries(DOC_MAP)){
+    if(cfg.keys.includes(k)||cfg.prefixes.some(p=>k.startsWith(p)))return docId;
+  }
+  return null; // 매칭 안 되면 미분류(구조 개편 이전 화석 또는 신규 페이지 키)
+}
 </script>
 <style>
 :root{--bg:#0c0c0e;--bg2:#141416;--bg3:#1c1c1f;--border:rgba(255,255,255,0.15);--border2:rgba(255,255,255,0.25);--text:#f0f0f0;--text2:#bbb;--text3:#888;--stock:#fbbf24;--pos:#34d399;--neg:#fb7185;--job:#a78bfa;--r:10px;--r-sm:6px;}
@@ -234,19 +264,20 @@ function scanData(){
   );
 }
 
-// Firebase 동기화 후 스캔
+// Firebase 동기화 후 스캔 (전체 페이지 문서 순회)
 async function syncFromFirebase(){
   showStatus('scan-status','Firebase에서 데이터 가져오는 중...','info');
   try{
-    const doc=await db.collection('data').doc(UID).get();
-    if(doc.exists){
-      const d=doc.data();
-      Object.entries(d).forEach(([k,v])=>localStorage.setItem(k,v));
-      showStatus('scan-status',`Firebase 동기화 완료 (${Object.keys(d).length}개 키) · ${nowStr()}`,'ok');
-      scanData();
-    } else {
-      showStatus('scan-status','Firebase에 저장된 데이터가 없어요.','info');
+    let totalKeys=0;
+    for(const docId of ALL_DOC_IDS){
+      const doc=await db.collection('data').doc(docId).get();
+      if(doc.exists){
+        const d=doc.data();
+        Object.entries(d).forEach(([k,v])=>{localStorage.setItem(k,v);totalKeys++;});
+      }
     }
+    showStatus('scan-status',`Firebase 동기화 완료 (문서 ${ALL_DOC_IDS.length}개 · 총 ${totalKeys}개 키) · ${nowStr()}`,'ok');
+    scanData();
   }catch(e){
     showStatus('scan-status','Firebase 연결 실패: '+e.message,'err');
   }
@@ -275,18 +306,24 @@ function backupAll(){
   showStatus('backup-status',`✅ 백업 완료! ${keys.length}개 키 · ${size} · ${nowStr()}`,'ok');
 }
 
-// Firebase에서 직접 백업
+// Firebase에서 직접 백업 (전체 페이지 문서 순회해서 하나로 합침)
 async function backupFirebase(){
   showStatus('backup-status','Firebase에서 데이터 가져오는 중...','info');
   try{
-    const doc=await db.collection('data').doc(UID).get();
-    if(!doc.exists){showStatus('backup-status','Firebase에 데이터가 없어요.','info');return;}
-    const d=doc.data();
+    const merged={};
+    let docCount=0;
+    for(const docId of ALL_DOC_IDS){
+      const doc=await db.collection('data').doc(docId).get();
+      if(doc.exists){Object.assign(merged,doc.data());docCount++;}
+    }
+    if(!Object.keys(merged).length){showStatus('backup-status','Firebase에 데이터가 없어요.','info');return;}
     const backup={
-      version:1,
+      version:2,
       createdAt:new Date().toISOString(),
       source:'firebase',
-      data:d
+      docCount:docCount,
+      docIds:ALL_DOC_IDS,
+      data:merged
     };
     const json=JSON.stringify(backup, null, 2);
     const blob=new Blob([json],{type:'application/json'});
@@ -296,7 +333,7 @@ async function backupFirebase(){
     a.click(); URL.revokeObjectURL(url);
 
     const size=formatBytes(new TextEncoder().encode(json).length);
-    showStatus('backup-status',`✅ Firebase 백업 완료! ${Object.keys(d).length}개 키 · ${size} · ${nowStr()}`,'ok');
+    showStatus('backup-status',`✅ Firebase 백업 완료! 문서 ${docCount}개 · ${Object.keys(merged).length}개 키 · ${size} · ${nowStr()}`,'ok');
   }catch(e){
     showStatus('backup-status','Firebase 연결 실패: '+e.message,'err');
   }
@@ -337,17 +374,26 @@ function restoreFromFile(input){
       }
       setProgress('restore-progress',80);
 
-      // Firebase에도 동기화
+      // Firebase에도 동기화 (페이지별 문서로 분류해서 업로드)
       try{
-        /* 병합 모드: Firebase에 현재 localStorage 전체 업로드 (오래된 백업 덮어쓰기 방지) */
-        const currentData={};
-        for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)currentData[k]=localStorage.getItem(k);}
-        const dataToUpload = restoreMode==='merge' ? currentData : backup.data;
-        await db.collection('data').doc(UID).set(dataToUpload,{merge:false});
+        /* 병합 모드: 현재 localStorage 전체를, 덮어쓰기 모드: 백업파일 데이터를 분류해서 업로드 */
+        const sourceData = restoreMode==='merge' ? getAllLocalData() : backup.data;
+        const grouped={};
+        let unmatchedCount=0;
+        Object.entries(sourceData).forEach(([k,v])=>{
+          if(k.startsWith('mstage_'))return;
+          const docId=classifyKey(k);
+          if(!docId){unmatchedCount++;return;}
+          (grouped[docId]=grouped[docId]||{})[k]=v;
+        });
+        for(const [docId,d] of Object.entries(grouped)){
+          await db.collection('data').doc(docId).set(d,{merge:restoreMode==='merge'});
+        }
         setProgress('restore-progress',100);
         setTimeout(()=>setProgress('restore-progress',null),1000);
         showStatus('restore-status',
-          `✅ 복원 완료! ${entries.length}개 키 · Firebase 동기화 완료 · ${nowStr()}\n생성일: ${backup.createdAt||'?'} / 소스: ${backup.source||'?'}`,
+          `✅ 복원 완료! ${entries.length}개 키 · Firebase 문서 ${Object.keys(grouped).length}개 동기화 완료`+
+          (unmatchedCount?` (미분류 ${unmatchedCount}개는 로컬만 복원됨)`:'')+` · ${nowStr()}\n생성일: ${backup.createdAt||'?'} / 소스: ${backup.source||'?'}`,
           'ok'
         );
       }catch(fbErr){
@@ -368,30 +414,48 @@ function restoreFromFile(input){
   reader.readAsText(file);
 }
 
-// Firebase → localStorage
+// Firebase → localStorage (전체 페이지 문서 순회)
 async function pullFromFirebase(){
   showStatus('firebase-status','Firebase에서 가져오는 중...','info');
   try{
-    const doc=await db.collection('data').doc(UID).get();
-    if(!doc.exists){showStatus('firebase-status','Firebase에 데이터가 없어요.','info');return;}
-    const d=doc.data();
-    Object.entries(d).forEach(([k,v])=>localStorage.setItem(k,v));
-    showStatus('firebase-status',`✅ Firebase → localStorage 완료 (${Object.keys(d).length}개 키) · ${nowStr()}`,'ok');
+    let totalKeys=0, docCount=0;
+    for(const docId of ALL_DOC_IDS){
+      const doc=await db.collection('data').doc(docId).get();
+      if(doc.exists){
+        const d=doc.data();
+        Object.entries(d).forEach(([k,v])=>{localStorage.setItem(k,v);totalKeys++;});
+        docCount++;
+      }
+    }
+    showStatus('firebase-status',`✅ Firebase → localStorage 완료 (문서 ${docCount}개 · ${totalKeys}개 키) · ${nowStr()}`,'ok');
     scanData();
   }catch(e){
     showStatus('firebase-status','실패: '+e.message,'err');
   }
 }
 
-// localStorage → Firebase
+// localStorage → Firebase (키를 페이지별 문서로 분류해서 업로드)
 async function pushToFirebase(){
   const data=getAllLocalData();
-  const keys=Object.keys(data);
-  if(!keys.length){showStatus('firebase-status','업로드할 데이터가 없어요.','info');return;}
+  const grouped={};
+  let unmatchedCount=0;
+  Object.entries(data).forEach(([k,v])=>{
+    if(k.startsWith('mstage_'))return;
+    const docId=classifyKey(k);
+    if(!docId){unmatchedCount++;return;}
+    (grouped[docId]=grouped[docId]||{})[k]=v;
+  });
+  const docIds=Object.keys(grouped);
+  if(!docIds.length){showStatus('firebase-status','업로드할 데이터가 없어요.','info');return;}
   showStatus('firebase-status','Firebase에 업로드 중...','info');
   try{
-    await db.collection('data').doc(UID).set(data,{merge:true});
-    showStatus('firebase-status',`✅ localStorage → Firebase 완료 (${keys.length}개 키) · ${nowStr()}`,'ok');
+    let totalKeys=0;
+    for(const docId of docIds){
+      await db.collection('data').doc(docId).set(grouped[docId],{merge:true});
+      totalKeys+=Object.keys(grouped[docId]).length;
+    }
+    showStatus('firebase-status',`✅ localStorage → Firebase 완료 (문서 ${docIds.length}개 · ${totalKeys}개 키)`+
+      (unmatchedCount?` · 미분류 ${unmatchedCount}개는 스킵됨`:'')+` · ${nowStr()}`,'ok');
   }catch(e){
     showStatus('firebase-status','실패: '+e.message,'err');
   }
@@ -440,11 +504,18 @@ scanData();
     setMsg('저장 중...','#fbbf24');
     try{
       flushAllCells();
-      const d={};
-      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&!k.startsWith('mstage_'))d[k]=localStorage.getItem(k);}
-      if(!Object.keys(d).length){setMsg('저장할 데이터 없음','#fb7185');return;}
-      if(typeof db!=='undefined'&&typeof UID!=='undefined'){
-        await db.collection('data').doc(UID).set(d,{merge:true});
+      const grouped={};
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(!k||k.startsWith('mstage_'))continue;
+        const docId=(typeof classifyKey==='function')?classifyKey(k):null;
+        if(!docId)continue;
+        (grouped[docId]=grouped[docId]||{})[k]=localStorage.getItem(k);
+      }
+      const docIds=Object.keys(grouped);
+      if(!docIds.length){setMsg('저장할 데이터 없음','#fb7185');return;}
+      if(typeof db!=='undefined'){
+        for(const docId of docIds){await db.collection('data').doc(docId).set(grouped[docId],{merge:true});}
         setMsg('✅ 저장됨 '+nowTime(),'#34d399');
       }else{
         setMsg('✅ 로컬 저장됨 '+nowTime(),'#fbbf24');
